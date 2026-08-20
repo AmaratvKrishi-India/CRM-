@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Environment & secrets
+.env
+.env.*
+PLACEHOLDER.MD
+*.jks
+*.keystore
+keystore.properties
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Agent and workspace metadata
+.agents/
+.gemini/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android build outputs (keep source, ignore build artifacts)
+android/app/build/
+android/build/
+android/.gradle/
+
+# E2E screenshots and reports (generated)
+e2e/android/screenshots/
+e2e/android/reports/

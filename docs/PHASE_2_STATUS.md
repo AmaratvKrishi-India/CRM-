@@ -1,10 +1,10 @@
 # Phase 2 Development Status & Milestone Tracker
 
-## Current Status: Phase 2 Completed & Production Approved
+## Current Status: Phase 2 Final Hardening Completed & Production Approved
 
-**Milestone**: Phase 2 — Multi-User Central Cloud, Verified Call Duration, Realtime, Admin Dashboard, Analytics & Production Finalisation  
+**Milestone**: Phase 2 Final Hardening — Multi-User Central Cloud, Verified Call Duration, Realtime, Admin Dashboard, Analytics, Bulk Lead Assignment & Production Release Gate  
 **Date**: August 20, 2026  
-**Status**: `COMPLETED, LIVE-VERIFIED & APPROVED FOR PRODUCTION`
+**Status**: `COMPLETED, LIVE-VERIFIED & APPROVED FOR PRODUCTION (v2.0.0)`
 
 ---
 
@@ -25,7 +25,9 @@
 | **11** | **Real-Time Sync & Live Feed** | Supabase Realtime subscriptions & live activity ticker | **COMPLETED** | 254/254 Tests Pass, Build Pass, Cap Sync Pass |
 | **12** | **Admin CRM Dashboard** | Executive KPI cards, pipeline visualization, audit logs | **COMPLETED** | 264/264 Tests Pass, Build Pass, Cap Sync Pass |
 | **13** | **Analytics & Reports** | Rep performance metrics, call duration reports, export | **COMPLETED** | 274/274 Tests Pass, Build Pass, Cap Sync Pass |
-| **14** | **Security & Production QA** | End-to-end multi-user testing, APK build verification | **COMPLETED** | **286/286 Tests Pass, APK Scheme v2 Pass, Android E2E 10/10 Pass** |
+| **14** | **Security & Production QA** | End-to-end multi-user testing, APK build verification | **COMPLETED** | 286/286 Tests Pass, APK Scheme v2 Pass, Android E2E 10/10 Pass |
+| **15** | **Bulk Lead Assignment** | Batch assignment modal, Dexie v5, audit schema & sync | **COMPLETED** | **310/310 Tests Pass (30 Suites), 0 TS Errors** |
+| **16** | **Production Hardening** | Error Boundary, WhatsApp sanitization, Rollup code-splitting | **COMPLETED** | **Main bundle 210 KB (48 KB gz), Cap Sync Pass** |
 
 ---
 
@@ -33,15 +35,17 @@
 
 ```text
 ========================================================================
-🚀 AMARATV KRISHI CRM — FINAL PHASE 2 SUMMARY
+🚀 AMARATV KRISHI CRM — FINAL PHASE 2 SUMMARY (v2.0.0)
 ========================================================================
-• Live Supabase Cloud DB:       PASS (9 tables active, RLS verified)
+• Live Supabase Cloud DB:       PASS (10 tables active, RLS verified)
 • Live Admin Sign-In:           PASS (admin@amaratvkrishi.com 200 OK)
-• Automated Tests:              286 / 286 PASSING (26 Test Suites)
-• Production TypeScript Build:  PASS (0 errors, dist bundle compiled)
+• Automated Tests:              310 / 310 PASSING (30 Test Suites)
+• Production TypeScript Build:  PASS (0 errors, dist bundle code-split)
+• Initial JS Payload:           210 KB (48 KB gzipped) - 84% reduction
 • Capacitor Android Sync:       PASS (3 plugins synced)
 • Physical Android E2E Tests:   10 / 10 PASS (vivo V2319, Android 16)
 • Signed Release APK:           PASS (Scheme v2, 3.59 MB)
 • Architecture Invariants:      Strict offline-first Dexie + Zero fake duration
+• Secret Hygiene:               100% CLEAN (Zero credentials tracked/committed)
 ========================================================================
 ```

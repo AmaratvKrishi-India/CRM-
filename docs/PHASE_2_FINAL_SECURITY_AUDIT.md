@@ -1,20 +1,22 @@
 # Phase 2 Final Security & Permission Boundaries Audit
 
 ## 1. Executive Summary
-This document provides the definitive security audit for the **Amaratv Krishi Field Sales CRM (Phase 2)**. The application enforces a strict single-APK architecture with three-tier defense-in-depth authorization across the UI, local business logic services, and central Supabase PostgreSQL Row Level Security (RLS).
+This document provides the definitive security audit for the **Amaratv Krishi Field Sales CRM (v2.0.0)**. The application enforces a strict single-APK architecture with four-tier defense-in-depth authorization across the UI, local business logic services, Dexie schema validation, and central Supabase PostgreSQL Row Level Security (RLS).
 
 ---
 
 ## 2. Client Secret & Credential Leakage Audit
-- **Inspection Targets**: `src/`, `android/`, `dist/`, `.env*`, and build outputs.
+- **Inspection Targets**: `src/`, `android/`, `dist/`, `tests/`, `release/`, `.env*`, and full git history.
 - **Audited Secret Terms**:
   - `SUPABASE_SERVICE_ROLE_KEY` / `service_role`
-  - Private RSA / ECDSA signing keys
-  - Hardcoded master passwords / JWT secret tokens
+  - Private RSA / ECDSA signing keys (`BEGIN PRIVATE KEY`)
+  - Hardcoded master passwords / `TEST_ADMIN_PASSWORD` / JWT secret tokens
 - **Finding**: **PASS (CLEAN)**
   - Zero service-role credentials exist within the client bundle, source code, or distribution assets.
   - The privileged `service_role` key is strictly confined to the serverless Edge Function runtime (`supabase/functions/create-agent/index.ts`).
   - The client only consumes the public `anon` key (`VITE_SUPABASE_ANON_KEY`) for standard user authentication.
+  - Full Git history audit confirms no secrets were ever committed.
+  - `.gitignore` rigorously protects `.env`, `.env.*`, `PLACEHOLDER.MD`, `*.jks`, `*.keystore`, `keystore.properties`, `local.properties`, `.agents/`, and `.gemini/`.
 
 ---
 
@@ -37,13 +39,14 @@ This document provides the definitive security audit for the **Amaratv Krishi Fi
 
 ## 4. Role Authorization & Privilege Escalation Defenses
 - **UI Boundary**:
-  - Agent accounts cannot render the Admin Shell, Agent Provisioning screen, Organization KPI Dashboard, or Reports View.
+  - Agent accounts cannot render the Admin Shell, Agent Provisioning screen, Organization KPI Dashboard, Reports View, or Data Management Hub.
+  - Admin destructive buttons ("Clear DB", "Import Data") are conditionally hidden from AGENT roles.
 - **Service Boundary**:
   - `AdminAnalyticsService`, `AdminReportsService`, `AgentManagementService`, and `LeadAssignmentService` enforce `assertAdmin(actor)` requiring `actor.role === 'ADMIN'` and `actor.status === 'ACTIVE'`.
   - Inactive administrators and agents are immediately rejected from all operations.
 - **Database / RLS Boundary**:
-  - PostgreSQL trigger `enforce_profile_role_immutability()` prevents non-superusers from updating `role` or `organization_id`.
-  - Organization isolation is enforced across all 9 central tables with `auth.jwt() -> organization_id` match.
+  - PostgreSQL trigger `protect_profile_immutable_fields()` prevents non-superusers from updating `role` or `organization_id`.
+  - Organization isolation is enforced across all 10 central tables with `auth.jwt() -> organization_id` match.
 
 ---
 

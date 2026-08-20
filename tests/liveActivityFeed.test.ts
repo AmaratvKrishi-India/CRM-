@@ -117,6 +117,8 @@ describe('Phase 2K: Live Activity Feed Logic & Duration Formatting', () => {
       metadata: { businessName: 'Gold Gym Mahanagar', createdByName: 'Agent Rahul' },
     });
 
+    await new Promise((r) => setTimeout(r, 15));
+
     await crm.activities.logActivity({
       leadId: lead.id,
       userId: admin.id,
@@ -124,7 +126,7 @@ describe('Phase 2K: Live Activity Feed Logic & Duration Formatting', () => {
       metadata: { newAssigneeName: 'Agent Rahul', assignedByAdminName: 'Admin Vikram' },
     });
 
-    const feed = await db.activities.orderBy('createdAt').reverse().filter((a) => a.deletedAt === null).toArray();
+    const feed = await crm.activities.getRecentActivities();
     expect(feed.length).toBe(2);
     expect(feed[0].activityType).toBe('LEAD_ASSIGNED');
     expect(feed[1].activityType).toBe('LEAD_CREATED');

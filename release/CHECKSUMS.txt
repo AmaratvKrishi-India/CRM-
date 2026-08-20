@@ -1,6 +1,7 @@
-# Amaratv Krishi Sales CRM v1.0.0 — Production Artifact Checksums (SHA-256)
+# Amaratv Krishi Sales CRM — Production Artifact Checksums (SHA-256)
 # Generated: 2026-08-20
 # Signing: Production keystore (APK Signature Scheme v2)
 
+36c88f9c0fedc1057a4385fd7d4d0469aaa58250c1268da3592797c921f4bba8  AmaratvKrishi-SalesCRM-v2.0.0.apk
 086164252c24abb275630f2d6525a3ee2693dce24969a0cd68db5439df452e1d  AmaratvKrishi-SalesCRM-v1.0.0.apk
 2f149b526632aa690b510a35fa381c2da8075c0fe53086fe13caca0cfdec0fef  AmaratvKrishi-SalesCRM-v1.0.0.aab

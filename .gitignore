@@ -7,6 +7,7 @@ dist/
 # Environment & secrets
 .env
 .env.*
+!.env.example
 PLACEHOLDER.MD
 *.jks
 *.keystore
@@ -18,9 +19,15 @@ keystore.properties
 *.swp
 *.swo
 
-# Agent and workspace metadata
+# Agent and workspace metadata (non-project files live here)
+local/
 .agents/
 .gemini/
+.claude/
+*.log
+
+# Supabase CLI temp cache
+supabase/.temp/
 
 # OS
 .DS_Store
@@ -30,6 +37,8 @@ Thumbs.db
 android/app/build/
 android/build/
 android/.gradle/
+android/local.properties
+android/capacitor-cordova-android-plugins/
 
 # E2E screenshots and reports (generated)
 e2e/android/screenshots/

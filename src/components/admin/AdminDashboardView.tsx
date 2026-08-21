@@ -135,10 +135,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <Sparkles className="w-4 h-4" />
               <span className="text-xs font-bold uppercase tracking-wider">Executive Overview</span>
             </div>
-            <h2 className="text-xl font-black text-white mt-0.5">Amaratv Krishi Field CRM</h2>
-            <p className="text-xs text-slate-400">
-              Welcome, <span className="text-slate-200 font-semibold">{currentUser?.name}</span>. Real-time territory sales command.
-            </p>
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-10 h-10 object-contain bg-white rounded-xl p-1 shadow-md shadow-emerald-500/10 flex-shrink-0" />
+              <div>
+                <h2 className="text-xl font-black text-white mt-0.5">Amaratv Krishi Field CRM</h2>
+                <p className="text-xs text-slate-400">
+                  Welcome, <span className="text-slate-200 font-semibold">{currentUser?.name}</span>. Real-time territory sales command.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

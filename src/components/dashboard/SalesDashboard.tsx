@@ -115,7 +115,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+              <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
               <h1 className="text-base font-bold tracking-tight">Amaratv Krishi</h1>
             </div>
             <p className="text-[11px] text-slate-400">Lucknow Field Sales Dashboard</p>

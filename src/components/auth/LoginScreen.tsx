@@ -54,8 +54,8 @@ export const LoginScreen: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white flex flex-col justify-between p-4 sm:p-6 font-sans">
       {/* Top Branding Section */}
       <div className="w-full max-w-md mx-auto pt-8 sm:pt-12 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-4 shadow-lg shadow-emerald-500/5">
-          <Sprout className="w-9 h-9 text-emerald-400" />
+        <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white/95 border border-emerald-500/30 p-2 mb-3 shadow-xl shadow-emerald-500/10">
+          <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-full h-full object-contain" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
           Amaratv Krishi

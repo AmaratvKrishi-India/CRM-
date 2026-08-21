@@ -185,7 +185,7 @@ export class UserRepository {
   }
 
   /**
-   * Soft-deletes a user.
+   * Soft-deletes a user (sets deletedAt only — legacy compat).
    */
   async softDeleteUser(id: string): Promise<void> {
     const user = await this.getUserById(id);
@@ -196,5 +196,32 @@ export class UserRepository {
       updatedAt: now,
       isSynced: 0,
     });
+  }
+
+  /**
+   * Permanently soft-deletes an agent: sets deletedAt + status INACTIVE.
+   * All historical CRM records are preserved. Login is immediately blocked.
+   */
+  async deleteUser(id: string): Promise<User> {
+    const user = await this.getUserById(id, true);
+    if (!user) throw new Error(`User with id ${id} not found.`);
+    const now = new Date().toISOString();
+    await this.db.users.update(id, {
+      status: 'INACTIVE',
+      deletedAt: now,
+      updatedAt: now,
+      isSynced: 0,
+    });
+    return (await this.db.users.get(id))!;
+  }
+
+  /**
+   * Returns only ACTIVE, non-deleted agents suitable for lead assignment.
+   */
+  async getActiveAgentsForAssignment(): Promise<User[]> {
+    return await this.db.users
+      .toCollection()
+      .filter((u) => u.role === 'AGENT' && u.status === 'ACTIVE' && u.deletedAt === null)
+      .sortBy('name');
   }
 }

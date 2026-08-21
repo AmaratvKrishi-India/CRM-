@@ -16,6 +16,7 @@ import { SalesDashboard } from './components/dashboard/SalesDashboard';
 import { FollowUpsView } from './components/followups/FollowUpsView';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { CallLifecycleService } from './services/callLifecycleService';
 import { RealtimeService } from './services/realtime/realtimeService';
@@ -491,12 +492,12 @@ function MainAppRouter() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4 font-sans">
+      <div className="min-h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col items-center justify-center p-4 font-sans">
         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-4">
           <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
         </div>
-        <p className="text-sm font-bold text-white">Amaratv Krishi CRM</p>
-        <p className="text-xs text-slate-400 mt-1">Loading secure session...</p>
+        <p className="text-sm font-bold">Amaratv Krishi CRM</p>
+        <p className="text-xs text-[var(--text-secondary)] mt-1">Loading secure session...</p>
       </div>
     );
   }
@@ -547,9 +548,11 @@ function MainAppRouter() {
 export function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <MainAppRouter />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <MainAppRouter />
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

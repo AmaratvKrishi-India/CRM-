@@ -138,6 +138,7 @@ export type ActivityType =
   | 'AGENT_UPDATED'
   | 'AGENT_ACTIVATED'
   | 'AGENT_DEACTIVATED'
+  | 'AGENT_DELETED'
   | 'BULK_ASSIGNMENT_EXECUTED';
 
 export interface Activity {

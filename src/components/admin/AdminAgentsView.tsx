@@ -20,6 +20,7 @@ import { AgentCard } from './AgentCard';
 import { CreateAgentModal } from './CreateAgentModal';
 import { EditAgentModal } from './EditAgentModal';
 import { ConfirmStatusModal } from './ConfirmStatusModal';
+import { DeleteAgentModal } from './DeleteAgentModal';
 import { User, UserStatus } from '../../db/types';
 
 export const AdminAgentsView: React.FC = () => {
@@ -34,6 +35,7 @@ export const AdminAgentsView: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<User | null>(null);
   const [statusConfirmAgent, setStatusConfirmAgent] = useState<User | null>(null);
+  const [deleteTargetAgent, setDeleteTargetAgent] = useState<User | null>(null);
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -183,6 +185,7 @@ export const AdminAgentsView: React.FC = () => {
               agent={agent}
               onEdit={(a) => setEditingAgent(a)}
               onToggleStatus={(a) => setStatusConfirmAgent(a)}
+              onDelete={(a) => setDeleteTargetAgent(a)}
             />
           ))}
         </div>
@@ -211,6 +214,15 @@ export const AdminAgentsView: React.FC = () => {
         isOpen={statusConfirmAgent !== null}
         onClose={() => setStatusConfirmAgent(null)}
         onStatusChanged={() => {
+          fetchAgents();
+        }}
+      />
+
+      <DeleteAgentModal
+        agent={deleteTargetAgent}
+        isOpen={deleteTargetAgent !== null}
+        onClose={() => setDeleteTargetAgent(null)}
+        onAgentDeleted={() => {
           fetchAgents();
         }}
       />

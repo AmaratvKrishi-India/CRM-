@@ -8,6 +8,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { Session } from '@supabase/supabase-js';
 import { AuthService } from '../services/authService';
 import { getSupabaseConfig } from '../services/supabaseClient';
+import { BackgroundSyncManager } from '../services/sync/backgroundSyncManager';
 import { User } from '../db/types';
 
 export interface AuthContextType {
@@ -63,6 +64,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCurrentUser(user);
             const curSession = await AuthService.getCurrentSession();
             setSession(curSession);
+            // Restore background sync for existing session on app startup
+            BackgroundSyncManager.init(user).catch((e) =>
+              console.warn('BackgroundSyncManager restore warning:', e)
+            );
           } else {
             setCurrentUser(null);
             setSession(null);
@@ -114,6 +119,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { user, session: newSession } = await AuthService.signIn(email, password);
       setCurrentUser(user);
       setSession(newSession);
+      // Start background sync automatically after successful login
+      BackgroundSyncManager.init(user).catch((e) =>
+        console.warn('BackgroundSyncManager init warning:', e)
+      );
       return user;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Sign in failed.';
@@ -124,6 +133,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const signOut = async (): Promise<void> => {
     try {
+      // Stop background sync before signing out
+      BackgroundSyncManager.stop();
       await AuthService.signOut();
     } finally {
       setCurrentUser(null);

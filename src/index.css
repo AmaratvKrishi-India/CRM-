@@ -1,15 +1,83 @@
+/* ============================================================
+   APP FONT — Inter (branded, no system fonts)
+   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 @import "tailwindcss";
 
+/* ============================================================
+   DESIGN TOKENS — Night Mode (default / dark theme)
+   ============================================================ */
+:root,
+[data-theme="night"] {
+  --bg-app: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-card: #334155;
+  --bg-elevated: #1e293b;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: rgba(148, 163, 184, 0.15);
+  --border-strong: rgba(148, 163, 184, 0.30);
+  --accent: #22c55e;
+  --accent-dark: #16a34a;
+  --accent-light: #4ade80;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+  color-scheme: dark;
+}
+
+/* ============================================================
+   DESIGN TOKENS — Day Mode (light theme)
+   ============================================================ */
+[data-theme="day"] {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-card: #f1f5f9;
+  --bg-elevated: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border: rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.20);
+  --accent: #16a34a;
+  --accent-dark: #14532d;
+  --accent-light: #22c55e;
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+  --info: #2563eb;
+  color-scheme: light;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
 @layer base {
+  html {
+    font-family: 'Inter', ui-sans-serif, sans-serif;
+  }
+
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    font-family: 'Inter', ui-sans-serif, sans-serif;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
     -webkit-tap-highlight-color: transparent;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Ensure all text elements use Inter */
+  *, *::before, *::after {
+    font-family: inherit;
   }
 }
 
-/* Custom scrollbars for clean mobile feel */
+/* ============================================================
+   SCROLLBARS
+   ============================================================ */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -23,4 +91,11 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+[data-theme="day"] ::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+[data-theme="day"] ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }

@@ -1,6 +1,7 @@
 /**
- * Non-Intrusive Sync Status Badge (Phase 2F)
- * Displays current offline-first sync state and provides one-tap manual sync trigger.
+ * Non-Intrusive Sync Status Badge (Phase 3)
+ * Shows automatic sync state silently. Never asks user to sync.
+ * Manual "Sync Now" button is a secondary optional action.
  */
 
 import React from 'react';
@@ -26,7 +27,7 @@ export const SyncStatusBadge: React.FC = () => {
       case 'SYNCING':
         return {
           icon: <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" />,
-          label: 'Syncing...',
+          label: 'Syncing\u2026',
           bgColor: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
         };
       case 'SYNCED':
@@ -38,26 +39,26 @@ export const SyncStatusBadge: React.FC = () => {
       case 'OFFLINE':
         return {
           icon: <CloudOff className="w-3.5 h-3.5 text-amber-400" />,
-          label: 'Offline (Local)',
+          label: 'Offline \u2014 saved locally',
           bgColor: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
         };
       case 'PENDING':
         return {
           icon: <Cloud className="w-3.5 h-3.5 text-blue-400" />,
-          label: 'Pending Sync',
+          label: 'Sync queued\u2026',
           bgColor: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
         };
       case 'AUTH_REQUIRED':
         return {
           icon: <Lock className="w-3.5 h-3.5 text-purple-400" />,
-          label: 'Sign In to Sync',
+          label: 'Sign in to enable sync',
           bgColor: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
         };
       case 'ERROR':
       default:
         return {
           icon: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
-          label: 'Sync Alert',
+          label: 'Sync issue \u2014 retrying',
           bgColor: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
         };
     }
@@ -65,16 +66,33 @@ export const SyncStatusBadge: React.FC = () => {
 
   const { icon, label, bgColor } = getStatusConfig();
 
+  const lastSyncText = syncState.lastSuccessfulSyncAt
+    ? `Last synced: ${new Date(syncState.lastSuccessfulSyncAt).toLocaleTimeString()}`
+    : syncState.lastSyncError
+    ? `Error: ${syncState.lastSyncError}`
+    : 'Waiting for first sync';
+
   return (
-    <button
-      type="button"
-      onClick={() => synchronizeNow()}
-      disabled={isSyncing}
-      title={syncState.lastSyncError ? `Error: ${syncState.lastSyncError}` : `Last sync: ${syncState.lastSuccessfulSyncAt || 'Never'}`}
-      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 border transition-all active:scale-95 cursor-pointer disabled:cursor-default ${bgColor}`}
-    >
-      {icon}
-      <span>{label}</span>
-    </button>
+    <div className="flex items-center gap-1.5">
+      {/* Status indicator (read-only) */}
+      <div
+        title={lastSyncText}
+        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 border ${bgColor}`}
+      >
+        {icon}
+        <span>{label}</span>
+      </div>
+
+      {/* Optional manual sync button */}
+      <button
+        type="button"
+        onClick={() => synchronizeNow()}
+        disabled={isSyncing}
+        title="Sync Now"
+        className="w-6 h-6 rounded-full bg-slate-700/60 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-90 disabled:opacity-40 disabled:cursor-default"
+      >
+        <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+      </button>
+    </div>
   );
 };

@@ -15,11 +15,15 @@ import {
   Shield,
   Sprout,
   Info,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 export const LoginScreen: React.FC = () => {
   const { signIn, isConfigured, configError, authError, clearAuthError } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,13 +55,30 @@ export const LoginScreen: React.FC = () => {
   const displayError = localError || authError;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white flex flex-col justify-between p-4 sm:p-6 font-sans">
+    <div className={`min-h-screen ${theme === 'DAY' ? 'bg-gradient-to-b from-slate-100 via-slate-50 to-slate-200 text-slate-900' : 'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 text-white'} flex flex-col justify-between p-4 sm:p-6 font-sans relative transition-colors duration-200`}>
+      {/* Quick Theme Toggle Top-Right */}
+      <div className="absolute top-6 right-5 z-50">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'NIGHT' ? 'Day' : 'Night'} Mode`}
+          className={`p-3 min-w-[44px] min-h-[44px] rounded-2xl border transition-all active:scale-90 flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer ${
+            theme === 'DAY'
+              ? 'bg-white border-slate-300 text-slate-800 shadow-md hover:bg-slate-50'
+              : 'bg-slate-800/90 border-slate-700 text-amber-400 shadow-lg hover:bg-slate-700'
+          }`}
+        >
+          {theme === 'DAY' ? <Moon className="w-5 h-5 text-slate-800" /> : <Sun className="w-5 h-5 text-amber-400" />}
+          <span className="hidden sm:inline font-semibold">{theme === 'DAY' ? 'Night' : 'Day'}</span>
+        </button>
+      </div>
+
       {/* Top Branding Section */}
       <div className="w-full max-w-md mx-auto pt-8 sm:pt-12 text-center">
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white/95 border border-emerald-500/30 p-2 mb-3 shadow-xl shadow-emerald-500/10">
           <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-full h-full object-contain" />
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+        <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${theme === 'DAY' ? 'text-slate-900' : 'text-white'}`}>
           Amaratv Krishi
         </h1>
         <p className="text-xs sm:text-sm text-emerald-400/90 font-medium tracking-wide uppercase mt-1">
@@ -70,14 +91,14 @@ export const LoginScreen: React.FC = () => {
 
       {/* Main Login Card */}
       <div className="w-full max-w-md mx-auto my-auto py-6">
-        <div className="bg-slate-800/80 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-slate-700/60 shadow-2xl space-y-6">
+        <div className={`${theme === 'DAY' ? 'bg-white/90 border-slate-200 shadow-xl' : 'bg-slate-800/80 border-slate-700/60 shadow-2xl'} backdrop-blur-md rounded-3xl p-6 sm:p-8 border space-y-6 transition-colors duration-200`}>
           {/* Missing Configuration Notice */}
           {!isConfigured && (
-            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-200 flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-xs text-amber-600 dark:text-amber-200 flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-amber-300">Authentication Setup Required</p>
-                <p className="text-[11px] text-amber-200/80 mt-0.5">
+                <p className="font-bold text-amber-700 dark:text-amber-300">Authentication Setup Required</p>
+                <p className="text-[11px] text-amber-600/90 dark:text-amber-200/80 mt-0.5">
                   {configError || 'Supabase environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) are not set.'}
                 </p>
               </div>
@@ -86,8 +107,8 @@ export const LoginScreen: React.FC = () => {
 
           {/* Error Message Box */}
           {displayError && (
-            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-200 flex items-start gap-2.5 animate-in fade-in duration-200">
-              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs text-rose-600 dark:text-rose-200 flex items-start gap-2.5 animate-in fade-in duration-200">
+              <AlertCircle className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <span className="font-medium">{displayError}</span>
               </div>
@@ -97,7 +118,7 @@ export const LoginScreen: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email Input */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <label className={`block text-xs font-bold ${theme === 'DAY' ? 'text-slate-700' : 'text-slate-300'} uppercase tracking-wider`}>
                 Email / Login ID
               </label>
               <div className="relative">
@@ -111,7 +132,7 @@ export const LoginScreen: React.FC = () => {
                   placeholder="e.g. rahul@amaratvkrishi.com"
                   autoComplete="email"
                   disabled={isSubmitting}
-                  className="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-10 pr-3.5 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50"
+                  className={`w-full ${theme === 'DAY' ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' : 'bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500'} border rounded-xl pl-10 pr-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50`}
                   required
                 />
               </div>
@@ -119,7 +140,7 @@ export const LoginScreen: React.FC = () => {
 
             {/* Password Input */}
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+              <label className={`block text-xs font-bold ${theme === 'DAY' ? 'text-slate-700' : 'text-slate-300'} uppercase tracking-wider`}>
                 Password
               </label>
               <div className="relative">
@@ -133,13 +154,13 @@ export const LoginScreen: React.FC = () => {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={isSubmitting}
-                  className="w-full bg-slate-900/80 border border-slate-700 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50"
+                  className={`w-full ${theme === 'DAY' ? 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400' : 'bg-slate-900/80 border-slate-700 text-white placeholder:text-slate-500'} border rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all disabled:opacity-50`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 transition-colors"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />
@@ -171,10 +192,10 @@ export const LoginScreen: React.FC = () => {
           </form>
 
           {/* Admin Provisioning Notice */}
-          <div className="pt-2 border-t border-slate-700/60 text-center">
-            <p className="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-emerald-400/80 flex-shrink-0" />
-              <span>Accounts are managed & provisioned by Administrators.</span>
+          <div className={`pt-2 border-t ${theme === 'DAY' ? 'border-slate-200' : 'border-slate-700/60'} text-center`}>
+            <p className={`text-[11px] ${theme === 'DAY' ? 'text-slate-500' : 'text-slate-400'} flex items-center justify-center gap-1.5`}>
+              <Shield className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+              <span>Accounts are managed &amp; provisioned by Administrators.</span>
             </p>
           </div>
         </div>

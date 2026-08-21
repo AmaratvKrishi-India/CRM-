@@ -19,6 +19,9 @@ import {
   Upload,
   LogOut,
   User as UserIcon,
+  Sun,
+  Moon,
+  RefreshCw,
 } from 'lucide-react';
 import { crmData } from '../../db';
 import { MessageTemplate, TemplateCategory, Lead } from '../../db/types';
@@ -26,6 +29,8 @@ import { AppSettingsService, StoredCatalogueMeta } from '../../services/appSetti
 import { AttachmentService } from '../../services/attachmentService';
 import { renderMessageTemplate } from '../../services/templateRenderer';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useSync } from '../../services/sync/useSync';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -85,6 +90,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   initialTab = 'MESSAGES',
 }) => {
   const { currentUser, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const { syncState, isSyncing, synchronizeNow } = useSync();
   const [activeTab, setActiveTab] = useState<'MESSAGES' | 'CATALOGUE' | 'PREFERENCES'>(initialTab);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -718,8 +725,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 3: PREFERENCES */}
           {activeTab === 'PREFERENCES' && (
             <div className="space-y-4">
+
+              {/* ── Sync Status Section ── */}
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
+                  Sync Status
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Data is automatically synced in the background. You can also trigger a sync manually.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl border border-slate-200 bg-white space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-xs text-slate-900">Cloud Sync</p>
+                    <p className="text-[11px] text-slate-500 leading-normal">
+                      {syncState?.lastSuccessfulSyncAt
+                        ? `Last synced: ${new Date(syncState.lastSuccessfulSyncAt).toLocaleString()}`
+                        : 'Not yet synced this session'}
+                    </p>
+                    {syncState?.lastSyncError && (
+                      <p className="text-[11px] text-rose-500">{syncState.lastSyncError}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => synchronizeNow()}
+                    disabled={isSyncing}
+                    className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-default flex-shrink-0"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                    <span>{isSyncing ? 'Syncing…' : 'Sync Now'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Appearance Section ── */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight mt-2">
+                  Appearance
+                </h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Choose your preferred app theme. This setting is saved on your device.
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl border border-slate-200 bg-white space-y-2">
+                <p className="font-bold text-xs text-slate-900">App Theme</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTheme('NIGHT')}
+                    className={`flex-1 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      theme === 'NIGHT'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                    }`}
+                  >
+                    <Moon className="w-4 h-4" />
+                    <span>Night</span>
+                    {theme === 'NIGHT' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('DAY')}
+                    className={`flex-1 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+                      theme === 'DAY'
+                        ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                    }`}
+                  >
+                    <Sun className="w-4 h-4" />
+                    <span>Day</span>
+                    {theme === 'DAY' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── WhatsApp Preferences ── */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight mt-2">
                   WhatsApp Outreach Preferences
                 </h4>
                 <p className="text-[11px] text-slate-500 mt-0.5">

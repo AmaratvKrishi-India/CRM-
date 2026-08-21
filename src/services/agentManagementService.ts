@@ -332,4 +332,75 @@ export class AgentManagementService {
 
     return { agent: updatedAgent, auditActivity };
   }
+
+  /**
+   * Permanently soft-deletes an agent.
+   * NON-DESTRUCTIVE: all historical CRM records (leads, calls, remarks, follow-ups)
+   * are fully preserved for audit and reporting.
+   * The agent's login is immediately blocked via status=INACTIVE + deletedAt timestamp.
+   */
+  static async deleteAgent(
+    actor: User | null,
+    agentId: string
+  ): Promise<{ agent: User; auditActivity: Activity }> {
+    this.assertAdmin(actor);
+
+    if (actor.id === agentId) {
+      throw new Error('Administrators cannot delete their own account.');
+    }
+
+    const userRepo = this.getUserRepo();
+    const target = await userRepo.getUserById(agentId, true); // include deleted for idempotency
+    if (!target) {
+      throw new Error(`Agent with ID "${agentId}" not found.`);
+    }
+
+    if (target.role !== 'AGENT') {
+      throw new Error('Only AGENT accounts can be deleted through this interface.');
+    }
+
+    if (target.deletedAt !== null) {
+      throw new Error(`Agent "${target.name}" has already been deleted.`);
+    }
+
+    // 1. Soft-delete locally in Dexie
+    const deletedAgent = await userRepo.deleteUser(agentId);
+
+    // 2. If Supabase is available, mark deleted in cloud profiles table
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            status: 'INACTIVE',
+            deleted_at: deletedAgent.deletedAt,
+            updated_at: deletedAgent.updatedAt,
+          })
+          .eq('id', agentId);
+      } catch (err: any) {
+        // Non-fatal: sync will pick this up on next outbox push
+        console.warn('Cloud profile delete update failed (will sync later):', err?.message);
+      }
+    }
+
+    // 3. Log immutable AGENT_DELETED audit activity
+    const activityRepo = this.getActivityRepo();
+    const deviceId = DeviceService.getDeviceId();
+    const auditActivity = await activityRepo.logActivity({
+      leadId: null,
+      userId: actor.id,
+      deviceId,
+      activityType: 'AGENT_DELETED',
+      metadata: {
+        agentId: target.id,
+        name: target.name,
+        email: target.email,
+        deletedAt: deletedAgent.deletedAt,
+        performedBy: actor.id,
+      },
+    });
+
+    return { agent: deletedAgent, auditActivity };
+  }
 }

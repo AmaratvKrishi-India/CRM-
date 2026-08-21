@@ -14,6 +14,7 @@ import {
   UserX,
   UserCheck,
   Shield,
+  Trash2,
 } from 'lucide-react';
 import { User } from '../../db/types';
 
@@ -21,12 +22,14 @@ interface AgentCardProps {
   agent: User;
   onEdit: (agent: User) => void;
   onToggleStatus: (agent: User) => void;
+  onDelete: (agent: User) => void;
 }
 
 export const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   onEdit,
   onToggleStatus,
+  onDelete,
 }) => {
   const isAgentActive = agent.status === 'ACTIVE';
 
@@ -114,35 +117,62 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-2.5 border-t border-slate-700/50 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={() => onEdit(agent)}
-          className="py-1.5 px-3 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-600/60 transition-all active:scale-95"
-        >
-          <Edit2 className="w-3.5 h-3.5 text-slate-400" />
-          <span>Edit</span>
-        </button>
-
-        {isAgentActive ? (
-          <button
-            type="button"
-            onClick={() => onToggleStatus(agent)}
-            className="py-1.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 border border-rose-500/30 transition-all active:scale-95"
-          >
-            <UserX className="w-3.5 h-3.5 text-rose-400" />
-            <span>Deactivate</span>
-          </button>
+      <div className="pt-2.5 border-t border-slate-700/50 flex items-center justify-between gap-2">
+        {/* Left: Deleted badge if applicable */}
+        {agent.deletedAt ? (
+          <span className="px-2 py-0.5 rounded-lg bg-slate-700/60 text-slate-400 font-bold text-[9px] uppercase tracking-wider border border-slate-600/40">
+            Deleted
+          </span>
         ) : (
-          <button
-            type="button"
-            onClick={() => onToggleStatus(agent)}
-            className="py-1.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 border border-emerald-500/30 transition-all active:scale-95"
-          >
-            <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Activate</span>
-          </button>
+          <div />
         )}
+
+        {/* Right: Action buttons */}
+        <div className="flex items-center gap-2">
+          {!agent.deletedAt && (
+            <button
+              type="button"
+              onClick={() => onEdit(agent)}
+              className="py-1.5 px-3 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 border border-slate-600/60 transition-all active:scale-95"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+              <span>Edit</span>
+            </button>
+          )}
+
+          {!agent.deletedAt && (
+            isAgentActive ? (
+              <button
+                type="button"
+                onClick={() => onToggleStatus(agent)}
+                className="py-1.5 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 border border-rose-500/30 transition-all active:scale-95"
+              >
+                <UserX className="w-3.5 h-3.5 text-rose-400" />
+                <span>Deactivate</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onToggleStatus(agent)}
+                className="py-1.5 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 border border-emerald-500/30 transition-all active:scale-95"
+              >
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Activate</span>
+              </button>
+            )
+          )}
+
+          {!agent.deletedAt && (
+            <button
+              type="button"
+              onClick={() => onDelete(agent)}
+              title="Permanently delete agent"
+              className="py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-rose-900/30 text-slate-500 hover:text-rose-400 text-xs font-semibold flex items-center gap-1 border border-slate-700 hover:border-rose-900/50 transition-all active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

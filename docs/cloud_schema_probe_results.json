@@ -1,0 +1,742 @@
+{
+  "probedAt": "2026-08-21T14:55:06.739Z",
+  "prodUrl": "https://lahvcodvgubplzfshare.supabase.co",
+  "tables": {
+    "activities": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "bulk_assignment_audits": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "call_records": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "follow_ups": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "import_audits": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "leads": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "message_history": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "organizations": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "profiles": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    },
+    "remarks": {
+      "exists": true,
+      "status": 200,
+      "statusText": "",
+      "rowCount": 0
+    }
+  },
+  "columns": {
+    "activities": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "lead_id": {
+        "exists": true
+      },
+      "user_id": {
+        "exists": true
+      },
+      "device_id": {
+        "exists": true
+      },
+      "activity_type": {
+        "exists": true
+      },
+      "metadata": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "version": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    },
+    "bulk_assignment_audits": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "performed_by": {
+        "exists": true
+      },
+      "target_agent_id": {
+        "exists": true
+      },
+      "selected_lead_count": {
+        "exists": true
+      },
+      "successful_count": {
+        "exists": true
+      },
+      "failed_count": {
+        "exists": true
+      },
+      "started_at": {
+        "exists": true
+      },
+      "completed_at": {
+        "exists": true
+      },
+      "filter_snapshot": {
+        "exists": true
+      },
+      "status": {
+        "exists": true
+      },
+      "error_summary": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      },
+      "version": {
+        "exists": true
+      }
+    },
+    "call_records": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "lead_id": {
+        "exists": true
+      },
+      "user_id": {
+        "exists": true
+      },
+      "device_id": {
+        "exists": true
+      },
+      "started_at": {
+        "exists": true
+      },
+      "answered_at": {
+        "exists": true
+      },
+      "ended_at": {
+        "exists": true
+      },
+      "duration_seconds": {
+        "exists": true
+      },
+      "outcome": {
+        "exists": true
+      },
+      "remark": {
+        "exists": true
+      },
+      "verification_status": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "version": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    },
+    "follow_ups": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "lead_id": {
+        "exists": true
+      },
+      "user_id": {
+        "exists": true
+      },
+      "scheduled_at": {
+        "exists": true
+      },
+      "title": {
+        "exists": true
+      },
+      "notes": {
+        "exists": true
+      },
+      "priority": {
+        "exists": true
+      },
+      "status": {
+        "exists": true
+      },
+      "completed_at": {
+        "exists": true
+      },
+      "outcome_notes": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    },
+    "import_audits": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "uploaded_by": {
+        "exists": true
+      },
+      "device_id": {
+        "exists": true
+      },
+      "filename": {
+        "exists": true
+      },
+      "source": {
+        "exists": true
+      },
+      "started_at": {
+        "exists": true
+      },
+      "completed_at": {
+        "exists": true
+      },
+      "total_rows": {
+        "exists": true
+      },
+      "imported": {
+        "exists": true
+      },
+      "updated": {
+        "exists": true
+      },
+      "duplicates": {
+        "exists": true
+      },
+      "invalid": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      }
+    },
+    "leads": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "business_name": {
+        "exists": true
+      },
+      "category": {
+        "exists": true
+      },
+      "phone": {
+        "exists": true
+      },
+      "phone_raw": {
+        "exists": true
+      },
+      "phone_e164": {
+        "exists": true
+      },
+      "phone_type": {
+        "exists": true
+      },
+      "alternate_phone": {
+        "exists": true
+      },
+      "contact_person": {
+        "exists": true
+      },
+      "address": {
+        "exists": true
+      },
+      "locality": {
+        "exists": true
+      },
+      "pincode": {
+        "exists": true
+      },
+      "city": {
+        "exists": true
+      },
+      "state": {
+        "exists": true
+      },
+      "website": {
+        "exists": true
+      },
+      "rating": {
+        "exists": true
+      },
+      "review_count": {
+        "exists": true
+      },
+      "source": {
+        "exists": true
+      },
+      "source_file": {
+        "exists": true
+      },
+      "source_row": {
+        "exists": true
+      },
+      "status": {
+        "exists": true
+      },
+      "custom_notes": {
+        "exists": true
+      },
+      "last_contacted_at": {
+        "exists": true
+      },
+      "next_follow_up_at": {
+        "exists": true
+      },
+      "call_count": {
+        "exists": true
+      },
+      "created_by": {
+        "exists": true
+      },
+      "assigned_to": {
+        "exists": true
+      },
+      "updated_by": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "version": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    },
+    "message_history": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "lead_id": {
+        "exists": true
+      },
+      "user_id": {
+        "exists": true
+      },
+      "template_id": {
+        "exists": true
+      },
+      "channel": {
+        "exists": true
+      },
+      "recipient_phone": {
+        "exists": true
+      },
+      "message_content": {
+        "exists": true
+      },
+      "sent_status": {
+        "exists": true
+      },
+      "sent_at": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    },
+    "organizations": {
+      "id": {
+        "exists": true
+      },
+      "name": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "created_by": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      }
+    },
+    "profiles": {
+      "id": {
+        "exists": true
+      },
+      "auth_user_id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "name": {
+        "exists": true
+      },
+      "email": {
+        "exists": true
+      },
+      "phone": {
+        "exists": true
+      },
+      "role": {
+        "exists": true
+      },
+      "status": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "created_by": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "last_login_at": {
+        "exists": true
+      },
+      "version": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    },
+    "remarks": {
+      "id": {
+        "exists": true
+      },
+      "organization_id": {
+        "exists": true
+      },
+      "lead_id": {
+        "exists": true
+      },
+      "user_id": {
+        "exists": true
+      },
+      "content": {
+        "exists": true
+      },
+      "type": {
+        "exists": true
+      },
+      "author": {
+        "exists": true
+      },
+      "created_at": {
+        "exists": true
+      },
+      "updated_at": {
+        "exists": true
+      },
+      "deleted_at": {
+        "exists": true
+      }
+    }
+  },
+  "foreignKeys": {
+    "profiles_organization_id_fkey": {
+      "table": "profiles",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "leads_organization_id_fkey": {
+      "table": "leads",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "leads_created_by_fkey": {
+      "table": "leads",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "leads_assigned_to_fkey": {
+      "table": "leads",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "call_records_organization_id_fkey": {
+      "table": "call_records",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "call_records_lead_id_fkey": {
+      "table": "call_records",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "call_records_user_id_fkey": {
+      "table": "call_records",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "activities_organization_id_fkey": {
+      "table": "activities",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "activities_lead_id_fkey": {
+      "table": "activities",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "remarks_organization_id_fkey": {
+      "table": "remarks",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "remarks_lead_id_fkey": {
+      "table": "remarks",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "follow_ups_organization_id_fkey": {
+      "table": "follow_ups",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "follow_ups_lead_id_fkey": {
+      "table": "follow_ups",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "message_history_organization_id_fkey": {
+      "table": "message_history",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "message_history_lead_id_fkey": {
+      "table": "message_history",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "import_audits_organization_id_fkey": {
+      "table": "import_audits",
+      "fkeyVerified": true,
+      "status": 200
+    },
+    "bulk_assignment_audits_organization_id_fkey": {
+      "table": "bulk_assignment_audits",
+      "fkeyVerified": true,
+      "status": 200
+    }
+  },
+  "rlsReadAccess": {
+    "activities": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "bulk_assignment_audits": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "call_records": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "follow_ups": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "import_audits": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "leads": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "message_history": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "organizations": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "profiles": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    },
+    "remarks": {
+      "anonSelectStatus": 200,
+      "anonSelectAllowed": true
+    }
+  },
+  "realtimeChannels": {},
+  "authSettings": {
+    "external": {
+      "anonymous_users": false,
+      "apple": false,
+      "azure": false,
+      "bitbucket": false,
+      "discord": false,
+      "facebook": false,
+      "snapchat": false,
+      "figma": false,
+      "fly": false,
+      "github": false,
+      "gitlab": false,
+      "google": false,
+      "keycloak": false,
+      "kakao": false,
+      "linkedin": false,
+      "linkedin_oidc": false,
+      "notion": false,
+      "spotify": false,
+      "slack": false,
+      "slack_oidc": false,
+      "workos": false,
+      "twitch": false,
+      "twitter": false,
+      "email": true,
+      "phone": false,
+      "zoom": false
+    },
+    "disable_signup": false,
+    "mailer_autoconfirm": false,
+    "phone_autoconfirm": false,
+    "sms_provider": "twilio",
+    "saml_enabled": false,
+    "saml_private_key_next_configured": true,
+    "passkeys_enabled": false
+  },
+  "rowCounts": {
+    "activities": 0,
+    "bulk_assignment_audits": 0,
+    "call_records": 0,
+    "follow_ups": 0,
+    "import_audits": 0,
+    "leads": 0,
+    "message_history": 0,
+    "organizations": 0,
+    "profiles": 0,
+    "remarks": 0
+  },
+  "candidateExtraTables": {
+    "gyms": {
+      "exists": false,
+      "status": 404
+    },
+    "customers": {
+      "exists": false,
+      "status": 404
+    },
+    "sales_reps": {
+      "exists": false,
+      "status": 404
+    },
+    "lead_history": {
+      "exists": false,
+      "status": 404
+    },
+    "telephony_logs": {
+      "exists": false,
+      "status": 404
+    },
+    "whatsapp_logs": {
+      "exists": false,
+      "status": 404
+    },
+    "templates": {
+      "exists": false,
+      "status": 404
+    },
+    "audit_logs": {
+      "exists": false,
+      "status": 404
+    }
+  }
+}

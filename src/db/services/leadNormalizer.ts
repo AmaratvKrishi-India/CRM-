@@ -4,7 +4,7 @@
  * address parsing, PIN code extraction, and deduplication keys.
  */
 
-import { PhoneType } from '../types';
+import type { PhoneType } from '../types';
 
 export interface NormalizedPhone {
   raw: string;

@@ -191,26 +191,45 @@ export class SyncPull {
     entityType: SyncEntityType,
     sinceCursor: string | null
   ): Promise<{ records: any[]; newestTimestamp: string | null }> {
-    let query = client.from(entityType).select('*').order('updated_at', { ascending: true });
-
-    if (sinceCursor) {
-      query = query.gt('updated_at', sinceCursor);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      throw new Error(`Failed to pull ${entityType}: ${error.message}`);
-    }
-
-    const rows = data || [];
+    const pageSize = 500;
+    let allRecords: any[] = [];
+    let currentCursor = sinceCursor;
+    let hasMore = true;
     let newestTimestamp: string | null = null;
 
-    if (rows.length > 0) {
-      const lastRow = rows[rows.length - 1];
-      newestTimestamp = lastRow.updated_at || lastRow.created_at || null;
+    while (hasMore) {
+      let query = client.from(entityType).select('*').order('updated_at', { ascending: true }).limit(pageSize);
+
+      if (currentCursor) {
+        query = query.gt('updated_at', currentCursor);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        throw new Error(`Failed to pull ${entityType}: ${error.message}`);
+      }
+
+      const rows = data || [];
+      allRecords = allRecords.concat(rows);
+
+      if (rows.length > 0) {
+        const lastRow = rows[rows.length - 1];
+        const rowTimestamp = lastRow.updated_at || lastRow.created_at || null;
+        
+        if (rowTimestamp) {
+          currentCursor = rowTimestamp;
+          if (!newestTimestamp || new Date(rowTimestamp).getTime() > new Date(newestTimestamp).getTime()) {
+            newestTimestamp = rowTimestamp;
+          }
+        }
+      }
+
+      if (rows.length < pageSize) {
+        hasMore = false;
+      }
     }
 
-    return { records: rows, newestTimestamp };
+    return { records: allRecords, newestTimestamp };
   }
 
   /**

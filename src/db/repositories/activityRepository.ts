@@ -4,10 +4,22 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { Activity, ActivityType } from '../types';
 
 export class ActivityRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -46,6 +58,19 @@ export class ActivityRepository {
     };
 
     await this.db.activities.add(activity);
+
+    try {
+      await this.getSyncQueue().enqueue({
+        entityType: 'activities',
+        entityId: activity.id,
+        operation: 'CREATE',
+        payload: activity,
+        userId: activity.userId || 'local-user',
+      });
+    } catch (err) {
+      console.warn('Outbox enqueue failed for logActivity:', err);
+    }
+
     return activity;
   }
 

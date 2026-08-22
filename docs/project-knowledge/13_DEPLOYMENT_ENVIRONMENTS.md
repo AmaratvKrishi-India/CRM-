@@ -56,9 +56,9 @@ The local development setup relies on Dockerized Supabase and the Vite dev serve
 The production stack utilizes Supabase Cloud for backend services and Vercel for web hosting.
 
 - **Backend:** Supabase Cloud (`lahvcodvgubplzfshare.supabase.co`)
-- **Web Host:** Vercel ([https://amaratv-krishi-crm.vercel.app](https://amaratv-krishi-crm.vercel.app))
-- **Vercel Project:** `divinity-thethirdeye/amaratv-krishi-crm`
-- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "amaratv-krishi-crm"}`)
+- **Web Host:** Vercel ([https://crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app))
+- **Vercel Project:** `amaratv-krishi/crm` (team `amaratv-krishi`, account `amaratvkrishi-india`)
+- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "crm"}`)
 - **Vercel Ignores:** [[`.vercelignore`](file:///c:/Users/PC/Desktop/calling%20app/.vercelignore)] (`android/`, `node_modules/`)
 - **Vercel Env Vars:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, `VITE_APP_VERSION`
 - **Android Production:** Release APK is generated at [android/app/build/outputs/apk/release/app-release.apk](file:///c:/Users/PC/Desktop/calling%20app/android/app/build/outputs/apk/release/app-release.apk) (7.26 MB)

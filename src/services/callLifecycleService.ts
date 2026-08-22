@@ -265,15 +265,6 @@ export class CallLifecycleService {
     (callRecord as any).callStatus = callStatus;
     (callRecord as any).reportedDurationSeconds = reportedDurationSeconds;
 
-    // Enqueue to persistent outbox for sync
-    await syncQueue.enqueue({
-      entityType: 'call_records',
-      entityId: callRecord.id,
-      operation: 'CREATE',
-      payload: callRecord,
-      userId: actor.id,
-    });
-
     // Update Lead stats: increment call count and last contacted time
     const lead = await leadRepo.getLeadById(attempt.leadId);
     if (lead) {

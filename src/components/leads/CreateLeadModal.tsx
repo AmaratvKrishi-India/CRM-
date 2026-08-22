@@ -89,15 +89,6 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
         },
       });
 
-      // Enqueue for cloud sync
-      await crmData.syncQueue.enqueue({
-        entityType: 'leads',
-        entityId: newLead.id,
-        operation: 'CREATE',
-        payload: newLead,
-        userId,
-      });
-
       onLeadCreated(newLead);
       onClose();
     } catch (err: unknown) {

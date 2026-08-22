@@ -120,6 +120,7 @@ CREATE OR REPLACE FUNCTION public.protect_profile_immutable_fields()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
     IF NOT public.is_org_admin() THEN

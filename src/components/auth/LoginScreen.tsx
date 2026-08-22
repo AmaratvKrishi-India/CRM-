@@ -61,6 +61,7 @@ export const LoginScreen: React.FC = () => {
         <button
           type="button"
           onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'NIGHT' ? 'Day' : 'Night'} Mode`}
           title={`Switch to ${theme === 'NIGHT' ? 'Day' : 'Night'} Mode`}
           className={`p-3 min-w-[44px] min-h-[44px] rounded-2xl border transition-all active:scale-90 flex items-center justify-center gap-1.5 text-xs font-bold cursor-pointer ${
             theme === 'DAY'

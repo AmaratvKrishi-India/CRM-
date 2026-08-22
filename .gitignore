@@ -43,3 +43,5 @@ android/capacitor-cordova-android-plugins/
 # E2E screenshots and reports (generated)
 e2e/android/screenshots/
 e2e/android/reports/
+
+.vercel

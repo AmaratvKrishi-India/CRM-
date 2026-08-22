@@ -4,7 +4,7 @@
 - **Name:** Amaratv Krishi Field Sales CRM
 - **Package:** calling-app v2.0.0
 - **Android:** com.amaratvkrishi.salescrm v2.0.0 (versionCode 2)
-- **Production URL:** https://amaratv-krishi-crm.vercel.app
+- **Production URL:** https://crm-blush-omega.vercel.app
 - **Supabase Cloud:** lahvcodvgubplzfshare.supabase.co
 
 ## Business Purpose
@@ -82,4 +82,4 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - **All tests:** PASS (102 unit + 30 E2E + 15 PostgreSQL)
 - **Production build:** PASS
 - **Android APK:** PASS (7.26 MB)
-- **Web deployment:** Vercel at https://amaratv-krishi-crm.vercel.app
+- **Web deployment:** Vercel at https://crm-blush-omega.vercel.app

@@ -5,10 +5,22 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { User, UserRole, UserStatus } from '../types';
 
 export class UserRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -75,6 +87,19 @@ export class UserRepository {
     };
 
     await this.db.users.add(newUser);
+
+    try {
+      await this.getSyncQueue().enqueue({
+        entityType: 'profiles',
+        entityId: newUser.id,
+        operation: 'CREATE',
+        payload: newUser,
+        userId: newUser.createdBy || newUser.id,
+      });
+    } catch (err) {
+      console.warn('Outbox enqueue failed for createUser:', err);
+    }
+
     return newUser;
   }
 
@@ -162,7 +187,22 @@ export class UserRepository {
       isSynced: 0,
     });
 
-    return (await this.db.users.get(id))!;
+    const updated = await this.db.users.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'profiles',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: id,
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for updateUser:', err);
+      }
+    }
+
+    return updated!;
   }
 
   /**
@@ -196,6 +236,21 @@ export class UserRepository {
       updatedAt: now,
       isSynced: 0,
     });
+
+    const updated = await this.db.users.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'profiles',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: id,
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for softDeleteUser:', err);
+      }
+    }
   }
 
   /**
@@ -212,7 +267,23 @@ export class UserRepository {
       updatedAt: now,
       isSynced: 0,
     });
-    return (await this.db.users.get(id))!;
+
+    const updated = await this.db.users.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'profiles',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: id,
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for deleteUser:', err);
+      }
+    }
+
+    return updated!;
   }
 
   /**

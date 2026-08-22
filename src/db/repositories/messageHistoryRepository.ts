@@ -4,10 +4,22 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { MessageHistory, MessageChannel, MessageStatus } from '../types';
 
 export class MessageHistoryRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -70,6 +82,30 @@ export class MessageHistoryRepository {
       });
     });
 
+    try {
+      const queue = this.getSyncQueue();
+      await queue.enqueue({
+        entityType: 'message_history',
+        entityId: msgRecord.id,
+        operation: 'CREATE',
+        payload: msgRecord,
+        userId: 'local-user',
+      });
+
+      const updatedLead = await this.db.leads.get(leadId);
+      if (updatedLead) {
+        await queue.enqueue({
+          entityType: 'leads',
+          entityId: leadId,
+          operation: 'UPDATE',
+          payload: updatedLead,
+          userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
+        });
+      }
+    } catch (err) {
+      console.warn('Outbox enqueue failed for logMessage:', err);
+    }
+
     return msgRecord;
   }
 
@@ -95,6 +131,21 @@ export class MessageHistoryRepository {
       updatedAt: now,
       isSynced: 0,
     });
+
+    const updated = await this.db.messageHistory.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'message_history',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for updateMessageStatus:', err);
+      }
+    }
   }
 
   /**
@@ -107,5 +158,20 @@ export class MessageHistoryRepository {
       updatedAt: now,
       isSynced: 0,
     });
+
+    const updated = await this.db.messageHistory.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'message_history',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for softDeleteMessage:', err);
+      }
+    }
   }
 }

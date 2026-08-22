@@ -124,16 +124,7 @@ export class LeadAssignmentService {
       updatedBy: actor.id,
     });
 
-    // 4. Enqueue mutation to persistent outbox for cloud sync
-    await syncQueue.enqueue({
-      entityType: 'leads',
-      entityId: leadId,
-      operation: 'UPDATE',
-      payload: updatedLead,
-      userId: actor.id,
-    });
-
-    // 5. Append immutable activity audit record
+    // 4. Append immutable activity audit record
     const deviceId = DeviceService.getDeviceId();
     const activityType = isReassignment ? 'LEAD_REASSIGNED' : 'LEAD_ASSIGNED';
     const auditActivity = await activityRepo.logActivity({
@@ -188,14 +179,6 @@ export class LeadAssignmentService {
     const updatedLead = await leadRepo.updateLead(leadId, {
       assignedTo: null,
       updatedBy: actor.id,
-    });
-
-    await syncQueue.enqueue({
-      entityType: 'leads',
-      entityId: leadId,
-      operation: 'UPDATE',
-      payload: updatedLead,
-      userId: actor.id,
     });
 
     const deviceId = DeviceService.getDeviceId();
@@ -324,15 +307,6 @@ export class LeadAssignmentService {
         const updatedLead = await leadRepo.updateLead(leadId, {
           assignedTo: targetAgentId,
           updatedBy: actor.id,
-        });
-
-        // Outbox enqueue for cloud sync
-        await syncQueue.enqueue({
-          entityType: 'leads',
-          entityId: leadId,
-          operation: 'UPDATE',
-          payload: updatedLead,
-          userId: actor.id,
         });
 
         // Activity log

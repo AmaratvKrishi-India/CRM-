@@ -4,10 +4,22 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { ImportAudit } from '../types';
 
 export class ImportAuditRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -57,6 +69,19 @@ export class ImportAuditRepository {
     };
 
     await this.db.importAudits.add(audit);
+
+    try {
+      await this.getSyncQueue().enqueue({
+        entityType: 'import_audits',
+        entityId: audit.id,
+        operation: 'CREATE',
+        payload: audit,
+        userId: audit.uploadedBy || 'local-user',
+      });
+    } catch (err) {
+      console.warn('Outbox enqueue failed for createAudit:', err);
+    }
+
     return audit;
   }
 

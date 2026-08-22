@@ -20,31 +20,36 @@ describe('App Font & Typography Constraints (Phase 3)', () => {
     );
   });
 
-  it('index.html imports Google Fonts Inter stylesheet with preconnect', () => {
+  it('index.html does not import external Google Fonts (100% offline-first)', () => {
     const htmlPath = path.join(rootDir, 'index.html');
     const htmlContent = fs.readFileSync(htmlPath, 'utf8');
 
     assert.ok(
-      htmlContent.includes('fonts.googleapis.com/css2?family=Inter'),
-      'index.html must load Inter from Google Fonts'
+      !htmlContent.includes('fonts.googleapis.com'),
+      'index.html must not link to fonts.googleapis.com CDN'
     );
     assert.ok(
-      htmlContent.includes('rel="preconnect" href="https://fonts.googleapis.com"'),
-      'index.html should have preconnect link for fonts.googleapis.com'
+      !htmlContent.includes('fonts.gstatic.com'),
+      'index.html must not link to fonts.gstatic.com CDN'
     );
   });
 
-  it('index.css sets body and html font-family to Inter', () => {
+  it('index.css imports @fontsource/inter locally and sets body and html font-family to Inter', () => {
     const cssPath = path.join(rootDir, 'src', 'index.css');
     const cssContent = fs.readFileSync(cssPath, 'utf8');
 
     assert.ok(
-      cssContent.includes("'Inter'") || cssContent.includes('"Inter"'),
-      'index.css must configure Inter font-family'
+      cssContent.includes('@import "@fontsource/inter/400.css"') ||
+      cssContent.includes("@import '@fontsource/inter/400.css'"),
+      'index.css must import @fontsource/inter locally'
     );
     assert.ok(
-      cssContent.includes('@import url("https://fonts.googleapis.com/css2?family=Inter'),
-      'index.css must import Inter font directly'
+      !cssContent.includes('fonts.googleapis.com'),
+      'index.css must not import from external Google Fonts URL'
+    );
+    assert.ok(
+      cssContent.includes("'Inter'") || cssContent.includes('"Inter"'),
+      'index.css must configure Inter font-family'
     );
   });
 

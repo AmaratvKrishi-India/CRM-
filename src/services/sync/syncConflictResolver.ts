@@ -6,7 +6,7 @@
  * 3. Mutable Entities (Lead, FollowUp, Remark, Profile): Timestamp / Version Last-Write-Wins (LWW).
  */
 
-import { SyncEntityType, SyncConflict } from './syncTypes';
+import type { SyncEntityType, SyncConflict } from './syncTypes.ts';
 
 export interface ResolutionResult<T = any> {
   winner: 'LOCAL' | 'REMOTE';

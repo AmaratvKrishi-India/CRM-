@@ -5,6 +5,7 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import {
   Lead,
   LeadStatus,
@@ -49,7 +50,18 @@ export interface RawLeadImportInput {
 }
 
 export class LeadRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   /**
    * Generates a UUID v4 string (browser/Node compatible).
@@ -152,6 +164,17 @@ export class LeadRepository {
     };
 
     await this.db.leads.add(newLead);
+    try {
+      await this.getSyncQueue().enqueue({
+        entityType: 'leads',
+        entityId: newLead.id,
+        operation: 'CREATE',
+        payload: newLead,
+        userId: newLead.createdBy || 'local-user',
+      });
+    } catch (err) {
+      console.warn('Outbox enqueue failed for createLead:', err);
+    }
     return newLead;
   }
 
@@ -262,6 +285,20 @@ export class LeadRepository {
     if (leadsToInsert.length > 0) {
       await this.db.leads.bulkAdd(leadsToInsert);
       result.imported = leadsToInsert.length;
+      try {
+        const queue = this.getSyncQueue();
+        for (const lead of leadsToInsert) {
+          await queue.enqueue({
+            entityType: 'leads',
+            entityId: lead.id,
+            operation: 'CREATE',
+            payload: lead,
+            userId: lead.createdBy || 'local-user',
+          });
+        }
+      } catch (err) {
+        console.warn('Outbox enqueue failed for bulkImportLeads:', err);
+      }
     }
 
     return result;
@@ -348,6 +385,19 @@ export class LeadRepository {
 
     await this.db.leads.update(id, updatePayload);
     const updated = await this.db.leads.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'leads',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: updated.updatedBy || updated.createdBy || 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for updateLead:', err);
+      }
+    }
     return updated!;
   }
 
@@ -504,6 +554,20 @@ export class LeadRepository {
       updatedAt: now,
       isSynced: 0,
     });
+    const updated = await this.db.leads.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'leads',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: updated.updatedBy || updated.createdBy || 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for softDeleteLead:', err);
+      }
+    }
   }
 
   /**
@@ -518,6 +582,20 @@ export class LeadRepository {
       updatedAt: now,
       isSynced: 0,
     });
+    const updated = await this.db.leads.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'leads',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: updated.updatedBy || updated.createdBy || 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for restoreLead:', err);
+      }
+    }
   }
 
   /**

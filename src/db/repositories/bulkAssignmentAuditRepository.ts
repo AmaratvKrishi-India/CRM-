@@ -4,10 +4,22 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { BulkAssignmentAudit } from '../types';
 
 export class BulkAssignmentAuditRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -61,6 +73,19 @@ export class BulkAssignmentAuditRepository {
     };
 
     await this.db.bulkAssignmentAudits.add(auditRecord);
+
+    try {
+      await this.getSyncQueue().enqueue({
+        entityType: 'bulk_assignment_audits',
+        entityId: auditRecord.id,
+        operation: 'CREATE',
+        payload: auditRecord,
+        userId: auditRecord.performedBy,
+      });
+    } catch (err) {
+      console.warn('Outbox enqueue failed for logAudit:', err);
+    }
+
     return auditRecord;
   }
 

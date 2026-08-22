@@ -365,5 +365,5 @@ export interface LeadStats {
   todayFollowUpsCount: number;
 }
 
-export * from '../services/sync/syncTypes';
+export type * from '../services/sync/syncTypes';
 

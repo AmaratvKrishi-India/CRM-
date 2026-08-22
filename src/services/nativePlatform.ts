@@ -48,7 +48,9 @@ export class NativePlatformService {
     const cleanNumber = phoneNumber.trim();
     if (!cleanNumber) return;
     const url = `tel:${encodeURIComponent(cleanNumber)}`;
-    window.open(url, '_system');
+    if (typeof window !== 'undefined' && window.open) {
+      window.open(url, '_system');
+    }
   }
 
   /**
@@ -68,7 +70,9 @@ export class NativePlatformService {
     if (!cleanDigits) return;
     const encodedText = encodeURIComponent(text);
     const url = `https://wa.me/${cleanDigits}?text=${encodedText}`;
-    window.open(url, '_system');
+    if (typeof window !== 'undefined' && window.open) {
+      window.open(url, '_system');
+    }
   }
 
   /**

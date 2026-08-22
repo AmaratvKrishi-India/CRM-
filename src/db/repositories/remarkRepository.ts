@@ -4,10 +4,22 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { Remark, RemarkType } from '../types';
 
 export class RemarkRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -57,6 +69,30 @@ export class RemarkRepository {
       });
     });
 
+    try {
+      const queue = this.getSyncQueue();
+      await queue.enqueue({
+        entityType: 'remarks',
+        entityId: remark.id,
+        operation: 'CREATE',
+        payload: remark,
+        userId: 'local-user',
+      });
+
+      const updatedLead = await this.db.leads.get(leadId);
+      if (updatedLead) {
+        await queue.enqueue({
+          entityType: 'leads',
+          entityId: leadId,
+          operation: 'UPDATE',
+          payload: updatedLead,
+          userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
+        });
+      }
+    } catch (err) {
+      console.warn('Outbox enqueue failed for addRemark:', err);
+    }
+
     return remark;
   }
 
@@ -82,6 +118,21 @@ export class RemarkRepository {
       updatedAt: now,
       isSynced: 0,
     });
+
+    const updated = await this.db.remarks.get(id);
+    if (updated) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'remarks',
+          entityId: updated.id,
+          operation: 'UPDATE',
+          payload: updated,
+          userId: 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for softDeleteRemark:', err);
+      }
+    }
   }
 
   /**

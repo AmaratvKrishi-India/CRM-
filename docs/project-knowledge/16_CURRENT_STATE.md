@@ -6,7 +6,7 @@
 - Release Date: 2026-08-22
 
 ## Production Endpoints
-- Web: https://amaratv-krishi-crm.vercel.app (Vercel, divinity-thethirdeye/amaratv-krishi-crm)
+- Web: https://crm-blush-omega.vercel.app (Vercel, amaratv-krishi/crm)
 - Backend: Supabase Cloud (lahvcodvgubplzfshare.supabase.co)
 - Android: APK at [app-release.apk](file:///c:/Users/PC/Desktop/calling%20app/android/app/build/outputs/apk/release/app-release.apk) (7.26 MB)
 

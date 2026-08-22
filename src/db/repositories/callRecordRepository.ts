@@ -5,6 +5,7 @@
  */
 
 import { SalesCRMDatabase } from '../database';
+import { SyncQueue } from '../../services/sync/syncQueue';
 import { CallOutcome, CallRecord, CallVerificationStatus } from '../types';
 
 export interface AgentCallMetrics {
@@ -25,7 +26,18 @@ export interface OrganisationCallSummary {
 }
 
 export class CallRecordRepository {
-  constructor(private db: SalesCRMDatabase) {}
+  private syncQueue?: SyncQueue;
+
+  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
+    this.syncQueue = syncQueue;
+  }
+
+  private getSyncQueue(): SyncQueue {
+    if (!this.syncQueue) {
+      this.syncQueue = new SyncQueue(this.db);
+    }
+    return this.syncQueue;
+  }
 
   private generateId(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -74,6 +86,19 @@ export class CallRecordRepository {
     };
 
     await this.db.callRecords.add(record);
+
+    try {
+      await this.getSyncQueue().enqueue({
+        entityType: 'call_records',
+        entityId: record.id,
+        operation: 'CREATE',
+        payload: record,
+        userId: record.userId || 'local-user',
+      });
+    } catch (err) {
+      console.warn('Outbox enqueue failed for createCallRecord:', err);
+    }
+
     return record;
   }
 

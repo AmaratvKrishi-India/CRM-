@@ -1,0 +1,2921 @@
+{
+  "generatedAt": "2026-08-21T13:20:39.419Z",
+  "databaseVersion": "PostgreSQL 17.6 on x86_64-pc-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit",
+  "migrations": [],
+  "tables": [
+    "activities",
+    "bulk_assignment_audits",
+    "call_records",
+    "follow_ups",
+    "import_audits",
+    "leads",
+    "message_history",
+    "organizations",
+    "profiles",
+    "remarks"
+  ],
+  "columns": [
+    {
+      "table_name": "activities",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "lead_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "user_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "device_id",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "activity_type",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "metadata",
+      "ordinal_position": 7,
+      "column_default": "'{}'::jsonb",
+      "is_nullable": "NO",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "created_at",
+      "ordinal_position": 8,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "updated_at",
+      "ordinal_position": 9,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "version",
+      "ordinal_position": 10,
+      "column_default": "1",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "activities",
+      "column_name": "deleted_at",
+      "ordinal_position": 11,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "performed_by",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "target_agent_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "selected_lead_count",
+      "ordinal_position": 5,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "successful_count",
+      "ordinal_position": 6,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "failed_count",
+      "ordinal_position": 7,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "started_at",
+      "ordinal_position": 8,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "completed_at",
+      "ordinal_position": 9,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "filter_snapshot",
+      "ordinal_position": 10,
+      "column_default": "'{}'::jsonb",
+      "is_nullable": "YES",
+      "data_type": "jsonb",
+      "udt_name": "jsonb",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "status",
+      "ordinal_position": 11,
+      "column_default": "'COMPLETED'::character varying",
+      "is_nullable": "NO",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 30,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "error_summary",
+      "ordinal_position": 12,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "created_at",
+      "ordinal_position": 13,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "updated_at",
+      "ordinal_position": 14,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "deleted_at",
+      "ordinal_position": 15,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "version",
+      "ordinal_position": 16,
+      "column_default": "1",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "lead_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "user_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "device_id",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "started_at",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "answered_at",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "ended_at",
+      "ordinal_position": 8,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "duration_seconds",
+      "ordinal_position": 9,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "outcome",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "remark",
+      "ordinal_position": 11,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "verification_status",
+      "ordinal_position": 12,
+      "column_default": "'UNVERIFIED'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "created_at",
+      "ordinal_position": 13,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "updated_at",
+      "ordinal_position": 14,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "version",
+      "ordinal_position": 15,
+      "column_default": "1",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "deleted_at",
+      "ordinal_position": 16,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "lead_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "user_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "scheduled_at",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "title",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "notes",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "priority",
+      "ordinal_position": 8,
+      "column_default": "'MEDIUM'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "status",
+      "ordinal_position": 9,
+      "column_default": "'PENDING'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "completed_at",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "outcome_notes",
+      "ordinal_position": 11,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "created_at",
+      "ordinal_position": 12,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "updated_at",
+      "ordinal_position": 13,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "deleted_at",
+      "ordinal_position": 14,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "uploaded_by",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "device_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "filename",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "source",
+      "ordinal_position": 6,
+      "column_default": "'Excel Import'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "started_at",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "completed_at",
+      "ordinal_position": 8,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "total_rows",
+      "ordinal_position": 9,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "imported",
+      "ordinal_position": 10,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "updated",
+      "ordinal_position": 11,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "duplicates",
+      "ordinal_position": 12,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "invalid",
+      "ordinal_position": 13,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "created_at",
+      "ordinal_position": 14,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "updated_at",
+      "ordinal_position": 15,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "business_name",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "category",
+      "ordinal_position": 4,
+      "column_default": "'Gym'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "phone",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "phone_raw",
+      "ordinal_position": 6,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "phone_e164",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "phone_type",
+      "ordinal_position": 8,
+      "column_default": "'mobile'::text",
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "alternate_phone",
+      "ordinal_position": 9,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "contact_person",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "address",
+      "ordinal_position": 11,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "locality",
+      "ordinal_position": 12,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "pincode",
+      "ordinal_position": 13,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "city",
+      "ordinal_position": 14,
+      "column_default": "'Lucknow'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "state",
+      "ordinal_position": 15,
+      "column_default": "'Uttar Pradesh'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "website",
+      "ordinal_position": 16,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "rating",
+      "ordinal_position": 17,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "numeric",
+      "udt_name": "numeric",
+      "character_maximum_length": null,
+      "numeric_precision": 3,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "review_count",
+      "ordinal_position": 18,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "source",
+      "ordinal_position": 19,
+      "column_default": "'Field Sales'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "source_file",
+      "ordinal_position": 20,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "source_row",
+      "ordinal_position": 21,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "status",
+      "ordinal_position": 22,
+      "column_default": "'NEW'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "custom_notes",
+      "ordinal_position": 23,
+      "column_default": "''::text",
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "last_contacted_at",
+      "ordinal_position": 24,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "next_follow_up_at",
+      "ordinal_position": 25,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "call_count",
+      "ordinal_position": 26,
+      "column_default": "0",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "created_by",
+      "ordinal_position": 27,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "assigned_to",
+      "ordinal_position": 28,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "updated_by",
+      "ordinal_position": 29,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "created_at",
+      "ordinal_position": 30,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "updated_at",
+      "ordinal_position": 31,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "version",
+      "ordinal_position": 32,
+      "column_default": "1",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "leads",
+      "column_name": "deleted_at",
+      "ordinal_position": 33,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "lead_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "user_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "template_id",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "channel",
+      "ordinal_position": 6,
+      "column_default": "'WHATSAPP'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "recipient_phone",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "message_content",
+      "ordinal_position": 8,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "sent_status",
+      "ordinal_position": 9,
+      "column_default": "'INITIATED'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "sent_at",
+      "ordinal_position": 10,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "created_at",
+      "ordinal_position": 11,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "updated_at",
+      "ordinal_position": 12,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "deleted_at",
+      "ordinal_position": 13,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "organizations",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "organizations",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "organizations",
+      "column_name": "created_at",
+      "ordinal_position": 3,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "organizations",
+      "column_name": "created_by",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "organizations",
+      "column_name": "updated_at",
+      "ordinal_position": 5,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "auth_user_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "organization_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "name",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "email",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "phone",
+      "ordinal_position": 6,
+      "column_default": "''::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "role",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "status",
+      "ordinal_position": 8,
+      "column_default": "'ACTIVE'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "created_at",
+      "ordinal_position": 9,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "created_by",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "updated_at",
+      "ordinal_position": 11,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "last_login_at",
+      "ordinal_position": 12,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "version",
+      "ordinal_position": 13,
+      "column_default": "1",
+      "is_nullable": "NO",
+      "data_type": "integer",
+      "udt_name": "int4",
+      "character_maximum_length": null,
+      "numeric_precision": 32,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "deleted_at",
+      "ordinal_position": 14,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "column_default": "gen_random_uuid()",
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "organization_id",
+      "ordinal_position": 2,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "lead_id",
+      "ordinal_position": 3,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "user_id",
+      "ordinal_position": 4,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "content",
+      "ordinal_position": 5,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "type",
+      "ordinal_position": 6,
+      "column_default": "'CUSTOM'::text",
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "author",
+      "ordinal_position": 7,
+      "column_default": null,
+      "is_nullable": "NO",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "created_at",
+      "ordinal_position": 8,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "updated_at",
+      "ordinal_position": 9,
+      "column_default": "now()",
+      "is_nullable": "NO",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "deleted_at",
+      "ordinal_position": 10,
+      "column_default": null,
+      "is_nullable": "YES",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "numeric_precision": null,
+      "is_identity": "NO",
+      "identity_generation": null
+    }
+  ],
+  "primaryKeys": [
+    {
+      "table_name": "activities",
+      "column_name": "id",
+      "constraint_name": "activities_pkey"
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "id",
+      "constraint_name": "bulk_assignment_audits_pkey"
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "id",
+      "constraint_name": "call_records_pkey"
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "id",
+      "constraint_name": "follow_ups_pkey"
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "id",
+      "constraint_name": "import_audits_pkey"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "id",
+      "constraint_name": "leads_pkey"
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "id",
+      "constraint_name": "message_history_pkey"
+    },
+    {
+      "table_name": "organizations",
+      "column_name": "id",
+      "constraint_name": "organizations_pkey"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "id",
+      "constraint_name": "profiles_pkey"
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "id",
+      "constraint_name": "remarks_pkey"
+    }
+  ],
+  "foreignKeys": [
+    {
+      "table_name": "activities",
+      "column_name": "lead_id",
+      "constraint_name": "activities_lead_id_fkey",
+      "foreign_table_name": "leads",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "activities",
+      "column_name": "organization_id",
+      "constraint_name": "activities_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "activities",
+      "column_name": "user_id",
+      "constraint_name": "activities_user_id_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "organization_id",
+      "constraint_name": "bulk_assignment_audits_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "performed_by",
+      "constraint_name": "bulk_assignment_audits_performed_by_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "bulk_assignment_audits",
+      "column_name": "target_agent_id",
+      "constraint_name": "bulk_assignment_audits_target_agent_id_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "lead_id",
+      "constraint_name": "call_records_lead_id_fkey",
+      "foreign_table_name": "leads",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "organization_id",
+      "constraint_name": "call_records_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "call_records",
+      "column_name": "user_id",
+      "constraint_name": "call_records_user_id_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "lead_id",
+      "constraint_name": "follow_ups_lead_id_fkey",
+      "foreign_table_name": "leads",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "organization_id",
+      "constraint_name": "follow_ups_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "follow_ups",
+      "column_name": "user_id",
+      "constraint_name": "follow_ups_user_id_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "organization_id",
+      "constraint_name": "import_audits_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "import_audits",
+      "column_name": "uploaded_by",
+      "constraint_name": "import_audits_uploaded_by_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "assigned_to",
+      "constraint_name": "leads_assigned_to_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "created_by",
+      "constraint_name": "leads_created_by_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "organization_id",
+      "constraint_name": "leads_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "leads",
+      "column_name": "updated_by",
+      "constraint_name": "leads_updated_by_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "lead_id",
+      "constraint_name": "message_history_lead_id_fkey",
+      "foreign_table_name": "leads",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "organization_id",
+      "constraint_name": "message_history_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "message_history",
+      "column_name": "user_id",
+      "constraint_name": "message_history_user_id_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "created_by",
+      "constraint_name": "profiles_created_by_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "profiles",
+      "column_name": "organization_id",
+      "constraint_name": "profiles_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "lead_id",
+      "constraint_name": "remarks_lead_id_fkey",
+      "foreign_table_name": "leads",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "organization_id",
+      "constraint_name": "remarks_organization_id_fkey",
+      "foreign_table_name": "organizations",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "RESTRICT"
+    },
+    {
+      "table_name": "remarks",
+      "column_name": "user_id",
+      "constraint_name": "remarks_user_id_fkey",
+      "foreign_table_name": "profiles",
+      "foreign_column_name": "id",
+      "update_rule": "NO ACTION",
+      "delete_rule": "SET NULL"
+    }
+  ],
+  "uniqueConstraints": [
+    {
+      "table_name": "profiles",
+      "column_name": "auth_user_id",
+      "constraint_name": "profiles_auth_user_id_key"
+    }
+  ],
+  "checkConstraints": [
+    {
+      "table_name": "bulk_assignment_audits",
+      "constraint_name": "bulk_assignment_audits_status_check",
+      "check_clause": "((status)::text = ANY ((ARRAY['PENDING'::character varying, 'COMPLETED'::character varying, 'PARTIAL'::character varying, 'FAILED'::character varying])::text[]))"
+    },
+    {
+      "table_name": "call_records",
+      "constraint_name": "call_records_verification_status_check",
+      "check_clause": "(verification_status = ANY (ARRAY['UNVERIFIED'::text, 'VERIFIED'::text]))"
+    },
+    {
+      "table_name": "profiles",
+      "constraint_name": "profiles_role_check",
+      "check_clause": "(role = ANY (ARRAY['ADMIN'::text, 'AGENT'::text]))"
+    },
+    {
+      "table_name": "profiles",
+      "constraint_name": "profiles_status_check",
+      "check_clause": "(status = ANY (ARRAY['ACTIVE'::text, 'INACTIVE'::text]))"
+    }
+  ],
+  "indexes": [
+    {
+      "tablename": "activities",
+      "indexname": "activities_pkey",
+      "indexdef": "CREATE UNIQUE INDEX activities_pkey ON public.activities USING btree (id)"
+    },
+    {
+      "tablename": "activities",
+      "indexname": "idx_activities_org_lead",
+      "indexdef": "CREATE INDEX idx_activities_org_lead ON public.activities USING btree (organization_id, lead_id)"
+    },
+    {
+      "tablename": "activities",
+      "indexname": "idx_activities_org_user",
+      "indexdef": "CREATE INDEX idx_activities_org_user ON public.activities USING btree (organization_id, user_id)"
+    },
+    {
+      "tablename": "bulk_assignment_audits",
+      "indexname": "bulk_assignment_audits_pkey",
+      "indexdef": "CREATE UNIQUE INDEX bulk_assignment_audits_pkey ON public.bulk_assignment_audits USING btree (id)"
+    },
+    {
+      "tablename": "bulk_assignment_audits",
+      "indexname": "idx_bulk_assign_org_performed",
+      "indexdef": "CREATE INDEX idx_bulk_assign_org_performed ON public.bulk_assignment_audits USING btree (organization_id, performed_by, started_at DESC)"
+    },
+    {
+      "tablename": "bulk_assignment_audits",
+      "indexname": "idx_bulk_assign_org_target_started",
+      "indexdef": "CREATE INDEX idx_bulk_assign_org_target_started ON public.bulk_assignment_audits USING btree (organization_id, target_agent_id, started_at DESC)"
+    },
+    {
+      "tablename": "call_records",
+      "indexname": "call_records_pkey",
+      "indexdef": "CREATE UNIQUE INDEX call_records_pkey ON public.call_records USING btree (id)"
+    },
+    {
+      "tablename": "call_records",
+      "indexname": "idx_call_records_org_lead",
+      "indexdef": "CREATE INDEX idx_call_records_org_lead ON public.call_records USING btree (organization_id, lead_id)"
+    },
+    {
+      "tablename": "call_records",
+      "indexname": "idx_call_records_org_lead_started",
+      "indexdef": "CREATE INDEX idx_call_records_org_lead_started ON public.call_records USING btree (organization_id, lead_id, started_at DESC)"
+    },
+    {
+      "tablename": "call_records",
+      "indexname": "idx_call_records_org_user",
+      "indexdef": "CREATE INDEX idx_call_records_org_user ON public.call_records USING btree (organization_id, user_id)"
+    },
+    {
+      "tablename": "call_records",
+      "indexname": "idx_call_records_org_user_verif_started",
+      "indexdef": "CREATE INDEX idx_call_records_org_user_verif_started ON public.call_records USING btree (organization_id, user_id, verification_status, started_at DESC)"
+    },
+    {
+      "tablename": "follow_ups",
+      "indexname": "follow_ups_pkey",
+      "indexdef": "CREATE UNIQUE INDEX follow_ups_pkey ON public.follow_ups USING btree (id)"
+    },
+    {
+      "tablename": "follow_ups",
+      "indexname": "idx_follow_ups_org_lead_status",
+      "indexdef": "CREATE INDEX idx_follow_ups_org_lead_status ON public.follow_ups USING btree (organization_id, lead_id, status)"
+    },
+    {
+      "tablename": "import_audits",
+      "indexname": "idx_import_audits_org_user",
+      "indexdef": "CREATE INDEX idx_import_audits_org_user ON public.import_audits USING btree (organization_id, uploaded_by)"
+    },
+    {
+      "tablename": "import_audits",
+      "indexname": "import_audits_pkey",
+      "indexdef": "CREATE UNIQUE INDEX import_audits_pkey ON public.import_audits USING btree (id)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "idx_leads_org_assigned_deleted",
+      "indexdef": "CREATE INDEX idx_leads_org_assigned_deleted ON public.leads USING btree (organization_id, assigned_to, deleted_at)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "idx_leads_org_locality_deleted",
+      "indexdef": "CREATE INDEX idx_leads_org_locality_deleted ON public.leads USING btree (organization_id, locality, deleted_at)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "idx_leads_org_status_deleted",
+      "indexdef": "CREATE INDEX idx_leads_org_status_deleted ON public.leads USING btree (organization_id, status, deleted_at)"
+    },
+    {
+      "tablename": "leads",
+      "indexname": "leads_pkey",
+      "indexdef": "CREATE UNIQUE INDEX leads_pkey ON public.leads USING btree (id)"
+    },
+    {
+      "tablename": "message_history",
+      "indexname": "idx_message_history_org_lead",
+      "indexdef": "CREATE INDEX idx_message_history_org_lead ON public.message_history USING btree (organization_id, lead_id)"
+    },
+    {
+      "tablename": "message_history",
+      "indexname": "message_history_pkey",
+      "indexdef": "CREATE UNIQUE INDEX message_history_pkey ON public.message_history USING btree (id)"
+    },
+    {
+      "tablename": "organizations",
+      "indexname": "organizations_pkey",
+      "indexdef": "CREATE UNIQUE INDEX organizations_pkey ON public.organizations USING btree (id)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "idx_profiles_org_email",
+      "indexdef": "CREATE UNIQUE INDEX idx_profiles_org_email ON public.profiles USING btree (organization_id, lower(email)) WHERE (deleted_at IS NULL)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "idx_profiles_org_role_status",
+      "indexdef": "CREATE INDEX idx_profiles_org_role_status ON public.profiles USING btree (organization_id, role, status)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "profiles_auth_user_id_key",
+      "indexdef": "CREATE UNIQUE INDEX profiles_auth_user_id_key ON public.profiles USING btree (auth_user_id)"
+    },
+    {
+      "tablename": "profiles",
+      "indexname": "profiles_pkey",
+      "indexdef": "CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"
+    },
+    {
+      "tablename": "remarks",
+      "indexname": "idx_remarks_org_lead",
+      "indexdef": "CREATE INDEX idx_remarks_org_lead ON public.remarks USING btree (organization_id, lead_id)"
+    },
+    {
+      "tablename": "remarks",
+      "indexname": "remarks_pkey",
+      "indexdef": "CREATE UNIQUE INDEX remarks_pkey ON public.remarks USING btree (id)"
+    }
+  ],
+  "rlsStatus": [
+    {
+      "tablename": "activities",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "bulk_assignment_audits",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "call_records",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "follow_ups",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "import_audits",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "leads",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "message_history",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "organizations",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "profiles",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "remarks",
+      "rowsecurity": true
+    }
+  ],
+  "rlsPolicies": [
+    {
+      "schemaname": "public",
+      "tablename": "activities",
+      "policyname": "activities_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "activities",
+      "policyname": "activities_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "bulk_assignment_audits",
+      "policyname": "bulk_assignment_audits_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND is_org_admin())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "bulk_assignment_audits",
+      "policyname": "bulk_assignment_audits_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND is_org_admin())",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "call_records",
+      "policyname": "call_records_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "call_records",
+      "policyname": "call_records_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "call_records",
+      "policyname": "call_records_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))",
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "follow_ups",
+      "policyname": "follow_ups_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "follow_ups",
+      "policyname": "follow_ups_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "follow_ups",
+      "policyname": "follow_ups_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "import_audits",
+      "policyname": "import_audits_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND is_org_admin())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "import_audits",
+      "policyname": "import_audits_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND is_org_admin())",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "leads",
+      "policyname": "leads_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR ((created_by = current_profile_id()) AND ((assigned_to = current_profile_id()) OR (assigned_to IS NULL)))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "leads",
+      "policyname": "leads_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (assigned_to = current_profile_id()) OR (created_by = current_profile_id())))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "leads",
+      "policyname": "leads_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (assigned_to = current_profile_id()) OR (created_by = current_profile_id())))",
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (assigned_to = current_profile_id()) OR (created_by = current_profile_id())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "message_history",
+      "policyname": "message_history_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "message_history",
+      "policyname": "message_history_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "message_history",
+      "policyname": "message_history_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))",
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "organizations",
+      "policyname": "org_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "(id = current_user_org_id())",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "organizations",
+      "policyname": "org_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((id = current_user_org_id()) AND is_org_admin())",
+      "with_check": "((id = current_user_org_id()) AND is_org_admin())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "profiles_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND is_org_admin())"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "profiles_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "(organization_id = current_user_org_id())",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "profiles",
+      "policyname": "profiles_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (auth_user_id = auth.uid())))",
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (auth_user_id = auth.uid())))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "remarks",
+      "policyname": "remarks_insert_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "INSERT",
+      "qual": null,
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))"
+    },
+    {
+      "schemaname": "public",
+      "tablename": "remarks",
+      "policyname": "remarks_select_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "SELECT",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": null
+    },
+    {
+      "schemaname": "public",
+      "tablename": "remarks",
+      "policyname": "remarks_update_policy",
+      "permissive": "PERMISSIVE",
+      "roles": [
+        "public"
+      ],
+      "cmd": "UPDATE",
+      "qual": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))",
+      "with_check": "((organization_id = current_user_org_id()) AND (is_org_admin() OR (user_id = current_profile_id()) OR (lead_id IN ( SELECT l.id\n   FROM leads l\n  WHERE ((l.organization_id = current_user_org_id()) AND ((l.assigned_to = current_profile_id()) OR (l.created_by = current_profile_id())))))))"
+    }
+  ],
+  "functions": [
+    {
+      "function_name": "current_profile_id",
+      "arguments": "",
+      "result_type": "uuid",
+      "is_security_definer": true,
+      "volatility": "s",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.current_profile_id()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n    SELECT id \n    FROM public.profiles \n    WHERE auth_user_id = auth.uid() \n      AND status = 'ACTIVE' \n      AND deleted_at IS NULL \n    LIMIT 1;\n$function$\n"
+    },
+    {
+      "function_name": "current_user_org_id",
+      "arguments": "",
+      "result_type": "uuid",
+      "is_security_definer": true,
+      "volatility": "s",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.current_user_org_id()\n RETURNS uuid\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n    SELECT organization_id \n    FROM public.profiles \n    WHERE auth_user_id = auth.uid() \n      AND status = 'ACTIVE' \n      AND deleted_at IS NULL \n    LIMIT 1;\n$function$\n"
+    },
+    {
+      "function_name": "current_user_role",
+      "arguments": "",
+      "result_type": "text",
+      "is_security_definer": true,
+      "volatility": "s",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.current_user_role()\n RETURNS text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n    SELECT role \n    FROM public.profiles \n    WHERE auth_user_id = auth.uid() \n      AND status = 'ACTIVE' \n      AND deleted_at IS NULL \n    LIMIT 1;\n$function$\n"
+    },
+    {
+      "function_name": "is_active_org_user",
+      "arguments": "",
+      "result_type": "boolean",
+      "is_security_definer": true,
+      "volatility": "s",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.is_active_org_user()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n    SELECT (public.current_user_org_id() IS NOT NULL);\n$function$\n"
+    },
+    {
+      "function_name": "is_org_admin",
+      "arguments": "",
+      "result_type": "boolean",
+      "is_security_definer": true,
+      "volatility": "s",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.is_org_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\n    SELECT (public.current_user_role() = 'ADMIN');\n$function$\n"
+    },
+    {
+      "function_name": "protect_lead_immutable_fields",
+      "arguments": "",
+      "result_type": "trigger",
+      "is_security_definer": true,
+      "volatility": "v",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.protect_lead_immutable_fields()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n    IF NOT public.is_org_admin() THEN\n        IF NEW.organization_id <> OLD.organization_id THEN\n            RAISE EXCEPTION 'Agents are strictly forbidden from modifying lead organization boundary.';\n        END IF;\n        IF NEW.created_by IS DISTINCT FROM OLD.created_by THEN\n            RAISE EXCEPTION 'Agents are strictly forbidden from modifying lead creator.';\n        END IF;\n        IF NEW.assigned_to IS DISTINCT FROM OLD.assigned_to THEN\n            IF NEW.assigned_to IS NOT NULL AND NEW.assigned_to <> public.current_profile_id() THEN\n                RAISE EXCEPTION 'Agents are not permitted to reassign leads to other sales agents.';\n            END IF;\n        END IF;\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "protect_profile_immutable_fields",
+      "arguments": "",
+      "result_type": "trigger",
+      "is_security_definer": true,
+      "volatility": "v",
+      "config_parameters": [
+        "search_path=public"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.protect_profile_immutable_fields()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n    IF NOT public.is_org_admin() THEN\n        IF NEW.role <> OLD.role THEN\n            RAISE EXCEPTION 'Agents are strictly forbidden from altering user roles.';\n        END IF;\n        IF NEW.organization_id <> OLD.organization_id THEN\n            RAISE EXCEPTION 'Users cannot alter their organization assignment.';\n        END IF;\n        IF NEW.status <> OLD.status THEN\n            RAISE EXCEPTION 'Agents cannot alter user activation status.';\n        END IF;\n        IF NEW.auth_user_id <> OLD.auth_user_id THEN\n            RAISE EXCEPTION 'Authentication identity mapping cannot be changed.';\n        END IF;\n    END IF;\n    RETURN NEW;\nEND;\n$function$\n"
+    }
+  ],
+  "triggers": [
+    {
+      "table_name": "leads",
+      "trigger_name": "trg_protect_lead_immutable_fields",
+      "event": "UPDATE",
+      "timing": "BEFORE",
+      "action_statement": "EXECUTE FUNCTION protect_lead_immutable_fields()"
+    },
+    {
+      "table_name": "profiles",
+      "trigger_name": "trg_protect_profile_immutable_fields",
+      "event": "UPDATE",
+      "timing": "BEFORE",
+      "action_statement": "EXECUTE FUNCTION protect_profile_immutable_fields()"
+    }
+  ],
+  "realtime": [
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "activities"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "bulk_assignment_audits"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "call_records"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "follow_ups"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "import_audits"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "leads"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "message_history"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "profiles"
+    },
+    {
+      "pubname": "supabase_realtime",
+      "schemaname": "public",
+      "tablename": "remarks"
+    }
+  ],
+  "extensions": [
+    {
+      "extname": "pg_stat_statements",
+      "extversion": "1.11"
+    },
+    {
+      "extname": "pgcrypto",
+      "extversion": "1.3"
+    },
+    {
+      "extname": "plpgsql",
+      "extversion": "1.0"
+    },
+    {
+      "extname": "supabase_vault",
+      "extversion": "0.3.1"
+    },
+    {
+      "extname": "uuid-ossp",
+      "extversion": "1.1"
+    }
+  ],
+  "rowCounts": {
+    "organizations": 2,
+    "profiles": 3,
+    "leads": 10,
+    "call_records": 6,
+    "activities": 0,
+    "remarks": 5,
+    "follow_ups": 4,
+    "message_history": 0,
+    "import_audits": 1,
+    "bulk_assignment_audits": 0
+  }
+}

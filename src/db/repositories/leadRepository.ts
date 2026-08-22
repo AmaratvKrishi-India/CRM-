@@ -12,7 +12,7 @@ import {
   LeadFilterParams,
   LeadStats,
   Remark,
-  CallHistory,
+  CallRecord,
   FollowUp,
   MessageHistory,
 } from '../types';
@@ -25,7 +25,7 @@ import {
 export interface LeadWithHistory {
   lead: Lead;
   remarks: Remark[];
-  callHistory: CallHistory[];
+  callHistory: CallRecord[];
   followUps: FollowUp[];
   messageHistory: MessageHistory[];
 }
@@ -328,7 +328,7 @@ export class LeadRepository {
         .and((r) => r.deletedAt === null)
         .reverse()
         .sortBy('createdAt'),
-      this.db.callHistory
+      this.db.callRecords
         .where('leadId')
         .equals(id)
         .and((c) => c.deletedAt === null)
@@ -374,6 +374,7 @@ export class LeadRepository {
       updates.phone = norm.clean;
       updates.phoneE164 = norm.e164;
       updates.phoneType = norm.type;
+      updates.phoneRaw = norm.raw;
     }
 
     const now = new Date().toISOString();
@@ -600,12 +601,18 @@ export class LeadRepository {
 
   /**
    * Hard-deletes a lead and cascades deletion to all child records (Remarks, Calls, Follow-ups, Messages).
+   * Enqueues a DELETE outbox item so the deletion propagates to the cloud instead of
+   * being resurrected by the next pull.
    */
   async hardDeleteLead(id: string): Promise<void> {
+    const lead = await this.getLeadById(id, true);
+
     await this.db.transaction('rw', [
       this.db.leads,
       this.db.remarks,
       this.db.callHistory,
+      this.db.callRecords,
+      this.db.activities,
       this.db.followUps,
       this.db.messageHistory,
     ], async () => {
@@ -613,10 +620,26 @@ export class LeadRepository {
         this.db.leads.delete(id),
         this.db.remarks.where('leadId').equals(id).delete(),
         this.db.callHistory.where('leadId').equals(id).delete(),
+        this.db.callRecords.where('leadId').equals(id).delete(),
+        this.db.activities.where('leadId').equals(id).delete(),
         this.db.followUps.where('leadId').equals(id).delete(),
         this.db.messageHistory.where('leadId').equals(id).delete(),
       ]);
     });
+
+    if (lead) {
+      try {
+        await this.getSyncQueue().enqueue({
+          entityType: 'leads',
+          entityId: id,
+          operation: 'DELETE',
+          payload: lead,
+          userId: lead.updatedBy || lead.createdBy || 'local-user',
+        });
+      } catch (err) {
+        console.warn('Outbox enqueue failed for hardDeleteLead:', err);
+      }
+    }
   }
 
   /**
@@ -644,7 +667,11 @@ export class LeadRepository {
       return acc;
     }, initialStatusCounts);
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    // Local-time "today" window (device runs on IST); UTC slicing miscounts
+    // activity between midnight and 05:30 IST.
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 
     const [pendingFollowUps, todayFollowUps, totalCalls] = await Promise.all([
       this.db.followUps
@@ -655,10 +682,11 @@ export class LeadRepository {
           (f) =>
             f.deletedAt === null &&
             f.status === 'PENDING' &&
-            f.scheduledAt.startsWith(todayStr)
+            f.scheduledAt >= todayStart &&
+            f.scheduledAt <= todayEnd
         )
         .count(),
-      this.db.callHistory
+      this.db.callRecords
         .filter((c) => c.deletedAt === null)
         .count(),
     ]);

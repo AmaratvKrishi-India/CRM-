@@ -9,6 +9,11 @@ import { DeviceService } from '../deviceService';
 import { OutboxItem, SyncEntityType, SyncOperation } from './syncTypes';
 
 export class SyncQueue {
+  /** Items that fail this many times are parked as DEAD_LETTER instead of retrying forever. */
+  static readonly MAX_RETRY_COUNT = 10;
+  /** SYNCING items older than this are considered orphaned by a killed app and reset to PENDING. */
+  static readonly STUCK_SYNCING_TIMEOUT_MS = 5 * 60 * 1000;
+
   private database?: SalesCRMDatabase;
 
   constructor(database?: SalesCRMDatabase) {
@@ -69,6 +74,7 @@ export class SyncQueue {
 
   /**
    * Retrieves pending or retryable outbox items.
+   * Items that exceeded MAX_RETRY_COUNT are parked as DEAD_LETTER and excluded.
    */
   async getPendingItems(limit = 50): Promise<OutboxItem[]> {
     const database = this.getDatabase();
@@ -77,7 +83,49 @@ export class SyncQueue {
       .anyOf('PENDING', 'FAILED')
       .sortBy('createdAt');
 
-    return items.slice(0, limit);
+    const retryable: OutboxItem[] = [];
+    for (const item of items) {
+      if (item.retryCount >= SyncQueue.MAX_RETRY_COUNT) {
+        // Park permanently failing items so they stop blocking the queue.
+        await database.outbox.update(item.id, {
+          status: 'DEAD_LETTER',
+          updatedAt: new Date().toISOString(),
+        });
+        continue;
+      }
+      retryable.push(item);
+      if (retryable.length >= limit) break;
+    }
+
+    return retryable;
+  }
+
+  /**
+   * Resets SYNCING items that were orphaned (app killed mid-push) back to PENDING.
+   * Should be called on startup / before each sync run.
+   */
+  async recoverStuckItems(): Promise<number> {
+    const database = this.getDatabase();
+    const cutoff = new Date(Date.now() - SyncQueue.STUCK_SYNCING_TIMEOUT_MS).toISOString();
+    const now = new Date().toISOString();
+
+    const syncingItems = await database.outbox.where('status').equals('SYNCING').toArray();
+    const stuckIds = syncingItems
+      .filter((item) => !item.lastAttemptAt || item.lastAttemptAt < cutoff)
+      .map((item) => item.id);
+
+    if (stuckIds.length === 0) return 0;
+
+    await database.transaction('rw', database.outbox, async () => {
+      for (const id of stuckIds) {
+        await database.outbox.update(id, {
+          status: 'PENDING',
+          updatedAt: now,
+        });
+      }
+    });
+
+    return stuckIds.length;
   }
 
   /**
@@ -142,6 +190,7 @@ export class SyncQueue {
     syncing: number;
     synced: number;
     failed: number;
+    deadLetter: number;
     total: number;
   }> {
     const database = this.getDatabase();
@@ -150,21 +199,17 @@ export class SyncQueue {
     let syncing = 0;
     let synced = 0;
     let failed = 0;
+    let deadLetter = 0;
 
     for (const item of all) {
       if (item.status === 'PENDING') pending++;
       else if (item.status === 'SYNCING') syncing++;
       else if (item.status === 'SYNCED') synced++;
       else if (item.status === 'FAILED') failed++;
+      else if (item.status === 'DEAD_LETTER') deadLetter++;
     }
 
-    return {
-      pending,
-      syncing,
-      synced,
-      failed,
-      total: all.length,
-    };
+    return { pending, syncing, synced, failed, deadLetter, total: all.length };
   }
 
   /**

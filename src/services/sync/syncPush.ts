@@ -8,9 +8,55 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../supabaseClient';
 import { SyncQueue } from './syncQueue';
 import { OutboxItem, SyncEntityType } from './syncTypes';
+import { db as defaultDb, SalesCRMDatabase } from '../../db/database';
 
 export class SyncPush {
-  constructor(private queue: SyncQueue = new SyncQueue()) {}
+  constructor(
+    private queue: SyncQueue = new SyncQueue(),
+    private database?: SalesCRMDatabase
+  ) {}
+
+  private getDatabase(): SalesCRMDatabase {
+    return this.database || defaultDb;
+  }
+
+  private getLocalTable(entityType: SyncEntityType): any {
+    const db = this.getDatabase();
+    const tableMap: Record<SyncEntityType, any> = {
+      leads: db.leads,
+      call_records: db.callRecords,
+      activities: db.activities,
+      remarks: db.remarks,
+      follow_ups: db.followUps,
+      message_history: db.messageHistory,
+      import_audits: db.importAudits,
+      profiles: db.users,
+      bulk_assignment_audits: db.bulkAssignmentAudits,
+    };
+    return tableMap[entityType];
+  }
+
+  /**
+   * Detects outbox payloads that are stale relative to the current local record.
+   * If the local record was modified after the payload was captured (e.g. a remote
+   * change won LWW during pull), pushing the older payload would resurrect a
+   * clobbered change on the server. Such payloads are dropped instead of pushed;
+   * the newer local state has (or will have) its own outbox item.
+   */
+  private async isStalePayload(item: OutboxItem): Promise<boolean> {
+    try {
+      const table = this.getLocalTable(item.entityType);
+      if (!table) return false;
+      const local = await table.get(item.entityId);
+      if (!local) return false;
+
+      const payloadTs = new Date(item.payload.updatedAt || item.createdAt).getTime();
+      const localTs = new Date(local.updatedAt || 0).getTime();
+      return Number.isFinite(localTs) && Number.isFinite(payloadTs) && localTs > payloadTs;
+    } catch {
+      return false;
+    }
+  }
 
   /**
    * Transforms local camelCase payload into Supabase PostgreSQL snake_case columns.
@@ -44,16 +90,16 @@ export class SyncPush {
           city: payload.city || 'Lucknow',
           state: payload.state || 'Uttar Pradesh',
           website: payload.website || null,
-          rating: payload.rating || null,
-          review_count: payload.reviewCount || payload.review_count || null,
+          rating: payload.rating ?? null,
+          review_count: payload.reviewCount ?? payload.review_count ?? null,
           source: payload.source || 'Field Sales',
           source_file: payload.sourceFile || payload.source_file || null,
-          source_row: payload.sourceRow || payload.source_row || null,
+          source_row: payload.sourceRow ?? payload.source_row ?? null,
           status: payload.status || 'NEW',
           custom_notes: payload.customNotes || payload.custom_notes || '',
           last_contacted_at: payload.lastContactedAt || payload.last_contacted_at || null,
           next_follow_up_at: payload.nextFollowUpAt || payload.next_follow_up_at || null,
-          call_count: payload.callCount || payload.call_count || 0,
+          call_count: payload.callCount ?? payload.call_count ?? 0,
           created_by: payload.createdBy || payload.created_by || null,
           assigned_to: payload.assignedTo || payload.assigned_to || null,
           updated_by: payload.updatedBy || payload.updated_by || null,
@@ -68,7 +114,7 @@ export class SyncPush {
           started_at: payload.startedAt || payload.started_at,
           answered_at: payload.answeredAt || payload.answered_at || null,
           ended_at: payload.endedAt || payload.ended_at || null,
-          duration_seconds: payload.durationSeconds || payload.duration_seconds || 0,
+          duration_seconds: payload.durationSeconds ?? payload.duration_seconds ?? 0,
           outcome: payload.outcome || 'OTHER',
           remark: payload.remark || null,
           verification_status: payload.verificationStatus || payload.verification_status || 'UNVERIFIED',
@@ -131,11 +177,11 @@ export class SyncPush {
           source: payload.source || 'Excel Import',
           started_at: payload.startedAt || payload.started_at,
           completed_at: payload.completedAt || payload.completed_at || null,
-          total_rows: payload.totalRows || payload.total_rows || 0,
-          imported: payload.imported || 0,
-          updated: payload.updated || 0,
-          duplicates: payload.duplicates || 0,
-          invalid: payload.invalid || 0,
+          total_rows: payload.totalRows ?? payload.total_rows ?? 0,
+          imported: payload.imported ?? 0,
+          updated: payload.updated ?? 0,
+          duplicates: payload.duplicates ?? 0,
+          invalid: payload.invalid ?? 0,
           created_at: base.created_at,
           updated_at: base.updated_at,
         };
@@ -145,14 +191,27 @@ export class SyncPush {
           ...base,
           performed_by: payload.performedBy || payload.performed_by,
           target_agent_id: payload.targetAgentId || payload.target_agent_id,
-          selected_lead_count: payload.selectedLeadCount || payload.selected_lead_count || 0,
-          successful_count: payload.successfulCount || payload.successful_count || 0,
-          failed_count: payload.failedCount || payload.failed_count || 0,
+          selected_lead_count: payload.selectedLeadCount ?? payload.selected_lead_count ?? 0,
+          successful_count: payload.successfulCount ?? payload.successful_count ?? 0,
+          failed_count: payload.failedCount ?? payload.failed_count ?? 0,
           started_at: payload.startedAt || payload.started_at,
           completed_at: payload.completedAt || payload.completed_at,
           filter_snapshot: payload.filterSnapshot || payload.filter_snapshot || {},
           status: payload.status || 'COMPLETED',
           error_summary: payload.errorSummary || payload.error_summary || null,
+        };
+
+      case 'profiles':
+        return {
+          ...base,
+          name: payload.name || '',
+          email: payload.email || '',
+          phone: payload.phone ?? '',
+          role: payload.role || 'AGENT',
+          status: payload.status || 'ACTIVE',
+          created_by: payload.createdBy || payload.created_by || null,
+          last_login_at: payload.lastLoginAt || payload.last_login_at || null,
+          version: payload.version ?? 1,
         };
 
       default:
@@ -177,7 +236,21 @@ export class SyncPush {
       return { pushedCount: 0, failedCount: 0, errors: [] };
     }
 
-    const itemIds = items.map((i) => i.id);
+    // Drop stale payloads before marking anything SYNCING.
+    const freshItems: OutboxItem[] = [];
+    for (const item of items) {
+      if (await this.isStalePayload(item)) {
+        await this.queue.markSynced([item.id]);
+        continue;
+      }
+      freshItems.push(item);
+    }
+
+    if (freshItems.length === 0) {
+      return { pushedCount: 0, failedCount: 0, errors: [] };
+    }
+
+    const itemIds = freshItems.map((i) => i.id);
     await this.queue.markSyncing(itemIds);
 
     let pushedCount = 0;
@@ -186,7 +259,7 @@ export class SyncPush {
 
     // Group items by entityType for efficient batch upserts
     const byEntity: Record<SyncEntityType, OutboxItem[]> = {} as any;
-    for (const item of items) {
+    for (const item of freshItems) {
       if (!byEntity[item.entityType]) {
         byEntity[item.entityType] = [];
       }

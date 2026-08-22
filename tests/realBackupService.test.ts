@@ -33,7 +33,9 @@ describe('Real Backup & Restore Service Integration Tests (Stage 8)', () => {
     });
 
     const payload = await backupService.generateBackupPayload();
-    assert.strictEqual(payload.schemaVersion, 2);
+    // Header must reflect the real DB schema (v5) and app version (2.0.0)
+    assert.strictEqual(payload.schemaVersion, 5);
+    assert.strictEqual(payload.appVersion, '2.0.0');
     assert.ok(payload.data.leads.length >= 1);
     assert.ok(payload.data.remarks.length >= 1);
 

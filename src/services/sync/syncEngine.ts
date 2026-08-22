@@ -21,6 +21,8 @@ export class SyncEngine {
   private isSyncing = false;
   private autoSyncInterval: any = null;
   private listeners: Array<(state: SyncState) => void> = [];
+  private onlineHandler: (() => void) | null = null;
+  private offlineHandler: (() => void) | null = null;
 
   constructor(
     queue?: SyncQueue,
@@ -38,14 +40,33 @@ export class SyncEngine {
 
   private setupNetworkListeners(): void {
     if (typeof window !== 'undefined') {
-      window.addEventListener('online', () => {
-        this.triggerSync();
-      });
-      window.addEventListener('offline', () => {
+      this.onlineHandler = () => {
+        // Guard against firing after logout: only sync when a session exists.
+        AuthService.getCurrentSession()
+          .then((session) => {
+            if (session) this.triggerSync();
+          })
+          .catch(() => {});
+      };
+      this.offlineHandler = () => {
         this.stateRepo.setStatus('OFFLINE');
         this.notifyListeners();
-      });
+      };
+      window.addEventListener('online', this.onlineHandler);
+      window.addEventListener('offline', this.offlineHandler);
     }
+  }
+
+  /**
+   * Removes window network listeners (e.g. on logout) so stale sync triggers stop.
+   */
+  disposeNetworkListeners(): void {
+    if (typeof window !== 'undefined') {
+      if (this.onlineHandler) window.removeEventListener('online', this.onlineHandler);
+      if (this.offlineHandler) window.removeEventListener('offline', this.offlineHandler);
+    }
+    this.onlineHandler = null;
+    this.offlineHandler = null;
   }
 
   private async notifyListeners(): Promise<void> {
@@ -133,6 +154,13 @@ export class SyncEngine {
     await this.stateRepo.setStatus('SYNCING');
     await this.notifyListeners();
 
+    // Recover outbox items orphaned in SYNCING by a previously killed app run.
+    try {
+      await this.queue.recoverStuckItems();
+    } catch (err) {
+      console.warn('recoverStuckItems failed:', err);
+    }
+
     let pushedCount = 0;
     let failedCount = 0;
     let pulledCount = 0;
@@ -144,6 +172,13 @@ export class SyncEngine {
       const pushRes = await this.pushEngine.pushPending(client);
       pushedCount = pushRes.pushedCount;
       failedCount = pushRes.failedCount;
+
+      // Purge successfully-synced outbox rows so the queue does not grow unbounded.
+      try {
+        await this.queue.purgeSyncedItems();
+      } catch (err) {
+        console.warn('purgeSyncedItems failed:', err);
+      }
 
       const pushTimestamp = new Date().toISOString();
       await this.stateRepo.updateSyncState({ lastPushAt: pushTimestamp });

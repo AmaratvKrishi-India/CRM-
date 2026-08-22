@@ -58,8 +58,8 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
   - `db/` (17 files) - Dexie schema, types, repositories
   - `services/` (28 files) - Business logic, sync, native platform
   - `context/` (2 files) - Auth + Theme providers
-- `tests/` (17 files) - Unit/integration tests (102+ cases)
-- `e2e/` (5 files) - Playwright E2E tests (30 cases)
+- `tests/` (17 files) - Unit/integration tests (115 cases)
+- `e2e/` (5 files) - Playwright E2E tests (32 cases)
 - `scripts/` (3 files) - Verify pipeline, schema export, cloud probe
 - `supabase/` (12 files) - Migrations, seed, config, edge function
 - `android/` - Capacitor Android project
@@ -80,9 +80,9 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - **Release Commit:** 759a81c
 - **Cloud Migration 6:** PASS
 - **Cloud RLS / Agent Lead Isolation:** PASS
-- **All tests:** PASS (102 unit + 30 E2E + 15 PostgreSQL)
+- **All tests:** PASS (115 unit + 32 E2E + 15 PostgreSQL)
 - **Production build:** PASS
-- **Android APK:** PASS - shipped artifact [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB)
+- **Android APK:** PASS - shipped artifact [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB)
 - **Web deployment:** Vercel at https://crm-blush-omega.vercel.app
 
 > [!NOTE]

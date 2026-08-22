@@ -207,21 +207,9 @@ export class AuthService {
 
       // Save into local Dexie database
       const repo = this.getUserRepo();
-      try {
-        await repo.createUser({
-          id: localUser.id,
-          organizationId: localUser.organizationId,
-          name: localUser.name,
-          email: localUser.email,
-          phone: localUser.phone,
-          role: localUser.role,
-          status: localUser.status,
-          createdBy: localUser.createdBy,
-        });
-      } catch (_createErr: unknown) {
-        // If createUser fails (e.g. duplicate), try direct put
-        await repo.putUser(localUser);
-      }
+      // Use putUser directly: this profile already exists server-side, so
+      // createUser() would enqueue a redundant profiles CREATE outbox item.
+      await repo.putUser(localUser);
 
       console.log(`Bootstrapped remote profile into local Dexie: ${localUser.email} (${localUser.role})`);
       return localUser;

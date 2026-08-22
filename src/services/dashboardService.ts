@@ -57,7 +57,8 @@ export class DashboardService {
 
   async getDashboardData(): Promise<FullDashboardData> {
     const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    // Compute "today" in local time (IST on device). Using toISOString() would
+    // bucket early-morning activity into the previous UTC day.
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 
@@ -104,12 +105,12 @@ export class DashboardService {
     }
 
     // 3. Fetch Calls & Messages logged today
-    const callsTodayList = await this.db.callHistory
-      .filter((c) => c.deletedAt === null && Boolean(c.startedAt && c.startedAt.startsWith(todayStr)))
+    const callsTodayList = await this.db.callRecords
+      .filter((c) => c.deletedAt === null && Boolean(c.startedAt && c.startedAt >= todayStart && c.startedAt <= todayEnd))
       .toArray();
 
     const messagesTodayList = await this.db.messageHistory
-      .filter((m) => m.deletedAt === null && Boolean(m.sentAt && m.sentAt.startsWith(todayStr)))
+      .filter((m) => m.deletedAt === null && Boolean(m.sentAt && m.sentAt >= todayStart && m.sentAt <= todayEnd))
       .toArray();
 
     // 4. Compute pipeline stage distribution
@@ -181,7 +182,7 @@ export class DashboardService {
 
     // 5. Derive Recent Activity Feed
     const [recentCalls, recentRemarks, recentMessages, recentFollowUps] = await Promise.all([
-      this.db.callHistory
+      this.db.callRecords
         .filter((c) => c.deletedAt === null)
         .reverse()
         .sortBy('startedAt')
@@ -214,7 +215,7 @@ export class DashboardService {
         locality: lead ? lead.locality : 'Lucknow',
         type: 'CALL',
         title: `Call: ${call.outcome}`,
-        detail: call.notes,
+        detail: call.remark,
         timestamp: call.startedAt,
       });
     }

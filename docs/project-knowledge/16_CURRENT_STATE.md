@@ -8,7 +8,7 @@
 ## Production Endpoints
 - Web: https://crm-blush-omega.vercel.app (Vercel, amaratv-krishi/crm)
 - Backend: Supabase Cloud (lahvcodvgubplzfshare.supabase.co)
-- Android: shipped APK at [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB / 5,914,303 bytes)
+- Android: shipped APK at [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes)
 - Source: GitHub AmaratvKrishi-India/CRM- (PRIVATE — verified via `gh repo view` on 2026-08-22)
 
 ## Verification Results (All PASS)
@@ -17,13 +17,13 @@
 - Local/Cloud Parity: PASS
 - Unit/Integration Tests: PASS — 115 tests across 22 suites (re-run 2026-08-22; supersedes the earlier 102-test count)
 - PostgreSQL/RLS Tests: PASS — 15 tests
-- Playwright E2E Tests: PASS — 30 tests across 4 specs
-- 3 Android Studio Emulator Acceptance: PASS — 13/13 (re-run 2026-08-22 on emulator-5556/5558/5560)
+- Playwright E2E Tests: PASS — 32 tests across 5 specs
+- 3 Android Studio Emulator Acceptance: PASS — 13/13 (re-run 2026-08-23 on emulator-5556/5558/5560)
 - Offline Recovery: PASS
 - Android Call Lifecycle: PASS
 - Pagination: PASS
 - Vite Production Build: PASS
-- Android Release APK Build: PASS (shipped artifact 5,914,303 bytes; rebuild not re-run this session because JAVA_HOME is unset in the audit shell — see Environment Health)
+- Android Release APK Build: PASS (shipped artifact 7,268,429 bytes, SHA-256 A7DD97F61718A7735BE3D0EBD0023F201BEC6B995AA4DD93A3A4E832CD30E0B9, V2-signed; rebuilt 2026-08-23 with JAVA_HOME set to Android Studio JBR)
 - Security Scan: PASS (no secrets leaked)
 - Production Safety: PASS
 

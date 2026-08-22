@@ -19,7 +19,9 @@ import {
   CallRecord,
   ImportAudit,
   OutboxItem,
+  BulkAssignmentAudit,
 } from '../db/types';
+import type { SyncState } from './sync/syncTypes';
 
 export interface CRMBackupData {
   leads: Lead[];
@@ -33,6 +35,8 @@ export interface CRMBackupData {
   callRecords?: CallRecord[];
   importAudits?: ImportAudit[];
   outbox?: OutboxItem[];
+  bulkAssignmentAudits?: BulkAssignmentAudit[];
+  syncState?: SyncState[];
 }
 
 export interface CRMBackupPayload {
@@ -124,6 +128,8 @@ export class BackupService {
       callRecords,
       importAudits,
       outbox,
+      bulkAssignmentAudits,
+      syncState,
     ] = await Promise.all([
       this.db.leads.toArray(),
       this.db.remarks.toArray(),
@@ -136,11 +142,13 @@ export class BackupService {
       this.db.callRecords.toArray(),
       this.db.importAudits.toArray(),
       this.db.outbox.toArray(),
+      this.db.bulkAssignmentAudits.toArray(),
+      this.db.syncState.toArray(),
     ]);
 
     const payload: CRMBackupPayload = {
-      schemaVersion: 2,
-      appVersion: '1.0.0',
+      schemaVersion: 5,
+      appVersion: '2.0.0',
       exportedAt: new Date().toISOString(),
       databaseName: this.db.name,
       data: {
@@ -155,6 +163,8 @@ export class BackupService {
         callRecords,
         importAudits,
         outbox,
+        bulkAssignmentAudits,
+        syncState,
       },
     };
 
@@ -483,6 +493,11 @@ export class BackupService {
         if (payload.data.activities && payload.data.activities.length > 0) await this.db.activities.bulkAdd(payload.data.activities);
         if (payload.data.callRecords && payload.data.callRecords.length > 0) await this.db.callRecords.bulkAdd(payload.data.callRecords);
         if (payload.data.importAudits && payload.data.importAudits.length > 0) await this.db.importAudits.bulkAdd(payload.data.importAudits);
+        // Restore the sync outbox and sync cursors so unsynced mutations survive
+        // a restore on a fresh device instead of being silently dropped.
+        if (payload.data.outbox && payload.data.outbox.length > 0) await this.db.outbox.bulkAdd(payload.data.outbox);
+        if (payload.data.bulkAssignmentAudits && payload.data.bulkAssignmentAudits.length > 0) await this.db.bulkAssignmentAudits.bulkAdd(payload.data.bulkAssignmentAudits);
+        if (payload.data.syncState && payload.data.syncState.length > 0) await this.db.syncState.bulkAdd(payload.data.syncState);
       });
 
       this.logAudit({
@@ -506,6 +521,9 @@ export class BackupService {
           if (safetySnapshot.data.activities && safetySnapshot.data.activities.length > 0) await this.db.activities.bulkAdd(safetySnapshot.data.activities);
           if (safetySnapshot.data.callRecords && safetySnapshot.data.callRecords.length > 0) await this.db.callRecords.bulkAdd(safetySnapshot.data.callRecords);
           if (safetySnapshot.data.importAudits && safetySnapshot.data.importAudits.length > 0) await this.db.importAudits.bulkAdd(safetySnapshot.data.importAudits);
+          if (safetySnapshot.data.outbox && safetySnapshot.data.outbox.length > 0) await this.db.outbox.bulkAdd(safetySnapshot.data.outbox);
+          if (safetySnapshot.data.bulkAssignmentAudits && safetySnapshot.data.bulkAssignmentAudits.length > 0) await this.db.bulkAssignmentAudits.bulkAdd(safetySnapshot.data.bulkAssignmentAudits);
+          if (safetySnapshot.data.syncState && safetySnapshot.data.syncState.length > 0) await this.db.syncState.bulkAdd(safetySnapshot.data.syncState);
         });
       } catch (rollbackErr) {
         console.error('Catastrophic failure: Rollback also failed!', rollbackErr);

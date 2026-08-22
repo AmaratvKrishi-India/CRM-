@@ -16,7 +16,7 @@ export type SyncEntityType =
 
 export type SyncOperation = 'CREATE' | 'UPDATE' | 'DELETE';
 
-export type OutboxStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED';
+export type OutboxStatus = 'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED' | 'DEAD_LETTER';
 
 export type SyncEngineStatus =
   | 'SYNCED'

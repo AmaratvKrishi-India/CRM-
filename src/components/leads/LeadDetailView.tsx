@@ -25,7 +25,7 @@ import {
   Lead,
   LeadStatus,
   CallOutcome,
-  CallHistory,
+  CallRecord,
   Remark,
   MessageHistory,
   FollowUp,
@@ -557,7 +557,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
                 </p>
               </div>
             ) : (
-              callHistory.map((call: CallHistory) => (
+              callHistory.map((call: CallRecord) => (
                 <div
                   key={call.id}
                   className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs space-y-1.5"
@@ -576,9 +576,9 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
                     </span>
                   </div>
 
-                  {call.notes && (
+                  {call.remark && (
                     <p className="text-xs text-slate-700 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      {call.notes}
+                      {call.remark}
                     </p>
                   )}
                 </div>

@@ -12,6 +12,8 @@ import {
   parseAddress,
   cleanBusinessName,
 } from '../db/services/leadNormalizer';
+import { SyncQueue } from './sync/syncQueue';
+import { ImportAuditRepository } from '../db/repositories/importAuditRepository';
 
 export interface ColumnMapping {
   businessName: string;
@@ -346,6 +348,7 @@ export class ExcelParserService {
     records: ParsedLeadRecord[];
     sourceFile: string;
     allowOverwriteDuplicates?: boolean;
+    userId?: string | null;
     onProgress?: (progress: { current: number; total: number; percent: number }) => void;
   }): Promise<ImportExecutionSummary> {
     const {
@@ -353,6 +356,7 @@ export class ExcelParserService {
       records,
       sourceFile,
       allowOverwriteDuplicates = false,
+      userId = null,
       onProgress,
     } = params;
 
@@ -436,6 +440,8 @@ export class ExcelParserService {
           isSynced: 0,
           syncedAt: null,
           deletedAt: null,
+          createdBy: userId || null,
+          updatedBy: userId || null,
         });
         imported++;
       }
@@ -458,6 +464,52 @@ export class ExcelParserService {
         await db.leads.update(update.id, update.changes);
       }
     });
+
+    // Enqueue outbox items so imported/updated leads actually sync to the cloud,
+    // and record an import audit row (which enqueues its own outbox item).
+    try {
+      const syncQueue = new SyncQueue(db);
+      const effectiveUserId = userId || 'local-user';
+
+      for (const lead of newLeadsToInsert) {
+        await syncQueue.enqueue({
+          entityType: 'leads',
+          entityId: lead.id,
+          operation: 'CREATE',
+          payload: lead,
+          userId: effectiveUserId,
+        });
+      }
+
+      for (const update of updatesToPerform) {
+        const updatedLead = await db.leads.get(update.id);
+        if (updatedLead) {
+          await syncQueue.enqueue({
+            entityType: 'leads',
+            entityId: updatedLead.id,
+            operation: 'UPDATE',
+            payload: updatedLead,
+            userId: effectiveUserId,
+          });
+        }
+      }
+
+      const auditRepo = new ImportAuditRepository(db, syncQueue);
+      await auditRepo.createAudit({
+        uploadedBy: effectiveUserId,
+        filename: sourceFile,
+        source: `Excel Import: ${sourceFile}`,
+        startedAt: new Date(startTime).toISOString(),
+        completedAt: new Date().toISOString(),
+        totalRows: records.length,
+        imported,
+        updated,
+        duplicates: skippedDuplicates,
+        invalid: skippedInvalid,
+      });
+    } catch (err) {
+      console.warn('Excel import: outbox enqueue / audit logging failed:', err);
+    }
 
     const durationMs = Date.now() - startTime;
 

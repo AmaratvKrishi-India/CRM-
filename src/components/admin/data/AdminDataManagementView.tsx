@@ -513,6 +513,7 @@ export const AdminDataManagementView: React.FC = () => {
                       loadImportAudits();
                     }}
                     onCancel={() => setIsImporterOpen(false)}
+                    currentUserId={currentUser?.id || null}
                   />
                 </div>
               </div>

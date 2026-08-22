@@ -17,7 +17,7 @@ This document provides a comprehensive overview of the testing and verification 
 | Command | Description |
 | --- | --- |
 | `npm test` | Runs all 17 unit/integration suites (102+ tests) |
-| `npm run test:e2e` | Runs 4 Playwright spec files (30 tests) |
+| `npm run test:e2e` | Runs 5 Playwright spec files (32 tests) |
 | `npm run verify` | Runs the full 12-stage verification pipeline |
 
 ## Unit & Integration Test Files

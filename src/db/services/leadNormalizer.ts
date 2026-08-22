@@ -28,20 +28,37 @@ export interface ParsedAddress {
  * Normalizes an Indian phone number string (from Excel or manual input).
  * Distinguishes 10-digit mobile numbers from Lucknow STD landlines (0522 / +91 522).
  */
-export function normalizePhoneNumber(rawPhone: string | null | undefined): NormalizedPhone {
-  if (!rawPhone || typeof rawPhone !== 'string' || rawPhone.trim() === '') {
-    return {
-      raw: '',
-      clean: '',
-      e164: '',
-      type: 'invalid',
-      isValid: false,
-      canWhatsApp: false,
-      displayFormatted: 'N/A',
-    };
+export function normalizePhoneNumber(rawPhone: string | number | null | undefined): NormalizedPhone {
+  const invalidResult: NormalizedPhone = {
+    raw: '',
+    clean: '',
+    e164: '',
+    type: 'invalid',
+    isValid: false,
+    canWhatsApp: false,
+    displayFormatted: 'N/A',
+  };
+
+  if (rawPhone === null || rawPhone === undefined) {
+    return invalidResult;
   }
 
-  const raw = rawPhone.trim();
+  let raw: string;
+  if (typeof rawPhone === 'number') {
+    // Excel returns numeric cells as JS numbers; avoid scientific notation/grouping.
+    raw = Number.isFinite(rawPhone)
+      ? rawPhone.toLocaleString('fullwide', { useGrouping: false })
+      : '';
+  } else if (typeof rawPhone === 'string') {
+    raw = rawPhone.trim();
+  } else {
+    return invalidResult;
+  }
+
+  if (raw === '') {
+    return invalidResult;
+  }
+
   const digits = raw.replace(/\D/g, '');
 
   // Case 1: 10-digit mobile number starting with 6, 7, 8, 9
@@ -115,6 +132,20 @@ export function normalizePhoneNumber(rawPhone: string | null | undefined): Norma
 
   // Case 6: 7 or 8-digit local landline
   if (digits.length >= 7 && digits.length <= 8) {
+    // Local Lucknow landlines begin with 2-4. A 7-8 digit string starting with
+    // 6-9 is almost certainly a truncated mobile number (typo), not a landline.
+    if (/^[6-9]/.test(digits)) {
+      return {
+        raw,
+        clean: digits,
+        e164: digits,
+        type: 'invalid',
+        isValid: false,
+        canWhatsApp: false,
+        displayFormatted: raw,
+      };
+    }
+
     return {
       raw,
       clean: `0522${digits}`,

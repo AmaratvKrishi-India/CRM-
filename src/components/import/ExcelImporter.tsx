@@ -29,6 +29,7 @@ import { ImportSummaryCard } from './ImportSummaryCard';
 interface ExcelImporterProps {
   onImportComplete?: () => void;
   onCancel?: () => void;
+  currentUserId?: string | null;
 }
 
 type ImportStep = 'UPLOAD' | 'PREVIEW' | 'IMPORTING' | 'SUMMARY';
@@ -36,6 +37,7 @@ type ImportStep = 'UPLOAD' | 'PREVIEW' | 'IMPORTING' | 'SUMMARY';
 export const ExcelImporter: React.FC<ExcelImporterProps> = ({
   onImportComplete,
   onCancel,
+  currentUserId = null,
 }) => {
   const [step, setStep] = useState<ImportStep>('UPLOAD');
   const [loadingFile, setLoadingFile] = useState(false);
@@ -160,6 +162,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
         records: parseResult.records,
         sourceFile: fileName,
         allowOverwriteDuplicates,
+        userId: currentUserId,
         onProgress: (p) => setImportProgress(p),
       });
 

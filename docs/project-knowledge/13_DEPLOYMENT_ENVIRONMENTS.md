@@ -61,7 +61,7 @@ The production stack utilizes Supabase Cloud for backend services and Vercel for
 - **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "amaratv-krishi-crm"}` — legacy name; the linked project is `crm` in scope `amaratv-krishi`)
 - **Vercel Ignores:** [[`.vercelignore`](file:///c:/Users/PC/Desktop/calling%20app/.vercelignore)] (`android/`, `node_modules/`)
 - **Vercel Env Vars:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, `VITE_APP_VERSION`
-- **Android Production:** Gradle outputs `android/app/build/outputs/apk/release/app-release.apk`; the shipped artifact is [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB / 5,914,303 bytes)
+- **Android Production:** Gradle outputs `android/app/build/outputs/apk/release/app-release.apk`; the shipped artifact is [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes)
 - **Supabase Link:** Repo is currently NOT linked (`npx supabase status` reports `linked_project: null`). Run `npx supabase link --project-ref lahvcodvgubplzfshare` before `db push` / `functions deploy`.
 
 ## Build Commands

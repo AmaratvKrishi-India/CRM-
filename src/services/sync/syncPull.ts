@@ -37,6 +37,7 @@ export class SyncPull {
       case 'leads':
         return {
           ...base,
+          organizationId: row.organization_id || null,
           businessName: row.business_name || '',
           category: row.category || 'Gym',
           phone: row.phone || '',
@@ -150,6 +151,7 @@ export class SyncPull {
       case 'profiles':
         return {
           ...base,
+          organizationId: row.organization_id || null,
           name: row.name || '',
           email: row.email || '',
           phone: row.phone || '',
@@ -185,6 +187,10 @@ export class SyncPull {
 
   /**
    * Pulls incremental records for an entity table since cursor.
+   * Uses inclusive (gte) semantics on the shared timestamp cursor plus keyset
+   * pagination on (updated_at, id) within a run, so rows sharing a boundary
+   * timestamp are never skipped. Boundary rows may be re-fetched and are
+   * reconciled idempotently.
    */
   async pullEntityChanges(
     client: SupabaseClient,
@@ -193,15 +199,30 @@ export class SyncPull {
   ): Promise<{ records: any[]; newestTimestamp: string | null }> {
     const pageSize = 500;
     let allRecords: any[] = [];
-    let currentCursor = sinceCursor;
+    // Keyset cursor within this run: last row's (updated_at, id).
+    let keysetTs: string | null = null;
+    let keysetId: string | null = null;
+    let isFirstPage = true;
     let hasMore = true;
     let newestTimestamp: string | null = null;
+    const seenIds = new Set<string>();
 
     while (hasMore) {
-      let query = client.from(entityType).select('*').order('updated_at', { ascending: true }).limit(pageSize);
+      let query = client
+        .from(entityType)
+        .select('*')
+        .order('updated_at', { ascending: true })
+        .order('id', { ascending: true })
+        .limit(pageSize);
 
-      if (currentCursor) {
-        query = query.gt('updated_at', currentCursor);
+      if (!isFirstPage && keysetTs && keysetId) {
+        // (updated_at > ts) OR (updated_at = ts AND id > lastId)
+        query = query.or(
+          `updated_at.gt."${keysetTs}",and(updated_at.eq."${keysetTs}",id.gt."${keysetId}")`
+        );
+      } else if (isFirstPage && sinceCursor) {
+        // Inclusive: re-fetch boundary-timestamp rows rather than skipping them.
+        query = query.gte('updated_at', sinceCursor);
       }
 
       const { data, error } = await query;
@@ -210,14 +231,21 @@ export class SyncPull {
       }
 
       const rows = data || [];
-      allRecords = allRecords.concat(rows);
+      isFirstPage = false;
+
+      for (const row of rows) {
+        if (row.id && seenIds.has(row.id)) continue;
+        if (row.id) seenIds.add(row.id);
+        allRecords.push(row);
+      }
 
       if (rows.length > 0) {
         const lastRow = rows[rows.length - 1];
         const rowTimestamp = lastRow.updated_at || lastRow.created_at || null;
-        
-        if (rowTimestamp) {
-          currentCursor = rowTimestamp;
+
+        if (rowTimestamp && lastRow.id) {
+          keysetTs = rowTimestamp;
+          keysetId = lastRow.id;
           if (!newestTimestamp || new Date(rowTimestamp).getTime() > new Date(newestTimestamp).getTime()) {
             newestTimestamp = rowTimestamp;
           }

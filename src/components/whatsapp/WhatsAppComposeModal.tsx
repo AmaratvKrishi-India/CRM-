@@ -184,6 +184,9 @@ export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
       loggedMessageId = logRecord.id;
 
       // 2. Launch WhatsApp or Native Share Intent
+      // wa.me links require the full international number (country code included),
+      // so prefer the E.164 form over the 10-digit clean number.
+      const waPhone = lead.phoneE164 || lead.phone;
       if (attachment) {
         const shareSuccess = await NativePlatformService.share({
           title: `Amaratv Krishi — ${lead.businessName}`,
@@ -193,10 +196,10 @@ export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
         });
 
         if (!shareSuccess) {
-          NativePlatformService.openWhatsApp(lead.phone, messageText);
+          NativePlatformService.openWhatsApp(waPhone, messageText);
         }
       } else {
-        NativePlatformService.openWhatsApp(lead.phone, messageText);
+        NativePlatformService.openWhatsApp(waPhone, messageText);
       }
 
       if (onSuccess) onSuccess();

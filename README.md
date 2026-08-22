@@ -77,7 +77,7 @@ All counts below were re-run and verified on 2026-08-22 (see the [final audit](.
 | Suite | Command | Result |
 |---|---|---|
 | Unit / integration (22 suites) | `npm run test` | 115 pass |
-| Playwright E2E (desktop + mobile) | `npm run test:e2e` | 30 pass |
+| Playwright E2E (desktop + mobile) | `npm run test:e2e` | 32 pass |
 | Real PostgreSQL + RLS (Docker) | `npx tsx --test tests/realSupabasePostgres.test.ts` | 15 pass |
 | 3-emulator multi-device acceptance | `npx tsx --test tests/multiDeviceSync.test.ts` | 13 pass |
 | Production build | `npm run build` | clean |
@@ -102,8 +102,8 @@ RLS guarantees: users only ever see their own organisation's data; agents only s
 ```text
 App ID:        com.amaratvkrishi.salescrm
 Version:       2.0.0 (versionCode 2) · minSdk 24 / targetSdk 36
-APK:           release/AmaratvKrishi-SalesCRM-v2.0.0.apk (5,914,303 bytes)
-SHA-256:       2874E45A86B65D665D50F76D0C5E596DD1EF1FEA317E8305148CC1276486B629
+APK:           release/AmaratvKrishi-SalesCRM-v2.0.0.apk (7,268,429 bytes)
+SHA-256:       A7DD97F61718A7735BE3D0EBD0023F201BEC6B995AA4DD93A3A4E832CD30E0B9
 Signing:       APK Signature Scheme v2 (external keystore, not in this repo)
 Permissions:   INTERNET, POST_NOTIFICATIONS only · allowBackup=false
 ```

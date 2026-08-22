@@ -90,7 +90,7 @@ Copy-Item android\app\build\outputs\apk\release\app-release.apk `
   release\AmaratvKrishi-SalesCRM-v<version>.apk
 ```
 
-Current shipped artifact: [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB / 5,914,303 bytes).
+Current shipped artifact: [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes).
 
 ## Git / GitHub
 

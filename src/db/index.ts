@@ -59,7 +59,7 @@ export * from '../services/sync/syncEngine';
 export function createCRMDataLayer(customDb: SalesCRMDatabase = db) {
   const syncQueue = new SyncQueue(customDb);
   const syncStateRepo = new SyncStateRepository(customDb);
-  const syncPush = new SyncPush(syncQueue);
+  const syncPush = new SyncPush(syncQueue, customDb);
   const syncPull = new SyncPull(customDb);
   const syncEngine = new SyncEngine(syncQueue, syncPush, syncPull, syncStateRepo);
 
@@ -89,4 +89,3 @@ export function createCRMDataLayer(customDb: SalesCRMDatabase = db) {
 }
 
 export const crmData = createCRMDataLayer(db);
-

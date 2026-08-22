@@ -120,8 +120,9 @@ class BackgroundSyncManagerClass {
 
   private startInterval(): void {
     this.stopInterval();
-    syncEngine.startAutoSync(AUTO_SYNC_INTERVAL_MS);
-    // Also run interval directly to ensure we can trigger with backoff
+    // Single periodic trigger: this manager owns the interval so that failures
+    // can be retried with exponential backoff. Running syncEngine.startAutoSync()
+    // here as well would fire two overlapping sync loops per minute.
     this.autoIntervalId = setInterval(() => {
       this.triggerSilentSync();
     }, AUTO_SYNC_INTERVAL_MS);
@@ -132,6 +133,7 @@ class BackgroundSyncManagerClass {
       clearInterval(this.autoIntervalId);
       this.autoIntervalId = null;
     }
+    // Defensive: ensure no engine-owned interval is left running.
     syncEngine.stopAutoSync();
   }
 

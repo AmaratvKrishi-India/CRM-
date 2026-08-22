@@ -163,6 +163,39 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
     };
   }, []);
 
+  // Call lifecycle: drive the DIAL -> BACKGROUND -> FOREGROUND state machine.
+  // When the user returns from the native dialer, re-open the outcome modal.
+  useEffect(() => {
+    let isMounted = true;
+
+    const listenerPromise = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      const attempt = CallLifecycleService.handleAppStateChange(isActive);
+      if (isActive && attempt && isMounted) {
+        crmData.leads
+          .getLeadById(attempt.leadId)
+          .then((lead) => {
+            if (!isMounted || !lead) return;
+            setActiveOutcomeLead(lead);
+            setIsOutcomeModalOpen(true);
+          })
+          .catch(() => {});
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      listenerPromise
+        .then((handle) => {
+          if (handle) {
+            handle.remove();
+          }
+        })
+        .catch((err) => {
+          console.warn('App state listener cleanup warning:', err);
+        });
+    };
+  }, []);
+
   // Update pending follow-ups badge count
   const refreshPendingCount = async () => {
     try {
@@ -330,6 +363,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
         {tab === 'IMPORT' && (
           <Suspense fallback={<LoadingFallback />}>
             <ExcelImporter
+              currentUserId={currentUser?.id || null}
               onImportComplete={() => {
                 refreshPendingCount();
                 setTab('LEADS');
@@ -472,6 +506,9 @@ function MainAppRouter() {
 
   useEffect(() => {
     if (currentUser && currentUser.status === 'ACTIVE') {
+      // Give RealtimeService the sync engine so reconnect reconciliation uses
+      // incremental pull (cursor-based) instead of a full re-pull from scratch.
+      RealtimeService.setSyncEngine(crmData.syncEngine);
       RealtimeService.init(currentUser);
 
       const unsubNotif = RealtimeService.onNotification((notif) => {

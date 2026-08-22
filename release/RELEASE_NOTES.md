@@ -9,8 +9,8 @@ Production release of the Amaratv Krishi Field Sales CRM.
 | Field | Value |
 |---|---|
 | File | `AmaratvKrishi-SalesCRM-v2.0.0.apk` |
-| Size | 5,914,303 bytes (5.64 MB) |
-| SHA-256 | `2874E45A86B65D665D50F76D0C5E596DD1EF1FEA317E8305148CC1276486B629` |
+| Size | 7,268,429 bytes (6.93 MB) |
+| SHA-256 | `A7DD97F61718A7735BE3D0EBD0023F201BEC6B995AA4DD93A3A4E832CD30E0B9` |
 | App ID | `com.amaratvkrishi.salescrm` |
 | versionName / versionCode | 2.0.0 / 2 |
 | minSdk / targetSdk | 24 / 36 |
@@ -32,11 +32,10 @@ Production release of the Amaratv Krishi Field Sales CRM.
 
 ### Verification
 
-Certified by the final A–Z release audit (2026-08-22):
-`RELEASE_READY_WITH_NON_BLOCKING_ITEMS` — see
-[docs/FINAL_A_TO_Z_RELEASE_AUDIT.md](../docs/FINAL_A_TO_Z_RELEASE_AUDIT.md).
+Certified by the final post-bugfix release verification (2026-08-23):
+see [docs/FINAL_POST_BUGFIX_RELEASE_VERIFICATION.md](../docs/FINAL_POST_BUGFIX_RELEASE_VERIFICATION.md).
 
-- 115 unit tests, 30 E2E tests, 15 PostgreSQL/RLS tests, 13 multi-device
+- 115 unit tests, 32 E2E tests, 15 PostgreSQL/RLS tests, 13 multi-device
   emulator acceptance tests — all passing
 - 3-emulator acceptance: admin + 2 agents, lead isolation, sync, offline recovery
 - Production Supabase verified read-only: 6/6 migrations, RLS active

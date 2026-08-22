@@ -13,6 +13,9 @@ This document outlines the environment configuration files and their structures 
 | `.env.production` | 400 | Production config |
 | `.env.example` | 462 | Template for new developers |
 
+> [!WARNING]
+> As of 2026-08-22, [.env.staging](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) is effectively EMPTY: all four variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`) are zero-length. A staging build would start with no Supabase configuration. Fill it in before any staging deploy.
+
 ## Variable Names
 
 The following environment variables are used in the client-side application:

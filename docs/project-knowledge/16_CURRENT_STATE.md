@@ -8,7 +8,8 @@
 ## Production Endpoints
 - Web: https://crm-blush-omega.vercel.app (Vercel, amaratv-krishi/crm)
 - Backend: Supabase Cloud (lahvcodvgubplzfshare.supabase.co)
-- Android: APK at [app-release.apk](file:///c:/Users/PC/Desktop/calling%20app/android/app/build/outputs/apk/release/app-release.apk) (7.26 MB)
+- Android: shipped APK at [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB / 5,914,303 bytes)
+- Source: GitHub AmaratvKrishi-India/CRM- (public)
 
 ## Verification Results (All PASS)
 - Cloud Migration 6: PASS
@@ -44,6 +45,13 @@ All 6 migrations applied to both local and production:
 - android:allowBackup=false
 - SET search_path = public on all triggers
 - Signing keys stored externally (not in Git)
+
+## Environment Health (2026-08-22)
+- Git: local main 1 commit ahead of origin/main + uncommitted worktree changes; repo identity = AmaratvKrishi-India
+- Vercel: logged in as amaratvkrishi-india; production URL live (HTTP 200)
+- Supabase: project ACTIVE_HEALTHY, all 6 migrations applied; repo NOT linked (`supabase link` pending)
+- Broken: `JAVA_HOME`/`ANDROID_HOME` unset (Android builds blocked); `node_modules` missing (`npm install` needed); `.env.staging` values empty
+- Full detail: [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md) and [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md)
 
 ## Known Limitations
 - No automated CI/CD pipeline (manual deployment)

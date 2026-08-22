@@ -10,7 +10,7 @@ The project uses multiple `.env` files to manage configuration across different 
 - [`.env`](file:///c:/Users/PC/Desktop/calling%20app/.env) (400 bytes) — default fallback
 - [`.env.local`](file:///c:/Users/PC/Desktop/calling%20app/.env.local) (323 bytes) — local Docker Supabase
 - [`.env.development`](file:///c:/Users/PC/Desktop/calling%20app/.env.development) (331 bytes) — cloud staging
-- [`.env.staging`](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) (123 bytes) — staging config
+- [`.env.staging`](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) (123 bytes) — staging config (currently all values EMPTY, see [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md))
 - [`.env.production`](file:///c:/Users/PC/Desktop/calling%20app/.env.production) (400 bytes) — production
 - [`.env.example`](file:///c:/Users/PC/Desktop/calling%20app/.env.example) (462 bytes) — template for new developers
 
@@ -58,10 +58,11 @@ The production stack utilizes Supabase Cloud for backend services and Vercel for
 - **Backend:** Supabase Cloud (`lahvcodvgubplzfshare.supabase.co`)
 - **Web Host:** Vercel ([https://crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app))
 - **Vercel Project:** `amaratv-krishi/crm` (team `amaratv-krishi`, account `amaratvkrishi-india`)
-- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "crm"}`)
+- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "amaratv-krishi-crm"}` — legacy name; the linked project is `crm` in scope `amaratv-krishi`)
 - **Vercel Ignores:** [[`.vercelignore`](file:///c:/Users/PC/Desktop/calling%20app/.vercelignore)] (`android/`, `node_modules/`)
 - **Vercel Env Vars:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, `VITE_APP_VERSION`
-- **Android Production:** Release APK is generated at [android/app/build/outputs/apk/release/app-release.apk](file:///c:/Users/PC/Desktop/calling%20app/android/app/build/outputs/apk/release/app-release.apk) (7.26 MB)
+- **Android Production:** Gradle outputs `android/app/build/outputs/apk/release/app-release.apk`; the shipped artifact is [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB / 5,914,303 bytes)
+- **Supabase Link:** Repo is currently NOT linked (`npx supabase status` reports `linked_project: null`). Run `npx supabase link --project-ref lahvcodvgubplzfshare` before `db push` / `functions deploy`.
 
 ## Build Commands
 
@@ -70,7 +71,7 @@ Defined in [[`package.json`](file:///c:/Users/PC/Desktop/calling%20app/package.j
 - **Web Dev:** `npm run dev` (starts Vite on port 3000)
 - **Web Build:** `npm run build` (runs `tsc && vite build`)
 - **Web Preview:** `npm run preview`
-- **Android Build:** `cd android && gradlew assembleRelease` (requires `JAVA_HOME` to be configured)
+- **Android Build:** `cd android && gradlew assembleRelease` (requires `JAVA_HOME` and `ANDROID_HOME` — both currently UNSET, see [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md))
 - **Tests:** `npm test`, `npm run test:e2e`, `npm run verify`
 
 ## Configuration Files
@@ -93,3 +94,9 @@ Defined in [[`package.json`](file:///c:/Users/PC/Desktop/calling%20app/package.j
 - **appId:** `com.amaratvkrishi.salescrm`
 - **webDir:** `dist`
 - **androidScheme:** `https`
+
+## Related Documents
+
+- [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md) — step-by-step deploy procedures
+- [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md) — first-run checklist for this machine
+- [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md) — tool health snapshot

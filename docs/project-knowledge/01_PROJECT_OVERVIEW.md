@@ -53,7 +53,7 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - Admin: agent management, bulk assignment, reports, live activity feed
 
 ## Repository Structure (with file counts)
-- `src/` (89 files) - React application
+- `src/` (90 files) - React application
   - `components/` (39 files) - UI components by feature
   - `db/` (17 files) - Dexie schema, types, repositories
   - `services/` (28 files) - Business logic, sync, native platform
@@ -61,10 +61,11 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - `tests/` (17 files) - Unit/integration tests (102+ cases)
 - `e2e/` (5 files) - Playwright E2E tests (30 cases)
 - `scripts/` (3 files) - Verify pipeline, schema export, cloud probe
-- `supabase/` (14 files) - Migrations, seed, config, edge function
+- `supabase/` (12 files) - Migrations, seed, config, edge function
 - `android/` - Capacitor Android project
-- `docs/` (30 files) - Project documentation
+- `docs/` (15 root files + 26 project-knowledge files) - Project documentation
 - `public/` (2 files) - Static assets
+- `release/` (1 file) - Shipped APK artifact
 
 ## Important Entry Points
 - [main.tsx](file:///c:/Users/PC/Desktop/calling%20app/src/main.tsx) - React DOM mount
@@ -81,5 +82,8 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - **Cloud RLS / Agent Lead Isolation:** PASS
 - **All tests:** PASS (102 unit + 30 E2E + 15 PostgreSQL)
 - **Production build:** PASS
-- **Android APK:** PASS (7.26 MB)
+- **Android APK:** PASS - shipped artifact [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB)
 - **Web deployment:** Vercel at https://crm-blush-omega.vercel.app
+
+> [!NOTE]
+> For toolchain health, account ownership, deploy procedures, and local setup see [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md), [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md), [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md), and [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md).

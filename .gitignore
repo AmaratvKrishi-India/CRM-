@@ -44,4 +44,9 @@ android/capacitor-cordova-android-plugins/
 e2e/android/screenshots/
 e2e/android/reports/
 
+# Generated verification artifacts (PDF page renders, test runner output)
+pdf_pages/
+playwright-report/
+test-results/
+
 .vercel

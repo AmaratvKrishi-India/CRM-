@@ -1,8 +1,8 @@
 {
-  "name": "calling-app",
+  "name": "amaratvkrishi-sales-crm",
   "version": "2.0.0",
-  "description": "Amaratv Krishi Field Sales CRM",
-  "main": "index.js",
+  "description": "Amaratv Krishi Field Sales CRM — offline-first mobile CRM (React + Capacitor + Supabase)",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -14,9 +14,15 @@
     "test:e2e:report": "playwright show-report",
     "verify": "tsx scripts/verify.ts"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "crm",
+    "field-sales",
+    "offline-first",
+    "capacitor",
+    "supabase"
+  ],
+  "author": "Amaratv Krishi India",
+  "license": "UNLICENSED",
   "type": "module",
   "dependencies": {
     "@capacitor/android": "^8.5.0",

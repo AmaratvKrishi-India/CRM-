@@ -8,7 +8,6 @@ dist/
 .env
 .env.*
 !.env.example
-PLACEHOLDER.MD
 *.jks
 *.keystore
 keystore.properties

@@ -101,7 +101,7 @@ git add -A; git commit -m "<message>"
 git push origin main  # pushes as AmaratvKrishi-India
 ```
 
-Repo: `AmaratvKrishi-India/CRM-` (public). Local `main` is 1 commit ahead of `origin/main` plus uncommitted worktree changes as of 2026-08-22.
+Repo: `AmaratvKrishi-India/CRM-` (PRIVATE — verified via `gh repo view` on 2026-08-22). Local `main` is 1 commit ahead of `origin/main` with a clean working tree as of 2026-08-22; the push is a manual release step.
 
 ## Rollback
 

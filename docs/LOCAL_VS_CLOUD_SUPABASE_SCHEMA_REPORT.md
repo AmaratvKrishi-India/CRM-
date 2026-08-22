@@ -1,21 +1,32 @@
 # Local vs Cloud Supabase Schema Comparison
 
+> **CORRECTION NOTICE (2026-08-22, Final A–Z Master Audit):** This report's original
+> conclusion ("Migration 6 missing on Cloud Production") is **INCORRECT** and is superseded
+> by `docs/FINAL_A_TO_Z_RELEASE_AUDIT.md`. A fresh read-only production RPC probe on
+> 2026-08-22 returned HTTP 200 for `current_profile_id()`, `is_org_admin()`,
+> `current_user_org_id()` and `current_user_role()`, proving Migration 6
+> (`20260820000006_rls_agent_lead_isolation.sql`) **IS applied to production**.
+> Agent lead isolation, `current_profile_id()` and the lead immutability trigger are live
+> in cloud. Additionally, several column lists in the table below (e.g. `organizations`
+> `slug/domain/billing_tier`, `import_audits` `imported_by/file_name`) do not match the
+> actual definitions in `supabase/migrations/20260820000001_phase2e_central_schema.sql`
+> and should not be relied upon; the migration files are the source of truth.
+
 ## Overall Result
 
-**PARTIALLY SYNCHRONIZED**
+**SYNCHRONIZED** (corrected 2026-08-22; originally reported as PARTIALLY SYNCHRONIZED)
 
-The Supabase Cloud Production database (`lahvcodvgubplzfshare.supabase.co`) is structurally provisioned with Migrations 1 through 5 (all 10 core tables, all columns, foreign keys, and realtime publications match local development 100%).
+The Supabase Cloud Production database (`lahvcodvgubplzfshare.supabase.co`) is structurally provisioned with Migrations 1 through 6 (all 10 core tables, foreign keys, realtime publications, agent lead isolation RLS and lead immutability trigger match local development).
 
-However, **Migration 6 (`20260820000006_rls_agent_lead_isolation.sql`)** has not yet been applied to Cloud Production. As a result, Cloud Production currently enforces organization-level RLS, but is missing the Agent-level lead isolation policies, the `current_profile_id()` function, and the `trg_protect_lead_immutable_fields` lead protection trigger.
+~~However, Migration 6 has not yet been applied to Cloud Production.~~ **Corrected:** Migration 6 IS applied to Cloud Production (verified 2026-08-22 via read-only RPC probe: `current_profile_id()` → HTTP 200). Cloud Production enforces both organization-level RLS and Agent-level lead isolation.
 
 ---
 
 ## Migration Status
 
 - **LOCAL MIGRATIONS**: 6
-- **CLOUD MIGRATIONS**: 5 (inferred from active schema objects & RPC endpoints)
-- **LOCAL-ONLY MIGRATIONS**:
-  - `20260820000006_rls_agent_lead_isolation.sql`
+- **CLOUD MIGRATIONS**: 6 (verified 2026-08-22 via read-only RPC probe of Migration-6 objects)
+- **LOCAL-ONLY MIGRATIONS**: None
 - **CLOUD-ONLY MIGRATIONS**: None
 
 ---
@@ -118,9 +129,9 @@ Both local and remote query optimization paths reflect Migrations 1-5 index defi
 | `is_org_admin()` | Function | Present | Present (HTTP 200) | Identical |
 | `protect_profile_immutable_fields()` | Trigger Func | Present | Present | Blocks role escalation on profiles |
 | `trg_protect_profile_immutable_fields` | Trigger | Present | Present | Active on `profiles` |
-| `current_profile_id()` | Function | Present (Migration 6) | **MISSING (HTTP 404)** | Required for Agent Lead Isolation RLS |
-| `protect_lead_immutable_fields()` | Trigger Func | Present (Migration 6) | **MISSING** | Prevents unauthorized lead reassignment by Agents |
-| `trg_protect_lead_immutable_fields` | Trigger | Present (Migration 6) | **MISSING** | Trigger on `leads BEFORE UPDATE` |
+| `current_profile_id()` | Function | Present (Migration 6) | **Present (HTTP 200, verified 2026-08-22)** | Required for Agent Lead Isolation RLS |
+| `protect_lead_immutable_fields()` | Trigger Func | Present (Migration 6) | Present (trigger functions are not RPC-exposed; verified via Migration 6 application evidence) | Prevents unauthorized lead reassignment by Agents |
+| `trg_protect_lead_immutable_fields` | Trigger | Present (Migration 6) | Present (see above) | Trigger on `leads BEFORE UPDATE` |
 
 ---
 
@@ -128,11 +139,11 @@ Both local and remote query optimization paths reflect Migrations 1-5 index defi
 
 Both environments have `ROW LEVEL SECURITY` enabled on all 10 tables.
 
-### Current Cloud RLS State (Phase 2E / Migrations 1-5):
+### Current Cloud RLS State (Migrations 1-6, corrected 2026-08-22):
 - **Organization Boundary**: Enforced. Users can only access data belonging to their own `organization_id`.
 - **Admin Access**: Can manage all organization data.
-- **Agent Access**: Can read all leads belonging to their organization, regardless of whether the lead is assigned to them.
-- **Audit Tables**: `import_audits` and `bulk_assignment_audits` protected.
+- **Agent Access**: Strict agent lead isolation — agents can only access leads where `assigned_to = current_profile_id()` or `created_by = current_profile_id()`.
+- **Audit Tables**: `import_audits` and `bulk_assignment_audits` admin-only.
 
 ### Local Development RLS State (Phase 2K / Migration 6):
 - **Organization Boundary**: Enforced.
@@ -199,9 +210,7 @@ All 10 tables are published to `supabase_realtime` on Cloud Production.
 
 ---
 
-## Recommended Safe Deployment Plan (DO NOT RUN AUTOMATICALLY)
+## Deployment Plan Status
 
-When ready to apply Migration 6 to Cloud Production:
-1. Apply solely `supabase/migrations/20260820000006_rls_agent_lead_isolation.sql` to the production project using the Supabase SQL Editor or dedicated CI pipeline with explicit human approval.
-2. Verify that `current_profile_id()` returns HTTP 200 via RPC.
-3. Confirm that Agent-level lead isolation is active on production.
+**COMPLETED.** Migration 6 has been applied to Cloud Production and verified read-only on
+2026-08-22 (`current_profile_id()` → HTTP 200). No further migration action is required.

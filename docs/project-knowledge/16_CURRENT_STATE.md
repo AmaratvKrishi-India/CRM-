@@ -9,21 +9,21 @@
 - Web: https://crm-blush-omega.vercel.app (Vercel, amaratv-krishi/crm)
 - Backend: Supabase Cloud (lahvcodvgubplzfshare.supabase.co)
 - Android: shipped APK at [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (5.6 MB / 5,914,303 bytes)
-- Source: GitHub AmaratvKrishi-India/CRM- (public)
+- Source: GitHub AmaratvKrishi-India/CRM- (PRIVATE — verified via `gh repo view` on 2026-08-22)
 
 ## Verification Results (All PASS)
 - Cloud Migration 6: PASS
 - Cloud RLS / Agent Lead Isolation: PASS  
 - Local/Cloud Parity: PASS
-- Unit/Integration Tests: PASS — 102 tests across 17 suites
+- Unit/Integration Tests: PASS — 115 tests across 22 suites (re-run 2026-08-22; supersedes the earlier 102-test count)
 - PostgreSQL/RLS Tests: PASS — 15 tests
 - Playwright E2E Tests: PASS — 30 tests across 4 specs
-- 3 Android Studio Emulator Acceptance: PASS
+- 3 Android Studio Emulator Acceptance: PASS — 13/13 (re-run 2026-08-22 on emulator-5556/5558/5560)
 - Offline Recovery: PASS
 - Android Call Lifecycle: PASS
 - Pagination: PASS
 - Vite Production Build: PASS
-- Android Release APK Build: PASS (7.26 MB)
+- Android Release APK Build: PASS (shipped artifact 5,914,303 bytes; rebuild not re-run this session because JAVA_HOME is unset in the audit shell — see Environment Health)
 - Security Scan: PASS (no secrets leaked)
 - Production Safety: PASS
 
@@ -46,12 +46,14 @@ All 6 migrations applied to both local and production:
 - SET search_path = public on all triggers
 - Signing keys stored externally (not in Git)
 
-## Environment Health (2026-08-22)
-- Git: local main 1 commit ahead of origin/main + uncommitted worktree changes; repo identity = AmaratvKrishi-India
+## Environment Health (2026-08-22, refreshed by Final A–Z Master Audit)
+- Git: local main 1 commit ahead of origin/main (not pushed; push is a manual release step); working tree clean; repo identity = AmaratvKrishi-India; repo visibility PRIVATE
 - Vercel: logged in as amaratvkrishi-india; production URL live (HTTP 200)
-- Supabase: project ACTIVE_HEALTHY, all 6 migrations applied; repo NOT linked (`supabase link` pending)
-- Broken: `JAVA_HOME`/`ANDROID_HOME` unset (Android builds blocked); `node_modules` missing (`npm install` needed); `.env.staging` values empty
-- Full detail: [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md) and [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md)
+- Supabase: project ACTIVE_HEALTHY, all 6 migrations applied (Migration 6 verified via read-only RPC probe); repo NOT linked (`supabase link` pending — NON_BLOCKING)
+- `node_modules` present and working (npm test/build/e2e all re-run successfully on 2026-08-22)
+- `JAVA_HOME`/`ANDROID_HOME` unset in the audit shell (APK rebuilds require setting them inline, e.g. to Android Studio's `jbr`); signed release APK already exists in `release/`
+- `.env.staging` has no token/password values (no dedicated staging project — NON_BLOCKING)
+- Full detail: [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md), [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md) and [FINAL A–Z Release Audit](../FINAL_A_TO_Z_RELEASE_AUDIT.md)
 
 ## Known Limitations
 - No automated CI/CD pipeline (manual deployment)

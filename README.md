@@ -150,4 +150,6 @@ release/        Signed release APK + release notes
 ## License
 
 © 2026 Amaratv Krishi India. All rights reserved. Proprietary — see [LICENSE](./LICENSE).
+Built on open-source software; full attribution and license texts in
+[THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).
 *From Our Fields to Your Home.*

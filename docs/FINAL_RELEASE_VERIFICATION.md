@@ -1,5 +1,9 @@
 # FINAL RELEASE VERIFICATION REPORT
 
+> **SUPERSEDED (2026-08-23):** Historical snapshot. Test counts cited here (102 tests /
+> 21 suites) are outdated; current counts are 119 unit tests across 31 suites and 32
+> Playwright E2E runs. See `docs/project-knowledge/12_TESTING_VERIFICATION.md`.
+
 ## 1. Final Repository State
 - **Framework**: React 19 + Vite
 - **Mobile Container**: Capacitor 8 (Android)

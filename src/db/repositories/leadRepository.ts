@@ -163,8 +163,9 @@ export class LeadRepository {
       updatedBy: input.updatedBy !== undefined ? input.updatedBy : input.createdBy || null,
     };
 
-    await this.db.leads.add(newLead);
-    try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+      await this.db.leads.add(newLead);
       await this.getSyncQueue().enqueue({
         entityType: 'leads',
         entityId: newLead.id,
@@ -172,9 +173,7 @@ export class LeadRepository {
         payload: newLead,
         userId: newLead.createdBy || 'local-user',
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for createLead:', err);
-    }
+    });
     return newLead;
   }
 
@@ -283,9 +282,9 @@ export class LeadRepository {
     }
 
     if (leadsToInsert.length > 0) {
-      await this.db.leads.bulkAdd(leadsToInsert);
-      result.imported = leadsToInsert.length;
-      try {
+      // Bulk insert + outbox enqueues are atomic: either all persist or none.
+      await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+        await this.db.leads.bulkAdd(leadsToInsert);
         const queue = this.getSyncQueue();
         for (const lead of leadsToInsert) {
           await queue.enqueue({
@@ -296,9 +295,8 @@ export class LeadRepository {
             userId: lead.createdBy || 'local-user',
           });
         }
-      } catch (err) {
-        console.warn('Outbox enqueue failed for bulkImportLeads:', err);
-      }
+      });
+      result.imported = leadsToInsert.length;
     }
 
     return result;
@@ -384,10 +382,12 @@ export class LeadRepository {
       isSynced: 0,
     };
 
-    await this.db.leads.update(id, updatePayload);
-    const updated = await this.db.leads.get(id);
-    if (updated) {
-      try {
+    let updated: Lead | undefined;
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+      await this.db.leads.update(id, updatePayload);
+      updated = await this.db.leads.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'leads',
           entityId: updated.id,
@@ -395,10 +395,8 @@ export class LeadRepository {
           payload: updated,
           userId: updated.updatedBy || updated.createdBy || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for updateLead:', err);
       }
-    }
+    });
     return updated!;
   }
 
@@ -428,6 +426,23 @@ export class LeadRepository {
     } = params;
 
     let collection = this.db.leads.toCollection();
+
+    // Narrow candidates via a single-column index when a single-value filter
+    // is given (most common UI paths). Compound [x+deletedAt] indexes cannot
+    // be used here: IndexedDB does not index records where a key path is
+    // null, so active leads (deletedAt=null) are absent from them. The
+    // deletedAt filter below still excludes soft-deleted rows. Remaining
+    // filters run in-memory; Dexie cannot sort by unindexed fields, so
+    // sort/slice stays in-memory by design.
+    if (!includeDeleted) {
+      if (typeof status === 'string') {
+        collection = this.db.leads.where('status').equals(status);
+      } else if (typeof locality === 'string') {
+        collection = this.db.leads.where('locality').equals(locality);
+      } else if (typeof params.assignedTo === 'string' && params.assignedTo !== 'ASSIGNED' && params.assignedTo !== 'UNASSIGNED') {
+        collection = this.db.leads.where('assignedTo').equals(params.assignedTo);
+      }
+    }
 
     // Soft delete filter
     if (!includeDeleted) {
@@ -550,14 +565,15 @@ export class LeadRepository {
     const lead = await this.getLeadById(id);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
     const now = new Date().toISOString();
-    await this.db.leads.update(id, {
-      deletedAt: now,
-      updatedAt: now,
-      isSynced: 0,
-    });
-    const updated = await this.db.leads.get(id);
-    if (updated) {
-      try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+      await this.db.leads.update(id, {
+        deletedAt: now,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      const updated = await this.db.leads.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'leads',
           entityId: updated.id,
@@ -565,10 +581,8 @@ export class LeadRepository {
           payload: updated,
           userId: updated.updatedBy || updated.createdBy || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for softDeleteLead:', err);
       }
-    }
+    });
   }
 
   /**
@@ -578,14 +592,15 @@ export class LeadRepository {
     const lead = await this.getLeadById(id, true);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
     const now = new Date().toISOString();
-    await this.db.leads.update(id, {
-      deletedAt: null,
-      updatedAt: now,
-      isSynced: 0,
-    });
-    const updated = await this.db.leads.get(id);
-    if (updated) {
-      try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+      await this.db.leads.update(id, {
+        deletedAt: null,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      const updated = await this.db.leads.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'leads',
           entityId: updated.id,
@@ -593,10 +608,8 @@ export class LeadRepository {
           payload: updated,
           userId: updated.updatedBy || updated.createdBy || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for restoreLead:', err);
       }
-    }
+    });
   }
 
   /**
@@ -615,6 +628,7 @@ export class LeadRepository {
       this.db.activities,
       this.db.followUps,
       this.db.messageHistory,
+      this.db.outbox,
     ], async () => {
       await Promise.all([
         this.db.leads.delete(id),
@@ -625,10 +639,7 @@ export class LeadRepository {
         this.db.followUps.where('leadId').equals(id).delete(),
         this.db.messageHistory.where('leadId').equals(id).delete(),
       ]);
-    });
-
-    if (lead) {
-      try {
+      if (lead) {
         await this.getSyncQueue().enqueue({
           entityType: 'leads',
           entityId: id,
@@ -636,10 +647,8 @@ export class LeadRepository {
           payload: lead,
           userId: lead.updatedBy || lead.createdBy || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for hardDeleteLead:', err);
       }
-    }
+    });
   }
 
   /**

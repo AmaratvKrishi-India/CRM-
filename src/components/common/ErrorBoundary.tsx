@@ -2,6 +2,9 @@
  * Production-Safe React Error Boundary
  * Catches JavaScript errors in child component tree, logs safely,
  * and renders a user-friendly recovery screen without leaking stack traces or secrets.
+ *
+ * UX remediation: design tokens (F1/F12) so the recovery screen follows the
+ * active theme; 44px action targets (F6); readable text sizes (F7).
  */
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
@@ -57,15 +60,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 font-sans">
-          <div className="w-full max-w-sm bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl text-center space-y-4 backdrop-blur-md">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
-              <AlertTriangle className="w-7 h-7" />
+        <div className="min-h-screen bg-app text-ink flex flex-col items-center justify-center p-6 font-sans">
+          <div className="w-full max-w-sm bg-surface border border-line rounded-3xl p-6 shadow-2xl text-center space-y-4 backdrop-blur-md">
+            <div className="w-14 h-14 rounded-2xl bg-warning-soft border border-warning text-warning-text flex items-center justify-center mx-auto shadow-lg">
+              <AlertTriangle className="w-7 h-7" aria-hidden="true" />
             </div>
 
             <div className="space-y-1.5">
-              <h2 className="text-lg font-bold text-white">Something went wrong</h2>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <h2 className="text-lg font-bold text-ink">Something went wrong</h2>
+              <p className="text-sm text-soft leading-relaxed">
                 The application encountered an unexpected error. Your offline data is safe.
               </p>
             </div>
@@ -74,18 +77,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-98 flex items-center justify-center gap-2"
+                className="min-h-11 w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md active:scale-98 flex items-center justify-center gap-2"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-4 h-4" aria-hidden="true" />
                 <span>Try Again</span>
               </button>
 
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition-all border border-slate-600/50 active:scale-98 flex items-center justify-center gap-2"
+                className="min-h-11 w-full py-2.5 px-4 rounded-xl bg-inset hover:bg-inset-strong text-soft text-sm font-semibold transition-all border border-line active:scale-98 flex items-center justify-center gap-2"
               >
-                <Home className="w-4 h-4" />
+                <Home className="w-4 h-4" aria-hidden="true" />
                 <span>Reload Application</span>
               </button>
             </div>

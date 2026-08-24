@@ -72,9 +72,9 @@ export class BulkAssignmentAuditRepository {
       version: 1,
     };
 
-    await this.db.bulkAssignmentAudits.add(auditRecord);
-
-    try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.bulkAssignmentAudits, this.db.outbox], async () => {
+      await this.db.bulkAssignmentAudits.add(auditRecord);
       await this.getSyncQueue().enqueue({
         entityType: 'bulk_assignment_audits',
         entityId: auditRecord.id,
@@ -82,9 +82,7 @@ export class BulkAssignmentAuditRepository {
         payload: auditRecord,
         userId: auditRecord.performedBy,
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for logAudit:', err);
-    }
+    });
 
     return auditRecord;
   }

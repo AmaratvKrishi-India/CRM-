@@ -5,16 +5,26 @@
  */
 
 import React, { useState } from 'react';
-import { X, Building2, Phone, MapPin, User, FileText, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { Building2, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
 import { Lead, LeadStatus } from '../../db/types';
+import { Modal } from '../common/Modal';
+import { labelFor } from '../../lib/labels';
 
 interface CreateLeadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLeadCreated: (lead: Lead) => void;
 }
+
+const STATUS_OPTIONS: LeadStatus[] = [
+  'NEW',
+  'CONTACTED',
+  'INTERESTED',
+  'SAMPLE_REQUESTED',
+  'CUSTOMER',
+];
 
 export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
   isOpen,
@@ -34,8 +44,6 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -45,7 +53,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
     const cleanLocality = locality.trim() || 'Lucknow';
 
     if (!cleanName) {
-      setErrorMessage('Business / Gym Name is required.');
+      setErrorMessage('Business / gym name is required.');
       return;
     }
 
@@ -57,7 +65,6 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
     setLoading(true);
 
     try {
-      const now = new Date().toISOString();
       const userId = currentUser?.id || 'local-user';
 
       const newLead = await crmData.leads.createLead({
@@ -99,179 +106,183 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
     }
   };
 
+  const inputClass =
+    'w-full min-h-11 bg-inset border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring';
+  const labelClass = 'block text-sm font-bold text-soft mb-1';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col font-sans">
-        {/* Header */}
-        <div className="p-4 bg-emerald-700 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/20 text-white flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm">Add New Field Lead</h3>
-              <p className="text-[11px] text-emerald-100">Create and assign lead directly to your pipeline</p>
-            </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add new field lead"
+      subtitle="Create and assign a lead directly to your pipeline"
+      closeOnBackdrop={false}
+      maxWidthClassName="max-w-lg"
+      headerIcon={
+        <span className="w-9 h-9 rounded-xl bg-accent-soft text-accent-text flex items-center justify-center flex-shrink-0">
+          <Building2 className="w-5 h-5" aria-hidden="true" />
+        </span>
+      }
+    >
+      {/* Form Content */}
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {errorMessage && (
+          <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text font-medium">
+            {errorMessage}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-emerald-100 hover:text-white rounded-lg hover:bg-emerald-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        )}
+
+        <div>
+          <label htmlFor="create-business-name" className={labelClass}>
+            Business / gym name *
+          </label>
+          <input
+            id="create-business-name"
+            type="text"
+            required
+            data-autofocus
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+            placeholder="e.g. Golds Gym Gomti Nagar"
+            className={inputClass}
+          />
         </div>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-3.5">
-          {errorMessage && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-medium">
-              {errorMessage}
-            </div>
-          )}
-
+        <div className="grid grid-cols-2 gap-2.5">
           <div>
-            <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Business / Gym Name *
+            <label htmlFor="create-phone" className={labelClass}>
+              Phone number *
             </label>
-            <div className="relative">
-              <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                required
-                value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="e.g. Golds Gym Gomti Nagar"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Phone Number *
-              </label>
-              <div className="relative">
-                <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="tel"
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="e.g. 7054447888"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Locality / Area
-              </label>
-              <div className="relative">
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={locality}
-                  onChange={(e) => setLocality(e.target.value)}
-                  placeholder="e.g. Alambagh, LDA Colony"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Contact Person
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={contactPerson}
-                  onChange={(e) => setContactPerson(e.target.value)}
-                  placeholder="e.g. Amit Verma"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                Category
-              </label>
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Gym, Fitness Center"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Initial Pipeline Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as LeadStatus)}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-semibold"
-            >
-              <option value="NEW">NEW — Uncontacted Lead</option>
-              <option value="CONTACTED">CONTACTED — Reached Out</option>
-              <option value="INTERESTED">INTERESTED — Wants Info/Sample</option>
-              <option value="SAMPLE_REQUESTED">SAMPLE_REQUESTED — Needs Sample</option>
-              <option value="CUSTOMER">CUSTOMER — Converted Order</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-              Field Notes / Remarks
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Initial observations, owner timing, requirements..."
-              rows={2}
-              className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white resize-none"
+            <input
+              id="create-phone"
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 7054447888"
+              className={inputClass}
             />
           </div>
 
-          {/* Footer Buttons */}
-          <div className="pt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Save Lead</span>
-                </>
-              )}
-            </button>
+          <div>
+            <label htmlFor="create-locality" className={labelClass}>
+              Locality / area
+            </label>
+            <input
+              id="create-locality"
+              type="text"
+              value={locality}
+              onChange={(e) => setLocality(e.target.value)}
+              placeholder="e.g. Alambagh, LDA Colony"
+              className={inputClass}
+            />
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label htmlFor="create-contact-person" className={labelClass}>
+              Contact person
+            </label>
+            <input
+              id="create-contact-person"
+              type="text"
+              value={contactPerson}
+              onChange={(e) => setContactPerson(e.target.value)}
+              placeholder="e.g. Amit Verma"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label htmlFor="create-category" className={labelClass}>
+              Category
+            </label>
+            <input
+              id="create-category"
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="e.g. Gym, Fitness Center"
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="create-address" className={labelClass}>
+            Address
+          </label>
+          <input
+            id="create-address"
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="Street / landmark (optional)"
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="create-status" className={labelClass}>
+            Initial pipeline status
+          </label>
+          <select
+            id="create-status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as LeadStatus)}
+            className={`${inputClass} font-semibold`}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {labelFor(s)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="create-notes" className={labelClass}>
+            Field notes / remarks
+          </label>
+          <textarea
+            id="create-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Initial observations, owner timing, requirements..."
+            rows={2}
+            className={`${inputClass} resize-none`}
+          />
+        </div>
+
+        {/* Footer Buttons */}
+        <div className="pt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 min-h-11 rounded-xl border border-line text-sm font-bold text-soft hover:bg-inset transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-colors shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                <span>Creating…</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                <span>Save lead</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 };

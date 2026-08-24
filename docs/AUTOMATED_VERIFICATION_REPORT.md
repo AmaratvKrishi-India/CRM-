@@ -1,5 +1,9 @@
 # Automated Verification Report
 
+> **SUPERSEDED (2026-08-23):** Historical snapshot from commit `de18fab`. Test counts have
+> since grown to 119 unit tests across 31 suites and 32 Playwright E2E runs; see
+> `docs/project-knowledge/12_TESTING_VERIFICATION.md` for current state.
+
 **Project**: Amaratv Krishi Field Sales CRM (v2.0.0)
 **Execution Timestamp**: 2026-08-22T03:39:50.155Z
 **Duration**: 525.3s

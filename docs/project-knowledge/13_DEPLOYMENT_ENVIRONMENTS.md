@@ -10,7 +10,7 @@ The project uses multiple `.env` files to manage configuration across different 
 - [`.env`](file:///c:/Users/PC/Desktop/calling%20app/.env) (400 bytes) — default fallback
 - [`.env.local`](file:///c:/Users/PC/Desktop/calling%20app/.env.local) (323 bytes) — local Docker Supabase
 - [`.env.development`](file:///c:/Users/PC/Desktop/calling%20app/.env.development) (331 bytes) — cloud staging
-- [`.env.staging`](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) (123 bytes) — staging config (currently all values EMPTY, see [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md))
+- [`.env.staging`](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) (669 bytes) — staging config pointing at the shared Supabase cloud project (see [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md))
 - [`.env.production`](file:///c:/Users/PC/Desktop/calling%20app/.env.production) (400 bytes) — production
 - [`.env.example`](file:///c:/Users/PC/Desktop/calling%20app/.env.example) (462 bytes) — template for new developers
 
@@ -58,11 +58,11 @@ The production stack utilizes Supabase Cloud for backend services and Vercel for
 - **Backend:** Supabase Cloud (`lahvcodvgubplzfshare.supabase.co`)
 - **Web Host:** Vercel ([https://crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app))
 - **Vercel Project:** `amaratv-krishi/crm` (team `amaratv-krishi`, account `amaratvkrishi-india`)
-- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "amaratv-krishi-crm"}` — legacy name; the linked project is `crm` in scope `amaratv-krishi`)
+- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "crm"}` — matches the linked Vercel project `crm` in scope `amaratv-krishi`)
 - **Vercel Ignores:** [[`.vercelignore`](file:///c:/Users/PC/Desktop/calling%20app/.vercelignore)] (`android/`, `node_modules/`)
 - **Vercel Env Vars:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, `VITE_APP_VERSION`
 - **Android Production:** Gradle outputs `android/app/build/outputs/apk/release/app-release.apk`; the shipped artifact is [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes)
-- **Supabase Link:** Repo is currently NOT linked (`npx supabase status` reports `linked_project: null`). Run `npx supabase link --project-ref lahvcodvgubplzfshare` before `db push` / `functions deploy`.
+- **Supabase Link:** Repo IS linked to project `lahvcodvgubplzfshare` (recorded in `supabase/.temp/linked-project.json` and `supabase/.temp/project-ref`). `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` are not stored in `.env.staging`; supply them before `db push` / `functions deploy`.
 
 ## Build Commands
 

@@ -1,18 +1,19 @@
 # Master Acceptance Gates: Phase 2 Remediation & Production Readiness Audit
 
 > Refreshed manually on 2026-08-22 by the Final A–Z Master Audit
-> (`docs/FINAL_A_TO_Z_RELEASE_AUDIT.md`). Note: `npm run verify` regenerates this file
-> from hardcoded template text (stale counts), so it was intentionally NOT re-run.
+> (`docs/FINAL_A_TO_Z_RELEASE_AUDIT.md`), and again on 2026-08-23 after the final
+> end-to-end functional audit remediation (`docs/BUGFIX_RESULTS.md`). Note: `npm run verify`
+> regenerates this file from hardcoded template text (stale counts), so it was intentionally NOT re-run.
 
 ## Environment & Deployment Gates
 
-- [x] GATE_DOCKER_SUPABASE_LOCAL: Fully automated Docker Desktop local Supabase environment, health checks, 6 PostgreSQL migrations, deterministic seed data, and 15 real PostgreSQL integration tests
+- [x] GATE_DOCKER_SUPABASE_LOCAL: Fully automated Docker Desktop local Supabase environment, health checks, 7 PostgreSQL migrations (migration 7 local-only), deterministic seed data, and 15 real PostgreSQL integration tests
   STATUS: PASS
-  EVIDENCE: Docker stack `supabase_db_calling_app` healthy (ports 15432-15438), 6 migrations applied, seed verified, realSupabasePostgres.test.ts 15/15 passing (re-run 2026-08-22)
+  EVIDENCE: Docker stack `supabase_db_calling_app` healthy (ports 15432-15438), 7 migrations applied locally (20260820000007 registered in supabase_migrations.schema_migrations, verified via catalog queries 2026-08-23), seed verified, realSupabasePostgres.test.ts 15/15 passing (re-run 2026-08-22)
 
-- [x] GATE_LOCAL_VERIFIED: Real Dexie outbox, 22 unit test suites (115 passing tests), 32 Playwright E2E tests, clean Vite build, security scanning
+- [x] GATE_LOCAL_VERIFIED: Real Dexie outbox, 31 unit test suites (119 passing tests), 32 Playwright E2E tests, clean Vite build, security scanning
   STATUS: PASS
-  EVIDENCE: npm test (115 passing / 0 failing, re-run 2026-08-23), npm run test:e2e (32/32 passing), npm run build (clean bundle)
+  EVIDENCE: npm test (119 passing / 0 failing across 31 suites, re-run 2026-08-23 post-bugfix incl. 16-test bugfix regression suite), npm run test:e2e (32/32 passing), npm run build (clean bundle), npx tsc --noEmit (0 errors)
 
 - [ ] GATE_STAGING_SUPABASE_VERIFIED: Dedicated staging Supabase project schema, migrations, RLS, and CRUD verification
   STATUS: BLOCKED (Dedicated staging project not configured in .env.staging. Production project (lahvcodvgubplzfshare) is protected and not used for staging testing.)
@@ -26,13 +27,13 @@
   STATUS: PASS
   EVIDENCE: Schema comparison complete and corrected 2026-08-22: SYNCHRONIZED (Migrations 1-6 active on Cloud; Migration 6 verified via read-only RPC probe, `current_profile_id()` HTTP 200). Report: docs/LOCAL_VS_CLOUD_SUPABASE_SCHEMA_REPORT.md
 
-- [x] GATE_EMULATOR_VERIFIED: Production-signed APK built, installed, launched, and verified on Android emulator
+- [x] GATE_EMULATOR_VERIFIED: Production-signed APK built, installed, launched, and verified on Android Studio AVD/emulator
   STATUS: PASS
-  EVIDENCE: MainActivity window verified active on emulator-5554 via ADB dumpsys
+  EVIDENCE: Release APK v2.0.0 rebuilt 2026-08-23 (SHA-256 A7DD97F61718A7735BE3D0EBD0023F201BEC6B995AA4DD93A3A4E832CD30E0B9, V2-signed), installed and verified on emulator-5556/5558/5560 via ADB
 
 - [x] GATE_MULTI_DEVICE_SYNC_VERIFIED: Real multi-device synchronization across 3 real Android Studio emulators and local Docker Supabase PostgreSQL
   STATUS: PASS
-  EVIDENCE: tests/multiDeviceSync.test.ts 13/13 passing (re-run 2026-08-22, ~200s) on emulators emulator-5556/5558/5560 (Android 17) against local Docker Supabase; APK v2.0.0 (versionCode 2) installed on all three; admin/agent-A/agent-B isolation, sync, offline recovery and RLS verified
+  EVIDENCE: tests/multiDeviceSync.test.ts 13/13 passing, 3 consecutive complete runs (2026-08-23) on emulators emulator-5556/5558/5560 (Android 17) against local Docker Supabase; APK v2.0.0 (versionCode 2) installed on all three; admin/agent-A/agent-B isolation, sync, offline recovery and RLS verified
 
 - [x] GATE_EMULATOR_DEVICE_VERIFIED: Verification on Android Studio AVD/emulator connected via ADB
   STATUS: PASS
@@ -111,4 +112,20 @@
 
 - [x] G17_MULTI_DEVICE_SYNC: Real multi-device synchronization and role-based lead isolation across 3 Android emulators
   CHECK: npx tsx --test tests/multiDeviceSync.test.ts
-  STATUS: PASS (13/13, re-run 2026-08-22 on emulator-5556/5558/5560)
+  STATUS: PASS (13/13, 3 consecutive complete runs 2026-08-23 on emulator-5556/5558/5560)
+
+---
+
+## Final End-to-End Functional Audit Remediation Gates (2026-08-23)
+
+- [x] GATE_BUGFIX_ALL_11: All 11 audit findings (BUG-1…BUG-11) fixed or resolved at root cause
+  STATUS: PASS
+  EVIDENCE: docs/BUGFIX_RESULTS.md; tests/bugfixRegression.test.ts 16/16 passing; no `as any` fixes; no weakened assertions
+
+- [x] GATE_BUGFIX_MIGRATION_LOCAL: Migration 20260820000007 (call_records extended fields, child FK CASCADE, leads_delete_policy) applied to local Docker Supabase only
+  STATUS: PASS
+  EVIDENCE: supabase_migrations.schema_migrations version 20260820000007; columns/CHECK/FK confdeltype/pg_policy verified via catalog queries. Cloud application intentionally deferred (production mutations prohibited)
+
+- [x] GATE_BUGFIX_NO_REGRESSION: Full verification matrix green post-fix
+  STATUS: PASS
+  EVIDENCE: tsc 0 errors; npm test 119/119; Playwright 32/32; build PASS; secret scan 3/3; multi-device 13/13 ×3 consecutive; production read-only smoke PASS (HTTP 200, login form, no runtime errors, RLS enforced)

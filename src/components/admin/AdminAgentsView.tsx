@@ -1,6 +1,7 @@
 /**
  * Admin Agents View (Phase 2D)
  * Mobile-first screen to list, search, filter, and manage sales representatives.
+ * Rewritten for design tokens + button semantics on stat filters (F1/F2/F3).
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -8,11 +9,7 @@ import {
   Users,
   UserPlus,
   Search,
-  Filter,
-  CheckCircle2,
-  XCircle,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AgentManagementService } from '../../services/agentManagementService';
@@ -78,13 +75,13 @@ export const AdminAgentsView: React.FC = () => {
   return (
     <div className="space-y-4 pb-20">
       {/* Top Banner / Actions */}
-      <div className="p-4 bg-slate-800/80 rounded-2xl border border-slate-700/80 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-4 bg-surface rounded-2xl border border-line shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Users className="w-5 h-5 text-blue-400" />
+          <h2 className="text-base font-bold text-ink flex items-center gap-2">
+            <Users className="w-5 h-5 text-info" aria-hidden="true" />
             <span>Sales Representatives</span>
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-soft mt-0.5">
             Manage operational sales accounts and field permissions
           </p>
         </div>
@@ -92,77 +89,89 @@ export const AdminAgentsView: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsCreateOpen(true)}
-          className="py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-all active:scale-95 flex-shrink-0"
+          className="min-h-11 py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 flex-shrink-0"
         >
-          <UserPlus className="w-4 h-4" />
+          <UserPlus className="w-4 h-4" aria-hidden="true" />
           <span>Provision New Agent</span>
         </button>
       </div>
 
-      {/* KPI Stats Row */}
-      <div className="grid grid-cols-3 gap-2">
-        <div
+      {/* KPI Stats Row (also status filters) */}
+      <div role="group" aria-label="Filter agents by status" className="grid grid-cols-3 gap-2">
+        <button
+          type="button"
           onClick={() => setStatusFilter('ALL')}
-          className={`p-3 rounded-xl border text-center cursor-pointer transition-all ${
+          aria-pressed={statusFilter === 'ALL'}
+          className={`p-3 rounded-xl border text-center transition-all ${
             statusFilter === 'ALL'
-              ? 'bg-blue-950/40 border-blue-500/50 shadow-sm'
-              : 'bg-slate-800/60 border-slate-700/60 hover:border-slate-600'
+              ? 'bg-info-soft border-info shadow-sm'
+              : 'bg-surface border-line hover:border-line-strong'
           }`}
         >
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-          <p className="text-lg font-black text-white mt-0.5">{agents.length}</p>
-        </div>
+          <p className="text-xs font-bold text-soft uppercase tracking-wider">Total</p>
+          <p className="text-lg font-black text-ink mt-0.5">{agents.length}</p>
+        </button>
 
-        <div
+        <button
+          type="button"
           onClick={() => setStatusFilter('ACTIVE')}
-          className={`p-3 rounded-xl border text-center cursor-pointer transition-all ${
+          aria-pressed={statusFilter === 'ACTIVE'}
+          className={`p-3 rounded-xl border text-center transition-all ${
             statusFilter === 'ACTIVE'
-              ? 'bg-emerald-950/40 border-emerald-500/50 shadow-sm'
-              : 'bg-slate-800/60 border-slate-700/60 hover:border-slate-600'
+              ? 'bg-success-soft border-success shadow-sm'
+              : 'bg-surface border-line hover:border-line-strong'
           }`}
         >
-          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Active</p>
-          <p className="text-lg font-black text-emerald-300 mt-0.5">{activeCount}</p>
-        </div>
+          <p className="text-xs font-bold text-success-text uppercase tracking-wider">Active</p>
+          <p className="text-lg font-black text-success-text mt-0.5">{activeCount}</p>
+        </button>
 
-        <div
+        <button
+          type="button"
           onClick={() => setStatusFilter('INACTIVE')}
-          className={`p-3 rounded-xl border text-center cursor-pointer transition-all ${
+          aria-pressed={statusFilter === 'INACTIVE'}
+          className={`p-3 rounded-xl border text-center transition-all ${
             statusFilter === 'INACTIVE'
-              ? 'bg-rose-950/40 border-rose-500/50 shadow-sm'
-              : 'bg-slate-800/60 border-slate-700/60 hover:border-slate-600'
+              ? 'bg-danger-soft border-danger shadow-sm'
+              : 'bg-surface border-line hover:border-line-strong'
           }`}
         >
-          <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Inactive</p>
-          <p className="text-lg font-black text-rose-300 mt-0.5">{inactiveCount}</p>
-        </div>
+          <p className="text-xs font-bold text-danger-text uppercase tracking-wider">Inactive</p>
+          <p className="text-lg font-black text-danger-text mt-0.5">{inactiveCount}</p>
+        </button>
       </div>
 
       {/* Search Bar */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-          <Search className="w-4 h-4" />
+      <div>
+        <label htmlFor="admin-agents-search" className="sr-only">
+          Search agents by name, email or phone
+        </label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-faint">
+            <Search className="w-4 h-4" aria-hidden="true" />
+          </div>
+          <input
+            id="admin-agents-search"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, email or phone..."
+            className="w-full min-h-11 bg-surface border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all"
+          />
         </div>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by name, email or phone..."
-          className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-        />
       </div>
 
       {/* Agents List */}
       {loading ? (
-        <div className="py-12 flex flex-col items-center justify-center text-slate-400 space-y-2">
-          <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-          <p className="text-xs">Loading agents...</p>
+        <div className="py-12 flex flex-col items-center justify-center text-soft space-y-2" role="status">
+          <Loader2 className="w-6 h-6 animate-spin text-accent-text" aria-hidden="true" />
+          <p className="text-sm">Loading agents...</p>
         </div>
       ) : filteredAgents.length === 0 ? (
-        <div className="py-12 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 p-6 space-y-3">
-          <Users className="w-10 h-10 text-slate-600 mx-auto" />
-          <p className="text-sm font-semibold text-slate-300">No sales agents found</p>
-          <p className="text-xs text-slate-500 max-w-xs mx-auto">
+        <div className="py-12 text-center bg-inset rounded-2xl border border-line p-6 space-y-3">
+          <Users className="w-10 h-10 text-faint mx-auto" aria-hidden="true" />
+          <p className="text-sm font-semibold text-ink">No sales agents found</p>
+          <p className="text-sm text-faint max-w-xs mx-auto">
             {searchQuery
               ? 'No agents matched your search query. Try adjusting filters.'
               : 'No sales representatives have been provisioned yet.'}
@@ -171,7 +180,7 @@ export const AdminAgentsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsCreateOpen(true)}
-              className="py-2 px-4 rounded-xl bg-blue-600 text-white font-bold text-xs mt-2"
+              className="min-h-11 py-2 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm mt-2"
             >
               Provision First Agent
             </button>

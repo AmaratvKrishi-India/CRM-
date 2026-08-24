@@ -34,14 +34,14 @@ test.describe('Mobile Viewport & Responsive Design Flow', () => {
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
 
     // Wait for Dashboard
-    const bottomNav = page.locator('.sticky.bottom-0').or(page.locator('div:has(> div > button:has-text("Dashboard"))')).last();
+    const bottomNav = page.getByRole('tablist', { name: 'Main sections' });
     await expect(bottomNav).toBeVisible({ timeout: 10000 });
 
     // Scroll down
     await page.evaluate(() => window.scrollTo(0, 1000));
 
     // Nav bar should still be visible in viewport
-    await expect(page.getByRole('button', { name: /Dashboard/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Leads/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Leads/i })).toBeVisible();
   });
 });

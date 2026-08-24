@@ -251,19 +251,17 @@ export class CallLifecycleService {
       leadId: attempt.leadId,
       userId: actor.id, // Strictly derived from authenticated session
       deviceId,
+      dialAttemptId: attempt.attemptId,
       startedAt: attempt.dialStartedAt,
       answeredAt: isConnected ? attempt.dialStartedAt : null,
       endedAt: attempt.returnedAt || now,
       durationSeconds,
+      reportedDurationSeconds,
       outcome: input.outcome,
+      callStatus,
       remark: remarkContent,
       verificationStatus,
     });
-
-    // Attach extended metadata
-    (callRecord as any).dialAttemptId = attempt.attemptId;
-    (callRecord as any).callStatus = callStatus;
-    (callRecord as any).reportedDurationSeconds = reportedDurationSeconds;
 
     // Update Lead stats: increment call count and last contacted time
     const lead = await leadRepo.getLeadById(attempt.leadId);

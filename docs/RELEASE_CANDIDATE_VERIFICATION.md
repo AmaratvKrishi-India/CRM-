@@ -1,5 +1,9 @@
 # Release Candidate Verification Report
 
+> **SUPERSEDED (2026-08-23):** Historical snapshot. Test counts cited here (102 tests /
+> 21 suites, 30 Playwright tests) are outdated; current counts are 119 unit tests across
+> 31 suites and 32 Playwright E2E runs. See `docs/project-knowledge/12_TESTING_VERIFICATION.md`.
+
 ## 1. Tooling Installed/Available
 - **Model Context Protocol Servers**: Context7 (ALREADY_AVAILABLE)
 - **Anthropic Skills** (webapp-testing, skill-creator): NOT_AVAILABLE

@@ -172,6 +172,13 @@ Tested via WebSocket subscription handshakes (`wss://lahvcodvgubplzfshare.supaba
 
 All 10 tables are published to `supabase_realtime` on Cloud Production.
 
+> **NOTE (2026-08-23 documentation audit):** The migrations only add 9 tables to
+> `supabase_realtime` (8 in migration 4 + `bulk_assignment_audits` in migration 5);
+> `organizations` is never added by any migration. The probe's `realtimeChannels` result
+> was empty, so the `organizations` row above could not be re-verified. Treat the
+> migration-derived count (9 published tables) as authoritative; see
+> [08 - Sync & Realtime Architecture](./project-knowledge/08_SYNC_REALTIME_ARCHITECTURE.md).
+
 ---
 
 ## Extensions

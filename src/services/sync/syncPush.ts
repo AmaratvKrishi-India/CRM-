@@ -111,11 +111,15 @@ export class SyncPush {
           lead_id: payload.leadId || payload.lead_id,
           user_id: payload.userId || payload.user_id || null,
           device_id: payload.deviceId || payload.device_id || null,
+          dial_attempt_id: payload.dialAttemptId ?? payload.dial_attempt_id ?? null,
           started_at: payload.startedAt || payload.started_at,
           answered_at: payload.answeredAt || payload.answered_at || null,
           ended_at: payload.endedAt || payload.ended_at || null,
           duration_seconds: payload.durationSeconds ?? payload.duration_seconds ?? 0,
+          reported_duration_seconds:
+            payload.reportedDurationSeconds ?? payload.reported_duration_seconds ?? null,
           outcome: payload.outcome || 'OTHER',
+          call_status: payload.callStatus || payload.call_status || null,
           remark: payload.remark || null,
           verification_status: payload.verificationStatus || payload.verification_status || 'UNVERIFIED',
         };
@@ -267,50 +271,93 @@ export class SyncPush {
     }
 
     for (const [entityType, entityItems] of Object.entries(byEntity) as [SyncEntityType, OutboxItem[]][]) {
-      const records = entityItems.map((i) => SyncPush.transformToPgRecord(entityType, i.payload, i.organizationId));
+      // Items are in createdAt order; preserve it. CREATE/UPDATE items are
+      // batched into upserts; DELETE items are executed individually so a
+      // DELETE is never converted into an upsert (which would resurrect the
+      // record). Upserts queued before a DELETE flush first, so a recreated
+      // record queued after a DELETE still lands after the delete.
+      let upsertBatch: OutboxItem[] = [];
 
-      try {
-        const { error } = await client
-          .from(entityType)
-          .upsert(records, { onConflict: 'id' });
+      const flushUpserts = async (): Promise<void> => {
+        if (upsertBatch.length === 0) return;
+        const batch = upsertBatch;
+        upsertBatch = [];
+        const records = batch.map((i) => SyncPush.transformToPgRecord(entityType, i.payload, i.organizationId));
 
-        if (error) {
-          // If batch failed, fallback to item-by-item to isolate the failing record
-          for (let idx = 0; idx < entityItems.length; idx++) {
-            const item = entityItems[idx];
-            const record = records[idx];
-            try {
-              const { error: singleError } = await client
-                .from(entityType)
-                .upsert(record, { onConflict: 'id' });
+        try {
+          const { error } = await client
+            .from(entityType)
+            .upsert(records, { onConflict: 'id' });
 
-              if (singleError) {
-                await this.queue.markFailed(item.id, singleError.message);
+          if (error) {
+            // If batch failed, fallback to item-by-item to isolate the failing record
+            for (let idx = 0; idx < batch.length; idx++) {
+              const item = batch[idx];
+              const record = records[idx];
+              try {
+                const { error: singleError } = await client
+                  .from(entityType)
+                  .upsert(record, { onConflict: 'id' });
+
+                if (singleError) {
+                  await this.queue.markFailed(item.id, singleError.message);
+                  failedCount++;
+                  errors.push(`${entityType} item ${item.entityId}: ${singleError.message}`);
+                } else {
+                  await this.queue.markSynced([item.id]);
+                  pushedCount++;
+                }
+              } catch (err: any) {
+                await this.queue.markFailed(item.id, err.message || 'Push error');
                 failedCount++;
-                errors.push(`${entityType} item ${item.entityId}: ${singleError.message}`);
-              } else {
-                await this.queue.markSynced([item.id]);
-                pushedCount++;
+                errors.push(`${entityType} item ${item.entityId}: ${err.message}`);
               }
-            } catch (err: any) {
-              await this.queue.markFailed(item.id, err.message || 'Push error');
-              failedCount++;
-              errors.push(`${entityType} item ${item.entityId}: ${err.message}`);
             }
+          } else {
+            // Entire batch succeeded
+            await this.queue.markSynced(batch.map((i) => i.id));
+            pushedCount += batch.length;
+          }
+        } catch (err: any) {
+          // Network or client exception
+          for (const item of batch) {
+            await this.queue.markFailed(item.id, err.message || 'Push exception');
+          }
+          failedCount += batch.length;
+          errors.push(`${entityType} batch: ${err.message}`);
+        }
+      };
+
+      for (const item of entityItems) {
+        if (item.operation === 'DELETE') {
+          await flushUpserts();
+          try {
+            // DELETE is idempotent: deleting a row that no longer exists
+            // succeeds (0 rows affected), so retries are safe.
+            const { error } = await client
+              .from(entityType)
+              .delete()
+              .eq('id', item.entityId);
+
+            if (error) {
+              await this.queue.markFailed(item.id, error.message);
+              failedCount++;
+              errors.push(`${entityType} DELETE ${item.entityId}: ${error.message}`);
+            } else {
+              await this.queue.markSynced([item.id]);
+              pushedCount++;
+            }
+          } catch (err: any) {
+            await this.queue.markFailed(item.id, err.message || 'Delete push exception');
+            failedCount++;
+            errors.push(`${entityType} DELETE ${item.entityId}: ${err.message}`);
           }
         } else {
-          // Entire batch succeeded
-          await this.queue.markSynced(entityItems.map((i) => i.id));
-          pushedCount += entityItems.length;
+          upsertBatch.push(item);
         }
-      } catch (err: any) {
-        // Network or client exception
-        for (const item of entityItems) {
-          await this.queue.markFailed(item.id, err.message || 'Push exception');
-        }
-        failedCount += entityItems.length;
-        errors.push(`${entityType} batch: ${err.message}`);
       }
+
+      await flushUpserts();
     }
 
     return { pushedCount, failedCount, errors };

@@ -455,19 +455,15 @@ export class ExcelParserService {
       }
     }
 
-    // Perform database operations in a single transaction
-    await db.transaction('rw', db.leads, async () => {
+    // Data writes + outbox enqueues + audit are atomic: either all persist or none.
+    await db.transaction('rw', [db.leads, db.outbox, db.importAudits], async () => {
       if (newLeadsToInsert.length > 0) {
         await db.leads.bulkAdd(newLeadsToInsert);
       }
       for (const update of updatesToPerform) {
         await db.leads.update(update.id, update.changes);
       }
-    });
 
-    // Enqueue outbox items so imported/updated leads actually sync to the cloud,
-    // and record an import audit row (which enqueues its own outbox item).
-    try {
       const syncQueue = new SyncQueue(db);
       const effectiveUserId = userId || 'local-user';
 
@@ -507,9 +503,7 @@ export class ExcelParserService {
         duplicates: skippedDuplicates,
         invalid: skippedInvalid,
       });
-    } catch (err) {
-      console.warn('Excel import: outbox enqueue / audit logging failed:', err);
-    }
+    });
 
     const durationMs = Date.now() - startTime;
 

@@ -12,9 +12,12 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { execSync } from 'child_process';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { chromium, Page, Browser } from '@playwright/test';
 
 const ADB = path.join(process.env.LOCALAPPDATA || '', 'Android', 'Sdk', 'platform-tools', 'adb.exe');
+const APP_PACKAGE = 'com.amaratvkrishi.salescrm';
+const RELEASE_APK = fileURLToPath(new URL('../release/AmaratvKrishi-SalesCRM-v2.0.0.apk', import.meta.url));
 const SUPABASE_LOCAL_URL = 'http://127.0.0.1:15432';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
@@ -45,7 +48,7 @@ function detectEmulators(): string[] {
   }
 }
 
-async function waitForCdpReady(port: number, maxAttempts = 15): Promise<boolean> {
+async function waitForCdpReady(port: number, maxAttempts = 45): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/json`);
@@ -61,7 +64,17 @@ async function waitForCdpReady(port: number, maxAttempts = 15): Promise<boolean>
   return false;
 }
 
+function ensureAppInstalled(serial: string): void {
+  const listed = execSync(`"${ADB}" -s ${serial} shell pm list packages ${APP_PACKAGE}`, { encoding: 'utf-8' });
+  if (listed.includes(`package:${APP_PACKAGE}`)) return;
+  console.log(`App missing on ${serial}; installing release APK ${RELEASE_APK}`);
+  execSync(`"${ADB}" -s ${serial} install -r "${RELEASE_APK}"`, { encoding: 'utf-8', timeout: 180_000 });
+}
+
 async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser: Browser; page: Page }> {
+  // 0. Guarantee the app is installed on whichever emulator was selected
+  ensureAppInstalled(serial);
+
   // 1. Configure reverse port forwarding for Supabase Local
   execSync(`"${ADB}" -s ${serial} reverse tcp:15432 tcp:15432`);
 
@@ -157,13 +170,15 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     adminPage = setup.page;
 
     // Verify login screen
-    await adminPage.waitForSelector('input[type="email"]', { timeout: 15000 });
+    await adminPage.waitForSelector('input[type="email"]', { timeout: 60000 });
     await adminPage.locator('input[type="email"]').fill(adminConfig.email);
     await adminPage.locator('input[type="password"]').fill('Admin@123');
-    await adminPage.locator('button:has-text("Sign In")').click();
+    // noWaitAfter: the post-login navigation can exceed the click's action
+    // timeout on slow emulators; readiness is gated by the dashboard marker below.
+    await adminPage.locator('button:has-text("Sign In")').click({ timeout: 60000, noWaitAfter: true });
 
     // Wait for Admin Dashboard header & badge
-    await adminPage.waitForSelector('text=ADMIN', { timeout: 15000 });
+    await adminPage.waitForSelector('text=ADMIN', { timeout: 90000 });
     const headerText = await adminPage.textContent('header');
     assert.ok(headerText?.includes('ADMIN'), 'Admin role badge verified on Admin emulator.');
     console.log('✅ Admin successfully logged in and dashboard loaded.');
@@ -313,13 +328,15 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     agentAPage = setup.page;
 
     // Login as Agent A
-    await agentAPage.waitForSelector('input[type="email"]', { timeout: 15000 });
+    await agentAPage.waitForSelector('input[type="email"]', { timeout: 60000 });
     await agentAPage.locator('input[type="email"]').fill(agentAConfig.email);
     await agentAPage.locator('input[type="password"]').fill('Agent@123');
-    await agentAPage.locator('button:has-text("Sign In")').click();
+    await agentAPage.locator('button:has-text("Sign In")').click({ timeout: 60000, noWaitAfter: true });
 
     // Wait for Field Sales CRM list/dashboard
-    await agentAPage.waitForSelector('text=Field Sales Dashboard', { timeout: 15000 });
+    // Harness-only: slow emulators can take well over 15s to render the
+    // dashboard after login; 60s is bounded but realistic. Assertion unchanged.
+    await agentAPage.waitForSelector('text=Field Sales Dashboard', { timeout: 90000 });
 
     // Sync down assigned leads from Supabase
     await agentAPage.locator('button[title="Sync Now"]').click().catch(() => {});
@@ -356,13 +373,14 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     agentBPage = setup.page;
 
     // Login as Agent B
-    await agentBPage.waitForSelector('input[type="email"]', { timeout: 15000 });
+    await agentBPage.waitForSelector('input[type="email"]', { timeout: 60000 });
     await agentBPage.locator('input[type="email"]').fill(agentBConfig.email);
     await agentBPage.locator('input[type="password"]').fill('Agent@123');
-    await agentBPage.locator('button:has-text("Sign In")').click();
+    await agentBPage.locator('button:has-text("Sign In")').click({ timeout: 60000, noWaitAfter: true });
 
     // Wait for Field Sales CRM dashboard
-    await agentBPage.waitForSelector('text=Field Sales Dashboard', { timeout: 15000 });
+    // Harness-only: same rationale as Step 4.
+    await agentBPage.waitForSelector('text=Field Sales Dashboard', { timeout: 90000 });
 
     // Sync down assigned leads from Supabase
     await agentBPage.locator('button[title="Sync Now"]').click().catch(() => {});

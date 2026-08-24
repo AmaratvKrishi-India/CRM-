@@ -2,6 +2,10 @@
  * Non-Intrusive Sync Status Badge (Phase 3)
  * Shows automatic sync state silently. Never asks user to sync.
  * Manual "Sync Now" button is a secondary optional action.
+ *
+ * UX remediation: design tokens (F1/F12), 44px touch target on the sync
+ * button (F6), aria-label instead of hover-only title (F21), aria-live so
+ * state changes are announced (F2/F17).
  */
 
 import React from 'react';
@@ -26,45 +30,45 @@ export const SyncStatusBadge: React.FC = () => {
     switch (status) {
       case 'SYNCING':
         return {
-          icon: <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" />,
-          label: 'Syncing\u2026',
-          bgColor: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+          icon: <RefreshCw className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />,
+          label: 'Syncing…',
+          colors: 'bg-info-soft text-info-text border-info',
         };
       case 'SYNCED':
         return {
-          icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />,
+          icon: <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />,
           label: 'Synced',
-          bgColor: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+          colors: 'bg-success-soft text-success-text border-success',
         };
       case 'OFFLINE':
         return {
-          icon: <CloudOff className="w-3.5 h-3.5 text-amber-400" />,
-          label: 'Offline \u2014 saved locally',
-          bgColor: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+          icon: <CloudOff className="w-3.5 h-3.5" aria-hidden="true" />,
+          label: 'Offline — saved locally',
+          colors: 'bg-warning-soft text-warning-text border-warning',
         };
       case 'PENDING':
         return {
-          icon: <Cloud className="w-3.5 h-3.5 text-blue-400" />,
-          label: 'Sync queued\u2026',
-          bgColor: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+          icon: <Cloud className="w-3.5 h-3.5" aria-hidden="true" />,
+          label: 'Sync queued…',
+          colors: 'bg-info-soft text-info-text border-info',
         };
       case 'AUTH_REQUIRED':
         return {
-          icon: <Lock className="w-3.5 h-3.5 text-purple-400" />,
+          icon: <Lock className="w-3.5 h-3.5" aria-hidden="true" />,
           label: 'Sign in to enable sync',
-          bgColor: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+          colors: 'bg-accent-soft text-accent-text border-accent',
         };
       case 'ERROR':
       default:
         return {
-          icon: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
-          label: 'Sync issue \u2014 retrying',
-          bgColor: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+          icon: <AlertCircle className="w-3.5 h-3.5" aria-hidden="true" />,
+          label: 'Sync issue — retrying',
+          colors: 'bg-danger-soft text-danger-text border-danger',
         };
     }
   };
 
-  const { icon, label, bgColor } = getStatusConfig();
+  const { icon, label, colors } = getStatusConfig();
 
   const lastSyncText = syncState.lastSuccessfulSyncAt
     ? `Last synced: ${new Date(syncState.lastSuccessfulSyncAt).toLocaleTimeString()}`
@@ -73,25 +77,26 @@ export const SyncStatusBadge: React.FC = () => {
     : 'Waiting for first sync';
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1">
       {/* Status indicator (read-only) */}
       <div
-        title={lastSyncText}
-        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1.5 border ${bgColor}`}
+        role="status"
+        aria-label={`${label}. ${lastSyncText}`}
+        className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${colors}`}
       >
         {icon}
         <span>{label}</span>
       </div>
 
-      {/* Optional manual sync button */}
+      {/* Optional manual sync button — 44px touch target (F6) */}
       <button
         type="button"
         onClick={() => synchronizeNow()}
         disabled={isSyncing}
-        title="Sync Now"
-        className="w-6 h-6 rounded-full bg-slate-700/60 hover:bg-slate-700 border border-slate-600/50 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-90 disabled:opacity-40 disabled:cursor-default"
+        aria-label="Sync Now"
+        className="min-w-11 min-h-11 rounded-xl bg-inset hover:bg-inset-strong border border-line flex items-center justify-center text-soft hover:text-ink transition-all active:scale-90 disabled:opacity-40 disabled:cursor-default"
       >
-        <RefreshCw className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} aria-hidden="true" />
       </button>
     </div>
   );

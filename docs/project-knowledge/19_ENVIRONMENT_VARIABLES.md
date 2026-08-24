@@ -9,12 +9,12 @@ This document outlines the environment configuration files and their structures 
 | `.env` | 400 | Default fallback |
 | `.env.local` | 323 | Local Docker Supabase |
 | `.env.development` | 331 | Cloud dev/staging |
-| `.env.staging` | 123 | Staging config |
+| `.env.staging` | 669 | Staging config (shared cloud project) |
 | `.env.production` | 400 | Production config |
 | `.env.example` | 462 | Template for new developers |
 
-> [!WARNING]
-> As of 2026-08-22, [.env.staging](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) is effectively EMPTY: all four variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`) are zero-length. A staging build would start with no Supabase configuration. Fill it in before any staging deploy.
+> [!NOTE]
+> As of 2026-08-23, [.env.staging](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) is populated: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` point at the shared Supabase cloud project, `VITE_APP_ENV=staging`, `VITE_APP_VERSION=2.0.0`. Only `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are intentionally empty — populate them from the Supabase dashboard/CLI on the machine that runs migrations (never commit real values).
 
 ## Variable Names
 

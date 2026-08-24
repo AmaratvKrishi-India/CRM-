@@ -39,7 +39,7 @@ The synchronization mechanism ensures that local modifications are seamlessly co
 ## Realtime Architecture
 Realtime subscriptions keep the active application in sync with backend changes in near real-time.
 - **Service**: `RealtimeService` implemented in [`realtimeService.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/realtime/realtimeService.ts) acts as the Supabase Realtime channel subscriber.
-- **Scope**: Subscribes to all 8 published tables from the cloud.
+- **Scope**: Subscribes to 8 of the 9 published tables (`bulk_assignment_audits` is published but not subscribed by the client).
 - **Hydration**: Hydrates incoming changes directly into the local Dexie stores.
 - **Features**: Provides live activity feeds, in-app notifications, and tracks connection status.
 - **Connection States**: Manages states transitioning through `DISCONNECTED` -> `CONNECTING` -> `SUBSCRIBING` -> `SUBSCRIBED` -> `RECONNECTING` -> `ERROR`.
@@ -58,7 +58,7 @@ The cloud source of truth, emphasizing security and agent data isolation.
 - **Security**: Robust Row Level Security (RLS) is applied to all tables, supplemented by 5 helper functions.
 - **Isolation**: Agent Lead Isolation guarantees that agents only have visibility into leads assigned to them (`assigned_to`) or created by them (`created_by`).
 - **Immutability**: Employs 2 immutability triggers protecting specific profile and lead fields.
-- **Publication**: Realtime publication enabled for 8 tables configured with `REPLICA IDENTITY FULL`.
+- **Publication**: Realtime publication enabled for 9 tables configured with `REPLICA IDENTITY FULL` (8 in migration 4 plus `bulk_assignment_audits` in migration 5).
 - **Edge Functions**: Specialized tasks are handled by edge functions, such as the `create-agent` function located at `supabase/functions/create-agent/index.ts`.
 
 ## Native Platform Layer

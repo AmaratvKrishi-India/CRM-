@@ -28,5 +28,5 @@ This is a meta-document meant to guide future AI coding agents working on this p
 - Entry points: [src/App.tsx](file:///c:/Users/PC/Desktop/calling%20app/src/App.tsx)
 
 ## Documentation Maintenance
-- The [docs/project-knowledge/](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge) directory contains 19 exhaustive files.
+- The [docs/project-knowledge/](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge) directory contains 26 files: 23 numbered guides, a README master index, and 2 reverification reports.
 - Whenever you add a new table, component, or configuration, you MUST update the corresponding documentation files (e.g., [06_DATABASE_REFERENCE.md](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge/06_DATABASE_REFERENCE.md), [15_CODEBASE_INDEX.md](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge/15_CODEBASE_INDEX.md)). Keep the documentation aligned with the source code.

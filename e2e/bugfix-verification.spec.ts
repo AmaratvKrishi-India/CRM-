@@ -120,11 +120,11 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
     await performLogin(page, MOCK_ADMIN.email, 'ValidPassword123');
 
     // Admin shell bottom nav
-    await expect(page.getByRole('button', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('tab', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
 
     // ---- Import sample dataset via Admin > Data > Import Center ----
-    await page.getByRole('button', { name: 'Data' }).click();
-    await page.getByRole('button', { name: 'Import Center' }).click();
+    await page.getByRole('tab', { name: 'Data' }).click();
+    await page.getByRole('tab', { name: 'Import Center' }).click();
     await page.getByRole('button', { name: 'Launch Importer' }).click();
     await page.getByRole('button', { name: /Load 141 Leads/ }).click();
 
@@ -155,14 +155,14 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
     // ---- Switch to Field Sales Mode ----
     // Close the importer summary modal, then use the Sales Mode button on the admin HOME tab
     await page.getByRole('button', { name: 'View Leads in CRM' }).click();
-    await page.getByRole('button', { name: 'Overview' }).click();
+    await page.getByRole('tab', { name: 'Overview' }).click();
     await page.getByRole('button', { name: 'Sales Mode' }).click();
     await expect(page.getByText('Today & Pipeline Performance')).toBeVisible({ timeout: 15000 });
 
     // ---- Create a lead with a mobile number ----
     const waPhone = '9876543210';
     const waGym = `WA Verify Gym ${Date.now().toString().slice(-4)}`;
-    await page.getByRole('button', { name: /Leads/i }).first().click();
+    await page.getByRole('tab', { name: /Leads/i }).first().click();
     await page.getByRole('button', { name: /Add Lead|New Lead/i }).first().click();
     await page.locator('input[placeholder="e.g. Golds Gym Gomti Nagar"]').fill(waGym);
     await page.locator('input[placeholder="e.g. 7054447888"]').fill(waPhone);
@@ -174,17 +174,17 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
     const seededLeadId = await seedCallRecord(page);
     expect(seededLeadId).toBeTruthy();
 
-    await page.getByRole('button', { name: /Dashboard/i }).first().click();
-    const callsCard = page.locator('div.bg-white').filter({ hasText: 'Calls Today' }).first();
-    await expect(callsCard.locator('span.text-lg')).toHaveText('1', { timeout: 15000 });
+    await page.getByRole('tab', { name: /Dashboard/i }).first().click();
+    const callsCard = page.locator('div.bg-surface').filter({ hasText: 'Calls Today' }).first();
+    await expect(callsCard.locator('span.text-xl')).toHaveText('1', { timeout: 15000 });
 
     // ---- WhatsApp flow must open wa.me with the E.164 number (bug #4) ----
-    await page.getByRole('button', { name: /Leads/i }).first().click();
+    await page.getByRole('tab', { name: /Leads/i }).first().click();
     await page.getByText(waGym).first().click();
-    await page.getByRole('button', { name: 'WHATSAPP', exact: true }).click();
+    await page.getByRole('button', { name: 'WhatsApp', exact: true }).click();
 
     // First-time template setup (no seeded templates in a fresh DB)
-    const useIntroBtn = page.getByRole('button', { name: /Use Amaratv Intro Pitch/ });
+    const useIntroBtn = page.getByRole('button', { name: /Use Amaratv Intro Pitch/i });
     if (await useIntroBtn.isVisible().catch(() => false)) {
       await useIntroBtn.click();
     }
@@ -198,7 +198,7 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
       };
     });
 
-    await page.getByRole('button', { name: /Quick Send: Open in WhatsApp/ }).click();
+    await page.getByRole('button', { name: /Quick Send: Open in WhatsApp/i }).click();
 
     await page.waitForFunction(() => ((window as any).__openedUrls || []).length > 0);
     const openedUrls = await page.evaluate(() => (window as any).__openedUrls as string[]);
@@ -212,8 +212,8 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
 
     // ---- Backup export: header + new tables (bugs #6/#17) ----
     // Leave the full-screen lead detail view first so the bottom nav is visible
-    await page.getByRole('button', { name: 'Back', exact: true }).click();
-    await page.getByRole('button', { name: /Dashboard/i }).first().click();
+    await page.getByRole('button', { name: /Back to leads list/i }).click();
+    await page.getByRole('tab', { name: /Dashboard/i }).first().click();
     await page.getByRole('button', { name: 'Backup' }).click();
 
     const [download] = await Promise.all([

@@ -32,10 +32,18 @@ This knowledge base provides an exact, source-verified map of the application's 
 ### 5. Quality Assurance & History
 - [12 - Testing & Verification](./12_TESTING_VERIFICATION.md)
 - [14 - Migration History](./14_MIGRATION_HISTORY.md)
+- [Final Data Reverification Report](./FINAL_DATA_REVERIFICATION_REPORT.md)
+- [Local vs Cloud Reverification](./LOCAL_VS_CLOUD_REVERIFICATION.md)
 
 ### 6. Strategy & Onboarding
 - [16 - Current State & Next Steps](./16_CURRENT_STATE.md)
 - [17 - AI Agent Operating Context](./17_AI_AGENT_CONTEXT.md) **(Start Here for AI Agents)**
+
+### 7. Tooling & Operations
+- [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md)
+- [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md)
+- [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
+- [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md)
 
 ---
 

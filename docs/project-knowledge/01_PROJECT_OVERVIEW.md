@@ -53,17 +53,17 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - Admin: agent management, bulk assignment, reports, live activity feed
 
 ## Repository Structure (with file counts)
-- `src/` (90 files) - React application
+- `src/` (89 files) - React application
   - `components/` (39 files) - UI components by feature
-  - `db/` (17 files) - Dexie schema, types, repositories
+  - `db/` (16 files) - Dexie schema, types, repositories
   - `services/` (28 files) - Business logic, sync, native platform
   - `context/` (2 files) - Auth + Theme providers
-- `tests/` (17 files) - Unit/integration tests (115 cases)
-- `e2e/` (5 files) - Playwright E2E tests (32 cases)
-- `scripts/` (3 files) - Verify pipeline, schema export, cloud probe
+- `tests/` (18 files) - Unit/integration tests (119 cases, excl. multi-device)
+- `e2e/` (6 files: 5 specs + 1 helper) - Playwright E2E tests (16 cases x 2 projects = 32 runs)
+- `scripts/` (5 files) - Verify pipeline, schema export, cloud probe, emulator check, prod smoke
 - `supabase/` (12 files) - Migrations, seed, config, edge function
 - `android/` - Capacitor Android project
-- `docs/` (15 root files + 26 project-knowledge files) - Project documentation
+- `docs/` (22 root files + 26 project-knowledge files) - Project documentation
 - `public/` (2 files) - Static assets
 - `release/` (1 file) - Shipped APK artifact
 
@@ -80,7 +80,7 @@ Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow
 - **Release Commit:** 759a81c
 - **Cloud Migration 6:** PASS
 - **Cloud RLS / Agent Lead Isolation:** PASS
-- **All tests:** PASS (115 unit + 32 E2E + 15 PostgreSQL)
+- **All tests:** PASS (119 unit + 32 E2E + 15 PostgreSQL)
 - **Production build:** PASS
 - **Android APK:** PASS - shipped artifact [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB)
 - **Web deployment:** Vercel at https://crm-blush-omega.vercel.app

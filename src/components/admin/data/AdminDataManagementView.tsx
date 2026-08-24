@@ -5,29 +5,28 @@
  * - 2. Import Center (Excel/CSV ingestion, preview, import audit history)
  * - 3. Data Quality & Duplicate Cleanup (duplicate detection, safe soft-deletion)
  * - 4. Database Health & Sync Inspector (sync outbox status, agent assignment metrics)
+ *
+ * UX remediation pass: design tokens (F1/F12), tablist ARIA + keyboard nav (F14),
+ * debounced search (F10), human-readable enum labels (F15), visible error + retry
+ * states (F4), shared accessible Modal for the importer (F5), 44px targets (F6).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Database,
   FileSpreadsheet,
   Trash2,
   Activity,
   Search,
-  Filter,
-  Users,
   Building2,
   Phone,
   MapPin,
-  Calendar,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   RefreshCw,
   Loader2,
-  Clock,
-  ArrowUpRight,
-  ShieldCheck,
-  ShieldAlert,
+  Archive,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { crmData } from '../../../db';
@@ -35,17 +34,38 @@ import { Lead, User, ImportAudit, LeadStatus } from '../../../db/types';
 import { ExcelImporter } from '../../import/ExcelImporter';
 import { AgentManagementService } from '../../../services/agentManagementService';
 import { LeadAssignmentService } from '../../../services/leadAssignmentService';
+import { Modal } from '../../common/Modal';
+import { useToast } from '../../common/Toast';
+import { labelFor } from '../../../lib/labels';
+import { useDebouncedValue } from '../../../lib/useDebouncedValue';
 
 export type DataSubTab = 'DATABASE' | 'IMPORTS' | 'CLEANUP' | 'HEALTH';
 
+const TAB_ORDER: DataSubTab[] = ['DATABASE', 'IMPORTS', 'CLEANUP', 'HEALTH'];
+
+const STATUS_FILTERS: LeadStatus[] = [
+  'NEW',
+  'CONTACTED',
+  'INTERESTED',
+  'SAMPLE_REQUESTED',
+  'CUSTOMER',
+  'WRONG_NUMBER',
+];
+
+const SELECT_CLASSES =
+  'min-h-11 w-full bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring';
+
 export const AdminDataManagementView: React.FC = () => {
   const { currentUser } = useAuth();
+  const { showToast } = useToast();
   const [activeSubTab, setActiveSubTab] = useState<DataSubTab>('DATABASE');
+  const tabRefs = useRef<Partial<Record<DataSubTab, HTMLButtonElement | null>>>({});
 
   // Sub-tab 1: Database Explorer State
   const [leads, setLeads] = useState<Lead[]>([]);
   const [totalLeadsCount, setTotalLeadsCount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebouncedValue(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [localityFilter, setLocalityFilter] = useState<string>('ALL');
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
@@ -53,15 +73,18 @@ export const AdminDataManagementView: React.FC = () => {
   const [sources, setSources] = useState<string[]>([]);
   const [agents, setAgents] = useState<User[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(false);
+  const [databaseError, setDatabaseError] = useState<string | null>(null);
 
   // Sub-tab 2: Import Center State
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [importAudits, setImportAudits] = useState<ImportAudit[]>([]);
   const [loadingAudits, setLoadingAudits] = useState(false);
+  const [auditsError, setAuditsError] = useState<string | null>(null);
 
   // Sub-tab 3: Cleanup & Duplicates State
   const [duplicateClusters, setDuplicateClusters] = useState<Array<{ phone: string; leads: Lead[] }>>([]);
   const [loadingDuplicates, setLoadingDuplicates] = useState(false);
+  const [duplicatesError, setDuplicatesError] = useState<string | null>(null);
   const [cleanupSuccessMessage, setCleanupSuccessMessage] = useState<string | null>(null);
 
   // Sub-tab 4: Health Metrics State
@@ -89,12 +112,29 @@ export const AdminDataManagementView: React.FC = () => {
     lastSyncTimestamp: null,
   });
   const [loadingHealth, setLoadingHealth] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  // F14 — roving-tabindex arrow-key navigation for the sub-tab strip.
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, tab: DataSubTab) => {
+    const idx = TAB_ORDER.indexOf(tab);
+    let next: DataSubTab | null = null;
+    if (e.key === 'ArrowRight') next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+    else if (e.key === 'ArrowLeft') next = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+    else if (e.key === 'Home') next = TAB_ORDER[0];
+    else if (e.key === 'End') next = TAB_ORDER[TAB_ORDER.length - 1];
+    if (next) {
+      e.preventDefault();
+      setActiveSubTab(next);
+      tabRefs.current[next]?.focus();
+    }
+  };
 
   // Load Initial Reference Data
   useEffect(() => {
     if (currentUser && currentUser.role === 'ADMIN') {
       loadInitialData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   const loadInitialData = async () => {
@@ -109,7 +149,7 @@ export const AdminDataManagementView: React.FC = () => {
     }
   };
 
-  // Load Data based on active tab
+  // Load Data based on active tab (search is debounced — F10)
   useEffect(() => {
     if (activeSubTab === 'DATABASE') {
       loadDatabaseExplorer();
@@ -120,10 +160,12 @@ export const AdminDataManagementView: React.FC = () => {
     } else if (activeSubTab === 'HEALTH') {
       loadHealthMetrics();
     }
-  }, [activeSubTab, searchTerm, statusFilter, localityFilter, sourceFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSubTab, debouncedSearchTerm, statusFilter, localityFilter, sourceFilter]);
 
   const loadDatabaseExplorer = async () => {
     setLoadingLeads(true);
+    setDatabaseError(null);
     try {
       const filter: {
         searchTerm?: string;
@@ -131,7 +173,7 @@ export const AdminDataManagementView: React.FC = () => {
         locality?: string;
         limit?: number;
       } = {
-        searchTerm: searchTerm.trim() || undefined,
+        searchTerm: debouncedSearchTerm.trim() || undefined,
         status: statusFilter !== 'ALL' ? (statusFilter as LeadStatus) : undefined,
         locality: localityFilter !== 'ALL' ? localityFilter : undefined,
         limit: 200,
@@ -151,6 +193,7 @@ export const AdminDataManagementView: React.FC = () => {
       setSources(allSources);
     } catch (err) {
       console.error('Failed to load database explorer leads:', err);
+      setDatabaseError('Could not load lead records from the local database.');
     } finally {
       setLoadingLeads(false);
     }
@@ -158,11 +201,13 @@ export const AdminDataManagementView: React.FC = () => {
 
   const loadImportAudits = async () => {
     setLoadingAudits(true);
+    setAuditsError(null);
     try {
       const audits = await crmData.importAudits.getAuditHistory(50);
       setImportAudits(audits);
     } catch (err) {
       console.error('Failed to load import audits:', err);
+      setAuditsError('Could not load the import history.');
     } finally {
       setLoadingAudits(false);
     }
@@ -170,6 +215,7 @@ export const AdminDataManagementView: React.FC = () => {
 
   const loadDuplicates = async () => {
     setLoadingDuplicates(true);
+    setDuplicatesError(null);
     try {
       const allLeads = await crmData.db.leads.filter((l) => l.deletedAt === null).toArray();
       const phoneMap = new Map<string, Lead[]>();
@@ -194,6 +240,7 @@ export const AdminDataManagementView: React.FC = () => {
       setDuplicateClusters(clusters);
     } catch (err) {
       console.error('Failed to detect duplicates:', err);
+      setDuplicatesError('Could not scan the database for duplicates.');
     } finally {
       setLoadingDuplicates(false);
     }
@@ -201,6 +248,7 @@ export const AdminDataManagementView: React.FC = () => {
 
   const loadHealthMetrics = async () => {
     setLoadingHealth(true);
+    setHealthError(null);
     try {
       const assignmentStats = await LeadAssignmentService.getAssignmentStats(currentUser);
       const allAgents = await AgentManagementService.getAgents(currentUser);
@@ -230,6 +278,7 @@ export const AdminDataManagementView: React.FC = () => {
       });
     } catch (err) {
       console.error('Failed to load health metrics:', err);
+      setHealthError('Could not compute database health metrics.');
     } finally {
       setLoadingHealth(false);
     }
@@ -239,156 +288,194 @@ export const AdminDataManagementView: React.FC = () => {
     try {
       await crmData.leads.softDeleteLead(leadId);
       setCleanupSuccessMessage('Duplicate lead archived successfully.');
-      setTimeout(() => setCleanupSuccessMessage(null), 3000);
+      setTimeout(() => setCleanupSuccessMessage(null), 4000);
       await loadDuplicates();
     } catch (err) {
       console.error('Failed to archive lead:', err);
+      showToast({
+        message: 'Could not archive the duplicate lead. Please try again.',
+        tone: 'error',
+        action: { label: 'Retry', onClick: () => void handleArchiveDuplicate(leadId) },
+      });
     }
   };
 
+  const renderErrorBanner = (message: string, onRetry: () => void) => (
+    <div
+      role="alert"
+      className="p-3 bg-danger-soft border border-danger rounded-2xl text-sm text-danger-text flex items-center justify-between gap-3"
+    >
+      <span className="flex items-center gap-2 min-w-0">
+        <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+        <span>{message}</span>
+      </span>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="min-h-11 px-3 rounded-xl bg-danger text-on-accent text-sm font-bold shrink-0 flex items-center gap-1.5"
+      >
+        <RefreshCw className="w-4 h-4" aria-hidden="true" />
+        Retry
+      </button>
+    </div>
+  );
+
+  const tabButton = (tab: DataSubTab, label: string, icon: React.ReactNode, badge?: number) => (
+    <button
+      key={tab}
+      ref={(el) => {
+        tabRefs.current[tab] = el;
+      }}
+      type="button"
+      role="tab"
+      id={`data-tab-${tab}`}
+      aria-selected={activeSubTab === tab}
+      aria-controls={`data-panel-${tab}`}
+      tabIndex={activeSubTab === tab ? 0 : -1}
+      onClick={() => setActiveSubTab(tab)}
+      onKeyDown={(e) => handleTabKeyDown(e, tab)}
+      className={`min-h-11 px-3 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+        activeSubTab === tab
+          ? 'bg-accent text-on-accent shadow-md'
+          : 'text-faint hover:text-ink bg-surface'
+      }`}
+    >
+      {icon}
+      <span>{label}</span>
+      {badge !== undefined && badge > 0 && (
+        <span className="px-1.5 py-0.5 rounded-full bg-warning text-ink text-xs font-black min-w-[20px] text-center">
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-900 text-white font-sans">
-      {/* Sub-Navigation Tabs */}
-      <div className="bg-slate-800/80 border-b border-slate-700 p-2 flex items-center gap-1 overflow-x-auto scrollbar-none sticky top-0 z-20">
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('DATABASE')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeSubTab === 'DATABASE'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-800/60'
-          }`}
-        >
-          <Database className="w-3.5 h-3.5" />
-          <span>Lead Explorer</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('IMPORTS')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeSubTab === 'IMPORTS'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-800/60'
-          }`}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          <span>Import Center</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('CLEANUP')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeSubTab === 'CLEANUP'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-800/60'
-          }`}
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Data Cleanup</span>
-          {duplicateClusters.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black">
-              {duplicateClusters.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('HEALTH')}
-          className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
-            activeSubTab === 'HEALTH'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-              : 'text-slate-400 hover:text-white bg-slate-800/60'
-          }`}
-        >
-          <Activity className="w-3.5 h-3.5" />
-          <span>Database Health</span>
-        </button>
+    <div className="flex-1 flex flex-col min-h-0 bg-app text-ink font-sans">
+      {/* Sub-Navigation Tabs (F14 — proper tablist semantics) */}
+      <div
+        role="tablist"
+        aria-label="Data management sections"
+        className="bg-surface border-b border-line p-2 flex items-center gap-1 overflow-x-auto scrollbar-none sticky top-0 z-20"
+      >
+        {tabButton('DATABASE', 'Lead Explorer', <Database className="w-4 h-4" aria-hidden="true" />)}
+        {tabButton('IMPORTS', 'Import Center', <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />)}
+        {tabButton('CLEANUP', 'Data Cleanup', <Trash2 className="w-4 h-4" aria-hidden="true" />, duplicateClusters.length)}
+        {tabButton('HEALTH', 'Database Health', <Activity className="w-4 h-4" aria-hidden="true" />)}
       </div>
 
       {/* Main Sub-Tab Content */}
       <div className="flex-1 overflow-y-auto p-4">
         {/* SUB-TAB 1: LEAD DATABASE EXPLORER */}
         {activeSubTab === 'DATABASE' && (
-          <div className="space-y-3">
+          <div
+            role="tabpanel"
+            id="data-panel-DATABASE"
+            aria-labelledby="data-tab-DATABASE"
+            className="space-y-3"
+          >
             {/* Filters Bar */}
-            <div className="p-3 bg-slate-800/80 border border-slate-700/80 rounded-2xl space-y-2.5">
+            <div className="p-3 bg-surface border border-line rounded-2xl space-y-2.5">
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <label htmlFor="data-explorer-search" className="sr-only">
+                  Search organization database
+                </label>
+                <Search
+                  className="w-4 h-4 text-faint absolute left-3 top-1/2 -translate-y-1/2"
+                  aria-hidden="true"
+                />
                 <input
+                  id="data-explorer-search"
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search organization database (name, phone, locality)..."
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="min-h-11 w-full bg-inset border border-line rounded-xl pl-9 pr-3 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
                 />
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="NEW">NEW</option>
-                  <option value="CONTACTED">CONTACTED</option>
-                  <option value="INTERESTED">INTERESTED</option>
-                  <option value="SAMPLE_REQUESTED">SAMPLE_REQUESTED</option>
-                  <option value="CUSTOMER">CUSTOMER</option>
-                  <option value="WRONG_NUMBER">WRONG_NUMBER</option>
-                </select>
-
-                <select
-                  value={localityFilter}
-                  onChange={(e) => setLocalityFilter(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"
-                >
-                  <option value="ALL">All Localities ({localities.length})</option>
-                  {localities.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
-                    </option>
-                  ))}
-                </select>
-
-                {sources.length > 0 && (
+                <div>
+                  <label htmlFor="data-filter-status" className="sr-only">
+                    Filter by status
+                  </label>
                   <select
-                    value={sourceFilter}
-                    onChange={(e) => setSourceFilter(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white col-span-2 sm:col-span-1"
+                    id="data-filter-status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className={SELECT_CLASSES}
                   >
-                    <option value="ALL">All Sources ({sources.length})</option>
-                    {sources.map((src) => (
-                      <option key={src} value={src}>
-                        {src}
+                    <option value="ALL">All Statuses</option>
+                    {STATUS_FILTERS.map((s) => (
+                      <option key={s} value={s}>
+                        {labelFor(s)}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label htmlFor="data-filter-locality" className="sr-only">
+                    Filter by locality
+                  </label>
+                  <select
+                    id="data-filter-locality"
+                    value={localityFilter}
+                    onChange={(e) => setLocalityFilter(e.target.value)}
+                    className={SELECT_CLASSES}
+                  >
+                    <option value="ALL">All Localities ({localities.length})</option>
+                    {localities.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {sources.length > 0 && (
+                  <div className="col-span-2 sm:col-span-1">
+                    <label htmlFor="data-filter-source" className="sr-only">
+                      Filter by source
+                    </label>
+                    <select
+                      id="data-filter-source"
+                      value={sourceFilter}
+                      onChange={(e) => setSourceFilter(e.target.value)}
+                      className={SELECT_CLASSES}
+                    >
+                      <option value="ALL">All Sources ({sources.length})</option>
+                      {sources.map((src) => (
+                        <option key={src} value={src}>
+                          {src}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Total Indicator */}
-            <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+            <div className="flex items-center justify-between text-sm text-soft px-1" aria-live="polite">
               <span>
-                Matching Leads: <strong className="text-white">{leads.length}</strong> / {totalLeadsCount} total
+                Matching Leads: <strong className="text-ink">{leads.length}</strong> / {totalLeadsCount} total
               </span>
             </div>
 
             {/* Leads Table */}
-            {loadingLeads ? (
-              <div className="py-12 text-center">
-                <Loader2 className="w-6 h-6 animate-spin text-purple-400 mx-auto" />
-                <p className="text-xs text-slate-400 mt-2">Loading database records...</p>
+            {databaseError ? (
+              renderErrorBanner(databaseError, loadDatabaseExplorer)
+            ) : loadingLeads ? (
+              <div className="py-12 text-center" role="status">
+                <Loader2 className="w-6 h-6 animate-spin text-accent-text mx-auto" aria-hidden="true" />
+                <p className="text-sm text-soft mt-2">Loading database records...</p>
               </div>
             ) : leads.length === 0 ? (
-              <div className="py-12 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50">
-                <Building2 className="w-8 h-8 text-slate-500 mx-auto" />
-                <p className="text-xs font-bold text-slate-300 mt-2">No Leads Found</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">Try clearing filters or importing a new dataset.</p>
+              <div className="py-12 text-center bg-surface rounded-2xl border border-line">
+                <Building2 className="w-8 h-8 text-faint mx-auto" aria-hidden="true" />
+                <p className="text-sm font-bold text-ink mt-2">No Leads Found</p>
+                <p className="text-xs text-soft mt-0.5">Try clearing filters or importing a new dataset.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -398,30 +485,30 @@ export const AdminDataManagementView: React.FC = () => {
                   return (
                     <div
                       key={lead.id}
-                      className="p-3 bg-slate-800/80 border border-slate-700/70 rounded-2xl space-y-1.5 hover:border-slate-600 transition-all"
+                      className="p-3 bg-surface border border-line rounded-2xl space-y-1.5 hover:border-line-strong transition-all"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <h4 className="text-xs font-bold text-white truncate">{lead.businessName}</h4>
-                        <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 font-semibold text-[10px]">
-                          {lead.status}
+                        <h4 className="text-sm font-bold text-ink truncate">{lead.businessName}</h4>
+                        <span className="px-2 py-0.5 rounded-full bg-inset text-soft font-semibold text-xs whitespace-nowrap">
+                          {labelFor(lead.status)}
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-[11px] text-slate-400">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs text-soft">
                         <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-slate-500" />
+                          <Phone className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
                           {lead.phone}
                         </span>
                         <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-slate-500" />
+                          <MapPin className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
                           {lead.locality}
                         </span>
-                        <span className="text-purple-300 truncate">
+                        <span className="text-accent-text truncate">
                           {assignee ? `Agent: ${assignee.name}` : 'Unassigned'}
                         </span>
                       </div>
 
-                      <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-700/50">
+                      <div className="text-xs text-faint flex items-center justify-between pt-1 border-t border-line">
                         <span>Source: {lead.source || 'Manual'}</span>
                         <span>Created: {new Date(lead.createdAt).toLocaleDateString()}</span>
                       </div>
@@ -435,67 +522,74 @@ export const AdminDataManagementView: React.FC = () => {
 
         {/* SUB-TAB 2: IMPORT CENTER */}
         {activeSubTab === 'IMPORTS' && (
-          <div className="space-y-4">
-            <div className="p-4 bg-gradient-to-r from-purple-900/40 to-slate-800 border border-purple-500/30 rounded-2xl flex items-center justify-between">
+          <div
+            role="tabpanel"
+            id="data-panel-IMPORTS"
+            aria-labelledby="data-tab-IMPORTS"
+            className="space-y-4"
+          >
+            <div className="p-4 bg-accent-soft border border-line rounded-2xl flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-xs font-bold text-white">Excel / CSV Spreadsheet Ingestion</h3>
-                <p className="text-[11px] text-slate-300 mt-0.5">
+                <h3 className="text-sm font-bold text-ink">Excel / CSV Spreadsheet Ingestion</h3>
+                <p className="text-xs text-soft mt-0.5">
                   Import organization lead batches with auto-mapping & duplicate prevention.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsImporterOpen(true)}
-                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/20 active:scale-95 flex items-center gap-1.5"
+                className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 shrink-0"
               >
-                <FileSpreadsheet className="w-4 h-4" />
+                <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />
                 <span>Launch Importer</span>
               </button>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1">
+              <h4 className="text-xs font-bold text-faint uppercase tracking-wider px-1">
                 Batch Import History
               </h4>
 
-              {loadingAudits ? (
-                <div className="py-8 text-center">
-                  <Loader2 className="w-5 h-5 animate-spin text-purple-400 mx-auto" />
+              {auditsError ? (
+                renderErrorBanner(auditsError, loadImportAudits)
+              ) : loadingAudits ? (
+                <div className="py-8 text-center" role="status">
+                  <Loader2 className="w-5 h-5 animate-spin text-accent-text mx-auto" aria-hidden="true" />
                 </div>
               ) : importAudits.length === 0 ? (
-                <div className="py-8 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50">
-                  <FileSpreadsheet className="w-6 h-6 text-slate-500 mx-auto" />
-                  <p className="text-xs text-slate-400 mt-2">No spreadsheet imports logged yet.</p>
+                <div className="py-8 text-center bg-surface rounded-2xl border border-line">
+                  <FileSpreadsheet className="w-6 h-6 text-faint mx-auto" aria-hidden="true" />
+                  <p className="text-sm text-soft mt-2">No spreadsheet imports logged yet.</p>
                 </div>
               ) : (
                 importAudits.map((audit) => (
                   <div
                     key={audit.id}
-                    className="p-3 bg-slate-800/80 border border-slate-700 rounded-2xl space-y-1.5"
+                    className="p-3 bg-surface border border-line rounded-2xl space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">{audit.filename}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-sm font-bold text-ink">{audit.filename}</span>
+                      <span className="text-xs text-faint font-mono">
                         {new Date(audit.completedAt).toLocaleDateString()}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 text-center text-xs pt-1">
-                      <div className="p-1.5 bg-slate-900/60 rounded-xl">
-                        <span className="text-[10px] text-slate-400 block">Total</span>
-                        <strong className="text-white font-bold">{audit.totalRows}</strong>
+                    <div className="grid grid-cols-4 gap-2 text-center text-sm pt-1">
+                      <div className="p-1.5 bg-inset rounded-xl">
+                        <span className="text-xs text-soft block">Total</span>
+                        <strong className="text-ink font-bold">{audit.totalRows}</strong>
                       </div>
-                      <div className="p-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                        <span className="text-[10px] text-emerald-300 block">Imported</span>
-                        <strong className="text-emerald-400 font-bold">{audit.imported}</strong>
+                      <div className="p-1.5 bg-success-soft rounded-xl border border-success">
+                        <span className="text-xs text-success-text block">Imported</span>
+                        <strong className="text-success-text font-bold">{audit.imported}</strong>
                       </div>
-                      <div className="p-1.5 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                        <span className="text-[10px] text-blue-300 block">Updated</span>
-                        <strong className="text-blue-400 font-bold">{audit.updated}</strong>
+                      <div className="p-1.5 bg-info-soft rounded-xl border border-info">
+                        <span className="text-xs text-info-text block">Updated</span>
+                        <strong className="text-info-text font-bold">{audit.updated}</strong>
                       </div>
-                      <div className="p-1.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
-                        <span className="text-[10px] text-amber-300 block">Skipped</span>
-                        <strong className="text-amber-400 font-bold">{audit.duplicates}</strong>
+                      <div className="p-1.5 bg-warning-soft rounded-xl border border-warning">
+                        <span className="text-xs text-warning-text block">Skipped</span>
+                        <strong className="text-warning-text font-bold">{audit.duplicates}</strong>
                       </div>
                     </div>
                   </div>
@@ -503,72 +597,91 @@ export const AdminDataManagementView: React.FC = () => {
               )}
             </div>
 
-            {/* Importer Modal */}
-            {isImporterOpen && (
-              <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-4">
-                <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl">
-                  <ExcelImporter
-                    onImportComplete={() => {
-                      setIsImporterOpen(false);
-                      loadImportAudits();
-                    }}
-                    onCancel={() => setIsImporterOpen(false)}
-                    currentUserId={currentUser?.id || null}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Importer Modal (F5 — shared accessible modal shell) */}
+            <Modal
+              isOpen={isImporterOpen}
+              onClose={() => setIsImporterOpen(false)}
+              title="Excel Lead Importer"
+              subtitle="Spreadsheet ingestion & duplicate prevention"
+              maxWidthClassName="max-w-2xl"
+              closeOnBackdrop={false}
+              closeOnEscape={false}
+              headerIcon={
+                <span className="w-9 h-9 rounded-xl bg-accent-soft text-accent-text flex items-center justify-center shrink-0">
+                  <FileSpreadsheet className="w-5 h-5" aria-hidden="true" />
+                </span>
+              }
+            >
+              <ExcelImporter
+                onImportComplete={() => {
+                  setIsImporterOpen(false);
+                  loadImportAudits();
+                }}
+                onCancel={() => setIsImporterOpen(false)}
+                currentUserId={currentUser?.id || null}
+              />
+            </Modal>
           </div>
         )}
 
         {/* SUB-TAB 3: DATA CLEANUP & DUPLICATES */}
         {activeSubTab === 'CLEANUP' && (
-          <div className="space-y-4">
+          <div
+            role="tabpanel"
+            id="data-panel-CLEANUP"
+            aria-labelledby="data-tab-CLEANUP"
+            className="space-y-4"
+          >
             {cleanupSuccessMessage && (
-              <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-xs text-emerald-300 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div
+                role="status"
+                className="p-3 bg-success-soft border border-success rounded-2xl text-sm text-success-text flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span>{cleanupSuccessMessage}</span>
               </div>
             )}
 
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-200">
+            <div className="p-3 bg-warning-soft border border-warning rounded-2xl flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-warning-text shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="text-sm text-warning-text">
                 <p className="font-bold">Non-Destructive Duplicate Management</p>
-                <p className="text-[11px] text-amber-300/80 mt-0.5">
+                <p className="text-xs mt-0.5 opacity-90">
                   Reviewing duplicates flags conflicting records for archival. Associated call records and historical notes are permanently retained.
                 </p>
               </div>
             </div>
 
-            {loadingDuplicates ? (
-              <div className="py-8 text-center">
-                <Loader2 className="w-5 h-5 animate-spin text-purple-400 mx-auto" />
-                <p className="text-xs text-slate-400 mt-2">Scanning database for duplicate phone numbers...</p>
+            {duplicatesError ? (
+              renderErrorBanner(duplicatesError, loadDuplicates)
+            ) : loadingDuplicates ? (
+              <div className="py-8 text-center" role="status">
+                <Loader2 className="w-5 h-5 animate-spin text-accent-text mx-auto" aria-hidden="true" />
+                <p className="text-sm text-soft mt-2">Scanning database for duplicate phone numbers...</p>
               </div>
             ) : duplicateClusters.length === 0 ? (
-              <div className="py-12 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50 space-y-2">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto" />
-                <h4 className="text-xs font-bold text-white">Database is Clean</h4>
-                <p className="text-[11px] text-slate-400">Zero duplicate phone numbers found across active leads.</p>
+              <div className="py-12 text-center bg-surface rounded-2xl border border-line space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-success-text mx-auto" aria-hidden="true" />
+                <h4 className="text-sm font-bold text-ink">Database is Clean</h4>
+                <p className="text-xs text-soft">Zero duplicate phone numbers found across active leads.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="text-xs text-slate-400">
-                  Found <strong className="text-white">{duplicateClusters.length}</strong> duplicate phone clusters:
+                <div className="text-sm text-soft">
+                  Found <strong className="text-ink">{duplicateClusters.length}</strong> duplicate phone clusters:
                 </div>
 
                 {duplicateClusters.map((cluster) => (
                   <div
                     key={cluster.phone}
-                    className="p-3 bg-slate-800/90 border border-amber-500/30 rounded-2xl space-y-2"
+                    className="p-3 bg-surface border border-warning rounded-2xl space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-300 font-mono flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" />
+                      <span className="text-sm font-bold text-warning-text font-mono flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5" aria-hidden="true" />
                         {cluster.phone}
                       </span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                      <span className="text-xs bg-warning-soft text-warning-text px-2 py-0.5 rounded-full font-bold">
                         {cluster.leads.length} Records
                       </span>
                     </div>
@@ -577,12 +690,12 @@ export const AdminDataManagementView: React.FC = () => {
                       {cluster.leads.map((lead, idx) => (
                         <div
                           key={lead.id}
-                          className="p-2 bg-slate-900/70 rounded-xl flex items-center justify-between text-xs gap-2"
+                          className="p-2 bg-inset rounded-xl flex items-center justify-between text-sm gap-2"
                         >
                           <div className="min-w-0">
-                            <p className="font-bold text-white truncate">{lead.businessName}</p>
-                            <p className="text-[10px] text-slate-400">
-                              {lead.locality} • Status: {lead.status} • Calls: {lead.callCount}
+                            <p className="font-bold text-ink truncate">{lead.businessName}</p>
+                            <p className="text-xs text-soft">
+                              {lead.locality} • Status: {labelFor(lead.status)} • Calls: {lead.callCount}
                             </p>
                           </div>
 
@@ -590,8 +703,10 @@ export const AdminDataManagementView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleArchiveDuplicate(lead.id)}
-                              className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-lg text-[10px] font-bold transition-colors shrink-0"
+                              aria-label={`Archive duplicate lead ${lead.businessName}`}
+                              className="min-h-11 px-3 bg-danger-soft hover:bg-danger text-danger-text hover:text-on-accent border border-danger rounded-xl text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5"
                             >
+                              <Archive className="w-3.5 h-3.5" aria-hidden="true" />
                               Archive Duplicate
                             </button>
                           )}
@@ -607,77 +722,84 @@ export const AdminDataManagementView: React.FC = () => {
 
         {/* SUB-TAB 4: DATABASE HEALTH & SYNC STATUS */}
         {activeSubTab === 'HEALTH' && (
-          <div className="space-y-4">
-            {loadingHealth ? (
-              <div className="py-8 text-center">
-                <Loader2 className="w-5 h-5 animate-spin text-purple-400 mx-auto" />
+          <div
+            role="tabpanel"
+            id="data-panel-HEALTH"
+            aria-labelledby="data-tab-HEALTH"
+            className="space-y-4"
+          >
+            {healthError ? (
+              renderErrorBanner(healthError, loadHealthMetrics)
+            ) : loadingHealth ? (
+              <div className="py-8 text-center" role="status">
+                <Loader2 className="w-5 h-5 animate-spin text-accent-text mx-auto" aria-hidden="true" />
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-2.5">
-                  <div className="p-3.5 bg-slate-800 border border-slate-700 rounded-2xl">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="p-3.5 bg-surface border border-line rounded-2xl">
+                    <span className="text-xs font-bold text-faint uppercase tracking-wider block">
                       Lead Distribution
                     </span>
-                    <p className="text-xl font-black text-white mt-1">{healthStats.totalLeads}</p>
-                    <div className="flex gap-2 text-[11px] mt-1.5">
-                      <span className="text-emerald-400">Assigned: {healthStats.assignedLeads}</span>
-                      <span className="text-amber-400">Unassigned: {healthStats.unassignedLeads}</span>
+                    <p className="text-xl font-black text-ink mt-1">{healthStats.totalLeads}</p>
+                    <div className="flex gap-2 text-xs mt-1.5">
+                      <span className="text-success-text">Assigned: {healthStats.assignedLeads}</span>
+                      <span className="text-warning-text">Unassigned: {healthStats.unassignedLeads}</span>
                     </div>
                   </div>
 
-                  <div className="p-3.5 bg-slate-800 border border-slate-700 rounded-2xl">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="p-3.5 bg-surface border border-line rounded-2xl">
+                    <span className="text-xs font-bold text-faint uppercase tracking-wider block">
                       Sales Representatives
                     </span>
-                    <p className="text-xl font-black text-white mt-1">
+                    <p className="text-xl font-black text-ink mt-1">
                       {healthStats.activeAgents + healthStats.inactiveAgents}
                     </p>
-                    <div className="flex gap-2 text-[11px] mt-1.5">
-                      <span className="text-emerald-400">Active: {healthStats.activeAgents}</span>
-                      <span className="text-slate-400">Inactive: {healthStats.inactiveAgents}</span>
+                    <div className="flex gap-2 text-xs mt-1.5">
+                      <span className="text-success-text">Active: {healthStats.activeAgents}</span>
+                      <span className="text-soft">Inactive: {healthStats.inactiveAgents}</span>
                     </div>
                   </div>
 
-                  <div className="p-3.5 bg-slate-800 border border-slate-700 rounded-2xl">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="p-3.5 bg-surface border border-line rounded-2xl">
+                    <span className="text-xs font-bold text-faint uppercase tracking-wider block">
                       Call Operations
                     </span>
-                    <p className="text-xl font-black text-white mt-1">{healthStats.totalCalls}</p>
-                    <p className="text-[11px] text-blue-400 mt-1.5">
+                    <p className="text-xl font-black text-ink mt-1">{healthStats.totalCalls}</p>
+                    <p className="text-xs text-info-text mt-1.5">
                       Verified Calls: {healthStats.verifiedCalls}
                     </p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-800 border border-slate-700 rounded-2xl">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  <div className="p-3.5 bg-surface border border-line rounded-2xl">
+                    <span className="text-xs font-bold text-faint uppercase tracking-wider block">
                       Cloud Sync Outbox
                     </span>
-                    <p className="text-xl font-black text-white mt-1">{healthStats.pendingSyncCount}</p>
-                    <div className="flex gap-2 text-[11px] mt-1.5">
-                      <span className={healthStats.failedSyncCount > 0 ? 'text-rose-400 font-bold' : 'text-slate-400'}>
+                    <p className="text-xl font-black text-ink mt-1">{healthStats.pendingSyncCount}</p>
+                    <div className="flex gap-2 text-xs mt-1.5">
+                      <span className={healthStats.failedSyncCount > 0 ? 'text-danger-text font-bold' : 'text-soft'}>
                         Failed: {healthStats.failedSyncCount}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-3.5 bg-slate-800/70 border border-slate-700/80 rounded-2xl space-y-1.5 text-xs">
+                <div className="p-3.5 bg-surface border border-line rounded-2xl space-y-1.5 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Last Successful Sync:</span>
-                    <span className="font-mono text-slate-200">
+                    <span className="text-soft">Last Successful Sync:</span>
+                    <span className="font-mono text-ink text-xs">
                       {healthStats.lastSyncTimestamp
                         ? new Date(healthStats.lastSyncTimestamp).toLocaleString()
                         : 'Never (Offline)'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Database Engine:</span>
-                    <span className="font-semibold text-purple-300">IndexedDB (Dexie v5)</span>
+                    <span className="text-soft">Database Engine:</span>
+                    <span className="font-semibold text-accent-text text-xs">IndexedDB (Dexie v5)</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400">Cloud Sync Authority:</span>
-                    <span className="font-semibold text-emerald-400">Supabase PostgreSQL + RLS</span>
+                    <span className="text-soft">Cloud Sync Authority:</span>
+                    <span className="font-semibold text-success-text text-xs">Supabase PostgreSQL + RLS</span>
                   </div>
                 </div>
               </>

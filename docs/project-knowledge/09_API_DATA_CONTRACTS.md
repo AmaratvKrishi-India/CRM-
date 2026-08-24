@@ -308,7 +308,7 @@ The application relies on strong TypeScript typing to ensure consistency across 
 
 Handled via definitions in [`realtimeTypes.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/realtime/realtimeTypes.ts).
 
-- **Channel**: `postgres_changes` on all 8 published tables.
+- **Channel**: `postgres_changes` on 8 of the 9 published tables (all except `bulk_assignment_audits`).
 - **Event types**: `INSERT`, `UPDATE`, `DELETE`
 - **Payload**: `RealtimePayload` containing `type`, `table`, and `record` data.
 

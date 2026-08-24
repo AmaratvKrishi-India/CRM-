@@ -250,6 +250,41 @@ export class RealtimeService {
 
     try {
       const db = this.getDb();
+
+      // DELETE events (REPLICA IDENTITY FULL carries the full old row):
+      // remove the local row. Without this branch the upsert path below
+      // would re-insert the deleted row on every other device. Pull sync
+      // only fetches rows that still exist in the cloud, so realtime is
+      // the only mechanism that can propagate hard deletes — it must
+      // delete, not resurrect. Dexie delete of an unknown id is a no-op.
+      if (eventType === 'DELETE') {
+        const deleteTableMap: Record<string, any> = {
+          leads: db.leads,
+          call_records: db.callRecords,
+          activities: db.activities,
+          remarks: db.remarks,
+          follow_ups: db.followUps,
+          message_history: db.messageHistory,
+          profiles: db.users,
+          import_audits: db.importAudits,
+        };
+        const deleteTable = deleteTableMap[table];
+        if (deleteTable) {
+          await deleteTable.delete(row.id);
+        }
+
+        // Notify generic entity listeners so the UI refreshes.
+        const transformedDeleted = SyncPull.transformFromPgRecord(table as any, row);
+        this.entityListeners.forEach((l) => {
+          try {
+            l(table, eventType, transformedDeleted);
+          } catch (e) {
+            console.warn('Entity listener error:', e);
+          }
+        });
+        return;
+      }
+
       const transformed = SyncPull.transformFromPgRecord(table as any, row);
 
       switch (table) {
@@ -315,6 +350,15 @@ export class RealtimeService {
           const existing = await db.importAudits.get(transformed.id);
           if (!existing) {
             await db.importAudits.put(transformed as any);
+          }
+          break;
+        }
+
+        case 'message_history': {
+          // Append-only entity: insert-if-absent, same pattern as import_audits.
+          const existing = await db.messageHistory.get(transformed.id);
+          if (!existing) {
+            await db.messageHistory.put(transformed as any);
           }
           break;
         }

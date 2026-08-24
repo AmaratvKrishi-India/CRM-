@@ -49,3 +49,8 @@ playwright-report/
 test-results/
 
 .vercel
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+.vercel

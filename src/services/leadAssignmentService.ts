@@ -74,7 +74,7 @@ export class LeadAssignmentService {
     actor: User | null,
     leadId: string,
     targetAgentId: string
-  ): Promise<{ lead: Lead; auditActivity: Activity }> {
+  ): Promise<{ lead: Lead; auditActivity: Activity | null }> {
     this.assertAdmin(actor);
 
     const leadRepo = this.getLeadRepo();
@@ -108,7 +108,7 @@ export class LeadAssignmentService {
     // If already assigned to this agent, return existing
     if (previousAssigneeId === targetAgentId) {
       const existingActivities = await activityRepo.getActivitiesForLead(leadId);
-      return { lead, auditActivity: existingActivities[0] || ({} as Activity) };
+      return { lead, auditActivity: existingActivities[0] || null };
     }
 
     let previousAssigneeName: string | null = null;
@@ -154,7 +154,7 @@ export class LeadAssignmentService {
   static async unassignLead(
     actor: User | null,
     leadId: string
-  ): Promise<{ lead: Lead; auditActivity: Activity }> {
+  ): Promise<{ lead: Lead; auditActivity: Activity | null }> {
     this.assertAdmin(actor);
 
     const leadRepo = this.getLeadRepo();
@@ -168,7 +168,7 @@ export class LeadAssignmentService {
     }
 
     if (!lead.assignedTo) {
-      return { lead, auditActivity: {} as Activity };
+      return { lead, auditActivity: null };
     }
 
     const previousAssigneeId = lead.assignedTo;

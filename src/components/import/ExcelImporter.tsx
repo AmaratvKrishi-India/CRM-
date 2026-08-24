@@ -25,6 +25,7 @@ import { ColumnMappingSelector } from './ColumnMappingSelector';
 import { ImportPreviewList } from './ImportPreviewList';
 import { DuplicateConfirmModal } from './DuplicateConfirmModal';
 import { ImportSummaryCard } from './ImportSummaryCard';
+import { SyncStatusBadge } from '../sync/SyncStatusBadge';
 
 interface ExcelImporterProps {
   onImportComplete?: () => void;
@@ -53,6 +54,10 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
 
   /**
    * Processes a raw ArrayBuffer file into an active workbook and parses default sheet.
@@ -198,251 +203,289 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0 bg-app text-ink">
       {/* Header Bar */}
-      <div className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 py-3 shadow-xs">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      <div className="bg-surface border-b border-line px-4 py-3 shrink-0">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             {step === 'PREVIEW' && (
               <button
                 type="button"
                 onClick={handleReset}
-                className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
-                title="Back to file upload"
+                aria-label="Back to file upload"
+                className="min-w-11 min-h-11 -ml-2 text-soft hover:text-ink rounded-xl hover:bg-inset transition-colors flex items-center justify-center"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-5 h-5" aria-hidden="true" />
               </button>
             )}
-            <div>
-              <h1 className="text-base font-bold text-slate-900 flex items-center gap-1.5">
-                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                <span>Excel Lead Importer</span>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold flex items-center gap-1.5 truncate">
+                <FileSpreadsheet className="w-5 h-5 text-accent-text shrink-0" aria-hidden="true" />
+                <span className="truncate">Excel Lead Importer</span>
               </h1>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-faint truncate">
                 Amaratv Krishi • Lucknow Field Sales Seed Ingestion
               </p>
             </div>
           </div>
 
-          {onCancel && step !== 'IMPORTING' && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2.5 py-1 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              Cancel
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* F18 — sync state visible on this data-entry surface */}
+            <SyncStatusBadge />
+            {onCancel && step !== 'IMPORTING' && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="min-h-11 text-sm font-semibold text-soft hover:text-ink px-3 rounded-xl hover:bg-inset transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main Body */}
-      <div className="flex-1 max-w-2xl w-full mx-auto p-4 flex flex-col">
-        {/* Error Alert */}
-        {errorMessage && (
-          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2 animate-in fade-in">
-            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <strong>Error:</strong> {errorMessage}
-            </div>
-          </div>
-        )}
-
-        {/* STEP 1: UPLOAD SCREEN */}
-        {step === 'UPLOAD' && (
-          <div className="space-y-4 my-auto py-6">
-            {/* File Dropzone */}
+      {/* Main Body (scroll container; action bar sticks to its bottom) */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl w-full mx-auto p-4 flex flex-col min-h-full">
+          {/* Error Alert */}
+          {errorMessage && (
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white hover:bg-emerald-50/30 rounded-2xl p-8 text-center cursor-pointer transition-all shadow-xs group"
+              role="alert"
+              className="mb-4 p-3 bg-danger-soft border border-danger rounded-xl text-sm text-danger-text flex items-start gap-2 animate-in fade-in"
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition-transform">
-                {loadingFile ? (
-                  <Loader2 className="w-7 h-7 animate-spin" />
-                ) : (
-                  <UploadCloud className="w-7 h-7" />
-                )}
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1">
+                <strong>Error:</strong> {errorMessage}
               </div>
-              <h3 className="text-base font-bold text-slate-800 mb-1">
-                Select Excel Lead Sheet
-              </h3>
-              <p className="text-xs text-slate-500 mb-4 max-w-xs mx-auto">
-                Tap to choose a <code>.xlsx</code> or <code>.xls</code> file from your device storage.
-              </p>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold shadow-sm group-hover:bg-emerald-700 transition-colors"
-              >
-                <span>Browse Files</span>
-              </button>
             </div>
+          )}
 
-            {/* Quick Sample Dataset Button */}
-            <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-sm relative overflow-hidden">
-              <div className="relative z-10 flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 mb-1">
-                    <Sparkles className="w-4 h-4" />
-                    <span>Quick Test with Lucknow Dataset</span>
-                  </div>
-                  <h4 className="text-sm font-bold mb-1">
-                    Load Lucknow Gyms & Wellness Sheet
-                  </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed max-w-sm">
-                    141 verified fitness centres in Lucknow (LDA Colony, Hazratganj, Alambagh, Charbagh).
-                  </p>
+          {/* STEP 1: UPLOAD SCREEN */}
+          {step === 'UPLOAD' && (
+            <div className="space-y-4 my-auto py-6">
+              {/* File Dropzone — F3/F16: keyboard-accessible region and a real
+                  browse button with its own click handler. */}
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label="Select an Excel lead sheet file"
+                onClick={openFilePicker}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openFilePicker();
+                  }
+                }}
+                className="border-2 border-dashed border-accent bg-surface hover:bg-accent-soft rounded-2xl p-8 text-center cursor-pointer transition-all shadow-xs group focus:outline-none focus:ring-2 focus:ring-focus-ring"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
+                <div className="w-14 h-14 bg-accent-soft text-accent-text rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-105 transition-transform">
+                  {loadingFile ? (
+                    <Loader2 className="w-7 h-7 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <UploadCloud className="w-7 h-7" aria-hidden="true" />
+                  )}
                 </div>
+                <h3 className="text-base font-bold mb-1">Select Excel Lead Sheet</h3>
+                <p className="text-sm text-soft mb-4 max-w-xs mx-auto">
+                  Tap to choose a <code>.xlsx</code> or <code>.xls</code> file from your device storage.
+                </p>
                 <button
                   type="button"
-                  onClick={handleLoadSampleDataset}
-                  disabled={loadingFile}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-3.5 py-2.5 rounded-xl font-bold text-xs flex-shrink-0 self-center transition-all active:scale-95 disabled:opacity-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openFilePicker();
+                  }}
+                  className="min-h-11 inline-flex items-center gap-1.5 px-4 bg-accent text-on-accent rounded-xl text-sm font-semibold shadow-sm hover:bg-accent-hover transition-colors"
                 >
-                  {loadingFile ? 'Loading...' : 'Load 141 Leads'}
+                  <span>Browse Files</span>
                 </button>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* STEP 2: PREVIEW & VALIDATION SCREEN */}
-        {step === 'PREVIEW' && parseResult && (
-          <div className="space-y-3 flex-1 flex flex-col">
-            {/* Sheet Selector (if multi-sheet) */}
-            {parseResult.sheetNames.length > 1 && (
-              <div className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200 text-xs">
-                <Layers className="w-4 h-4 text-slate-500" />
-                <span className="font-semibold text-slate-700">Select Sheet:</span>
-                <select
-                  value={selectedSheet}
-                  onChange={(e) => handleSheetChange(e.target.value)}
-                  className="bg-slate-100 rounded-lg px-2 py-1 font-medium text-slate-800 border-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {parseResult.sheetNames.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Column Mapping Selector */}
-            <ColumnMappingSelector
-              availableColumns={parseResult.availableColumns}
-              mapping={parseResult.detectedMapping}
-              onChangeMapping={handleMappingChange}
-            />
-
-            {/* Stats Chips (Total, Valid, Dups, Invalid) */}
-            <ImportStatsCard
-              total={parseResult.summary.total}
-              valid={parseResult.summary.valid}
-              duplicates={parseResult.summary.duplicates}
-              invalid={parseResult.summary.invalid}
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
-            />
-
-            {/* Search Box */}
-            <div className="relative my-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search preview by gym name, phone, or locality..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-medium"
-              />
-            </div>
-
-            {/* Records List */}
-            <div className="flex-1 overflow-y-auto">
-              <ImportPreviewList
-                records={parseResult.records}
-                filter={activeFilter}
-                searchQuery={searchQuery}
-              />
-            </div>
-
-            {/* Sticky Bottom One-Hand Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40">
-              <div className="max-w-2xl mx-auto flex items-center gap-2">
-                {parseResult.summary.duplicates > 0 && (
+              {/* Quick Sample Dataset Button */}
+              <div className="bg-inset text-ink rounded-2xl p-4 shadow-sm relative overflow-hidden border border-line">
+                <div className="relative z-10 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-accent-text mb-1">
+                      <Sparkles className="w-4 h-4" aria-hidden="true" />
+                      <span>Quick Test with Lucknow Dataset</span>
+                    </div>
+                    <h4 className="text-sm font-bold mb-1">Load Lucknow Gyms & Wellness Sheet</h4>
+                    <p className="text-xs text-soft leading-relaxed max-w-sm">
+                      141 verified fitness centres in Lucknow (LDA Colony, Hazratganj, Alambagh, Charbagh).
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setShowDuplicateModal(true)}
-                    className="py-3 px-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-semibold text-xs hover:bg-amber-100 transition-colors flex-shrink-0"
+                    onClick={handleLoadSampleDataset}
+                    disabled={loadingFile}
+                    className="min-h-11 bg-accent hover:bg-accent-hover text-on-accent px-4 rounded-xl font-bold text-sm shrink-0 self-center transition-all active:scale-95 disabled:opacity-50"
                   >
-                    Resolve Dups ({parseResult.summary.duplicates})
+                    {loadingFile ? 'Loading...' : 'Load 141 Leads'}
                   </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleStartImportClick}
-                  disabled={parseResult.summary.valid === 0 && parseResult.summary.duplicates === 0}
-                  className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>
-                    {parseResult.summary.valid > 0
-                      ? `Import ${parseResult.summary.valid} Valid Leads`
-                      : `Resolve & Import Duplicates`}
-                  </span>
-                </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* STEP 3: IMPORTING PROGRESS MODAL / SCREEN */}
-        {step === 'IMPORTING' && (
-          <div className="my-auto py-12 text-center max-w-sm mx-auto space-y-4">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto animate-pulse">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
+          {/* STEP 2: PREVIEW & VALIDATION SCREEN */}
+          {step === 'PREVIEW' && parseResult && (
+            <div className="space-y-3 flex-1 flex flex-col">
+              {/* Sheet Selector (if multi-sheet) */}
+              {parseResult.sheetNames.length > 1 && (
+                <div className="flex items-center gap-2 bg-surface p-2.5 rounded-xl border border-line text-sm">
+                  <Layers className="w-4 h-4 text-faint shrink-0" aria-hidden="true" />
+                  <label htmlFor="import-sheet-select" className="font-semibold text-soft shrink-0">
+                    Select Sheet:
+                  </label>
+                  <select
+                    id="import-sheet-select"
+                    value={selectedSheet}
+                    onChange={(e) => handleSheetChange(e.target.value)}
+                    className="min-h-11 bg-inset rounded-xl px-3 text-sm font-medium text-ink border border-line focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                  >
+                    {parseResult.sheetNames.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-            <h3 className="text-lg font-bold text-slate-900">
-              Importing Leads into CRM...
-            </h3>
-            <p className="text-xs text-slate-500">
-              Normalizing numbers, indexing localities, and storing offline in IndexedDB.
-            </p>
-
-            {/* Progress Bar */}
-            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-              <div
-                className="bg-emerald-600 h-full transition-all duration-150 rounded-full"
-                style={{ width: `${importProgress.percent}%` }}
+              {/* Column Mapping Selector */}
+              <ColumnMappingSelector
+                availableColumns={parseResult.availableColumns}
+                mapping={parseResult.detectedMapping}
+                onChangeMapping={handleMappingChange}
               />
-            </div>
 
-            <div className="flex justify-between text-xs text-slate-600 font-medium">
-              <span>{importProgress.current} of {importProgress.total} processed</span>
-              <span>{importProgress.percent}%</span>
-            </div>
-          </div>
-        )}
+              {/* Stats Chips (Total, Valid, Dups, Invalid) */}
+              <ImportStatsCard
+                total={parseResult.summary.total}
+                valid={parseResult.summary.valid}
+                duplicates={parseResult.summary.duplicates}
+                invalid={parseResult.summary.invalid}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+              />
 
-        {/* STEP 4: FINAL SUMMARY */}
-        {step === 'SUMMARY' && finalSummary && (
-          <ImportSummaryCard
-            summary={finalSummary}
-            fileName={fileName}
-            onViewLeads={() => {
-              if (onImportComplete) onImportComplete();
-            }}
-            onReset={handleReset}
-          />
-        )}
+              {/* Search Box */}
+              <div className="relative my-1">
+                <label htmlFor="import-preview-search" className="sr-only">
+                  Search preview records
+                </label>
+                <Search
+                  className="w-4 h-4 text-faint absolute left-3 top-1/2 -translate-y-1/2"
+                  aria-hidden="true"
+                />
+                <input
+                  id="import-preview-search"
+                  type="text"
+                  placeholder="Search preview by gym name, phone, or locality..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="min-h-11 w-full text-sm bg-surface border border-line rounded-xl pl-9 pr-3 text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
+                />
+              </div>
+
+              {/* Records List */}
+              <div className="flex-1">
+                <ImportPreviewList
+                  records={parseResult.records}
+                  filter={activeFilter}
+                  searchQuery={searchQuery}
+                />
+              </div>
+
+              {/* Sticky Bottom One-Hand Action Bar */}
+              <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-surface/95 backdrop-blur-md border-t border-line z-30">
+                <div className="max-w-2xl mx-auto flex items-center gap-2">
+                  {parseResult.summary.duplicates > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDuplicateModal(true)}
+                      className="min-h-11 py-2 px-3 rounded-xl border border-warning bg-warning-soft text-warning-text font-semibold text-sm hover:bg-warning-soft transition-colors shrink-0"
+                    >
+                      Resolve Dups ({parseResult.summary.duplicates})
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleStartImportClick}
+                    disabled={parseResult.summary.valid === 0 && parseResult.summary.duplicates === 0}
+                    className="min-h-11 flex-1 py-2 px-4 bg-accent hover:bg-accent-hover disabled:bg-inset-strong disabled:text-faint text-on-accent font-bold text-sm rounded-xl shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                  >
+                    <Check className="w-4 h-4" aria-hidden="true" />
+                    <span>
+                      {parseResult.summary.valid > 0
+                        ? `Import ${parseResult.summary.valid} Valid Leads`
+                        : `Resolve & Import Duplicates`}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: IMPORTING PROGRESS SCREEN */}
+          {step === 'IMPORTING' && (
+            <div className="my-auto py-12 text-center max-w-sm mx-auto space-y-4">
+              <div className="w-16 h-16 bg-accent-soft text-accent-text rounded-full flex items-center justify-center mx-auto animate-pulse">
+                <Loader2 className="w-8 h-8 animate-spin" aria-hidden="true" />
+              </div>
+
+              <h3 className="text-lg font-bold">Importing Leads into CRM...</h3>
+              <p className="text-sm text-soft">
+                Normalizing numbers, indexing localities, and storing offline in IndexedDB.
+              </p>
+
+              {/* Progress Bar */}
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={importProgress.percent}
+                aria-label="Import progress"
+                className="w-full bg-inset rounded-full h-3 overflow-hidden"
+              >
+                <div
+                  className="bg-accent h-full transition-all duration-150 rounded-full"
+                  style={{ width: `${importProgress.percent}%` }}
+                />
+              </div>
+
+              <div className="flex justify-between text-sm text-soft font-medium" aria-live="polite">
+                <span>
+                  {importProgress.current} of {importProgress.total} processed
+                </span>
+                <span>{importProgress.percent}%</span>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: FINAL SUMMARY */}
+          {step === 'SUMMARY' && finalSummary && (
+            <ImportSummaryCard
+              summary={finalSummary}
+              fileName={fileName}
+              onViewLeads={() => {
+                if (onImportComplete) onImportComplete();
+              }}
+              onReset={handleReset}
+            />
+          )}
+        </div>
       </div>
 
       {/* Duplicate Resolution Confirmation Modal */}

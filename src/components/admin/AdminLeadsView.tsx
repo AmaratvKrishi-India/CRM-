@@ -6,9 +6,10 @@
  * - One-tap Bulk Lead Assignment Modal.
  * - Real KPI counters (Total, Unassigned, Assigned).
  * - Individual Lead Assignment & Reassignment modal.
+ * Rewritten for design tokens + accessible filter pills (F1/F2/F3).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   UserCheck,
@@ -20,8 +21,6 @@ import {
   Loader2,
   CheckSquare,
   Square,
-  ArrowRight,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
@@ -30,6 +29,8 @@ import { AgentManagementService } from '../../services/agentManagementService';
 import { LeadAssignmentModal } from '../leads/LeadAssignmentModal';
 import { BulkLeadAssignmentModal } from './BulkLeadAssignmentModal';
 import { Lead, User } from '../../db/types';
+import { labelFor } from '../../lib/labels';
+import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
 export const AdminLeadsView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -44,9 +45,16 @@ export const AdminLeadsView: React.FC = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  // NEW-BUG-004 — debounce the search so we don't fire a full loadData per
+  // keystroke (each keystroke previously triggered agents + stats + leads queries).
+  const debouncedSearch = useDebouncedValue(searchTerm, 250);
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string>('ALL'); // 'ALL' | 'UNASSIGNED' | 'ASSIGNED' | agentId
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+
+  // NEW-BUG-004 — request-sequence guard: a slow earlier loadData must not
+  // overwrite the list after a newer loadData has already rendered.
+  const requestSeq = useRef(0);
 
   // Single Assignment Modal
   const [selectedLeadForAssignment, setSelectedLeadForAssignment] = useState<Lead | null>(null);
@@ -58,19 +66,22 @@ export const AdminLeadsView: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [currentUser, selectedAgentFilter, selectedStatus, searchTerm]);
+  }, [currentUser, selectedAgentFilter, selectedStatus, debouncedSearch]);
 
   const loadData = async () => {
     if (!currentUser) return;
+    const seq = ++requestSeq.current;
     setLoading(true);
 
     try {
       // 1. Load active agents
       const agentList = await AgentManagementService.getAgents(currentUser);
+      if (seq !== requestSeq.current) return; // stale result — a newer load started
       setAgents(agentList);
 
       // 2. Load assignment stats
       const assignmentStats = await LeadAssignmentService.getAssignmentStats(currentUser);
+      if (seq !== requestSeq.current) return;
       setStats(assignmentStats);
 
       // 3. Search and filter leads
@@ -80,7 +91,7 @@ export const AdminLeadsView: React.FC = () => {
         status?: any;
         limit?: number;
       } = {
-        searchTerm: searchTerm.trim() || undefined,
+        searchTerm: debouncedSearch.trim() || undefined,
         limit: 150,
       };
 
@@ -97,11 +108,12 @@ export const AdminLeadsView: React.FC = () => {
       }
 
       const { leads: fetchedLeads } = await crmData.leads.searchAndFilterLeads(filterParams);
+      if (seq !== requestSeq.current) return;
       setLeads(fetchedLeads);
     } catch (err: unknown) {
       console.warn('Error loading admin leads view:', err);
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   };
 
@@ -134,47 +146,63 @@ export const AdminLeadsView: React.FC = () => {
     loadData();
   };
 
+  const allSelected = selectedLeadIds.length > 0 && selectedLeadIds.length === leads.length;
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-slate-900 text-white font-sans">
+    <div className="flex-1 flex flex-col min-h-0 bg-app text-ink font-sans">
       {/* Top Filter & Metric Row */}
-      <div className="p-4 bg-slate-800/60 border-b border-slate-700/80 space-y-3">
+      <div className="p-4 bg-inset border-b border-line space-y-3">
         {/* KPI Counter Cards */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="p-3 bg-slate-800/90 border border-slate-700/80 rounded-2xl">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Leads</p>
-            <p className="text-lg font-black text-white mt-0.5">{stats.totalLeads}</p>
+          <div className="p-3 bg-surface border border-line rounded-2xl">
+            <p className="text-xs text-soft font-bold uppercase tracking-wider">Total Leads</p>
+            <p className="text-lg font-black text-ink mt-0.5">{stats.totalLeads}</p>
           </div>
-          <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-2xl">
-            <p className="text-[10px] text-purple-300 font-bold uppercase tracking-wider">Assigned</p>
-            <p className="text-lg font-black text-purple-400 mt-0.5">{stats.assignedCount}</p>
+          <div className="p-3 bg-accent-soft border border-accent rounded-2xl">
+            <p className="text-xs text-accent-text font-bold uppercase tracking-wider">Assigned</p>
+            <p className="text-lg font-black text-accent-text mt-0.5">{stats.assignedCount}</p>
           </div>
-          <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
-            <p className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Unassigned</p>
-            <p className="text-lg font-black text-amber-400 mt-0.5">{stats.unassignedCount}</p>
+          <div className="p-3 bg-warning-soft border border-warning rounded-2xl">
+            <p className="text-xs text-warning-text font-bold uppercase tracking-wider">Unassigned</p>
+            <p className="text-lg font-black text-warning-text mt-0.5">{stats.unassignedCount}</p>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search leads by business, phone, or locality..."
-            className="w-full bg-slate-800 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
+        <div>
+          <label htmlFor="admin-leads-search" className="sr-only">
+            Search leads by business, phone, or locality
+          </label>
+          <div className="relative">
+            <Search
+              className="w-4 h-4 text-faint absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              aria-hidden="true"
+            />
+            <input
+              id="admin-leads-search"
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search leads by business, phone, or locality..."
+              className="w-full min-h-11 bg-surface border border-line rounded-xl pl-10 pr-4 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
+            />
+          </div>
         </div>
 
         {/* Horizontal Agent Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <div
+          role="group"
+          aria-label="Filter leads by assignee"
+          className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+        >
           <button
             type="button"
             onClick={() => setSelectedAgentFilter('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            aria-pressed={selectedAgentFilter === 'ALL'}
+            className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
               selectedAgentFilter === 'ALL'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-                : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                ? 'bg-accent text-on-accent shadow-md'
+                : 'bg-surface text-soft hover:text-ink border border-line'
             }`}
           >
             All Leads ({stats.totalLeads})
@@ -183,10 +211,11 @@ export const AdminLeadsView: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedAgentFilter('UNASSIGNED')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            aria-pressed={selectedAgentFilter === 'UNASSIGNED'}
+            className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
               selectedAgentFilter === 'UNASSIGNED'
-                ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
-                : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                ? 'bg-warning text-on-accent shadow-md'
+                : 'bg-surface text-soft hover:text-ink border border-line'
             }`}
           >
             Unassigned ({stats.unassignedCount})
@@ -201,14 +230,15 @@ export const AdminLeadsView: React.FC = () => {
                 key={agent.id}
                 type="button"
                 onClick={() => setSelectedAgentFilter(agent.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                aria-pressed={isSelected}
+                className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                    : 'bg-slate-800 text-slate-400 hover:text-white border border-slate-700'
+                    ? 'bg-info text-on-accent shadow-md'
+                    : 'bg-surface text-soft hover:text-ink border border-line'
                 }`}
               >
                 <span>{agent.name}</span>
-                <span className="px-1.5 py-0.2 rounded-md bg-black/20 text-[10px]">{count}</span>
+                <span className="px-1.5 py-0.5 rounded-md bg-black/20 text-xs">{count}</span>
               </button>
             );
           })}
@@ -216,22 +246,21 @@ export const AdminLeadsView: React.FC = () => {
       </div>
 
       {/* Bulk Selection Actions Bar */}
-      <div className="bg-slate-800/90 border-b border-slate-700 px-4 py-2.5 flex items-center justify-between gap-3 text-xs">
+      <div className="bg-inset border-b border-line px-4 py-2.5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleSelectAllFiltered}
-            className="flex items-center gap-1.5 text-slate-300 hover:text-white font-semibold transition-colors"
+            aria-pressed={allSelected}
+            className="min-h-11 flex items-center gap-1.5 text-soft hover:text-ink text-sm font-semibold transition-colors"
           >
-            {selectedLeadIds.length > 0 && selectedLeadIds.length === leads.length ? (
-              <CheckSquare className="w-4 h-4 text-purple-400" />
+            {allSelected ? (
+              <CheckSquare className="w-4 h-4 text-accent-text" aria-hidden="true" />
             ) : (
-              <Square className="w-4 h-4 text-slate-500" />
+              <Square className="w-4 h-4 text-faint" aria-hidden="true" />
             )}
             <span>
-              {selectedLeadIds.length > 0
-                ? `${selectedLeadIds.length} Selected`
-                : 'Select All Filtered'}
+              {selectedLeadIds.length > 0 ? `${selectedLeadIds.length} Selected` : 'Select All Filtered'}
             </span>
           </button>
 
@@ -239,7 +268,7 @@ export const AdminLeadsView: React.FC = () => {
             <button
               type="button"
               onClick={() => setSelectedLeadIds([])}
-              className="text-[11px] text-slate-400 hover:text-rose-400 underline transition-colors"
+              className="min-h-11 text-xs text-soft hover:text-danger-text underline transition-colors"
             >
               Clear
             </button>
@@ -250,9 +279,9 @@ export const AdminLeadsView: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsBulkModalOpen(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all shadow-md shadow-purple-600/20 active:scale-95 flex items-center gap-1.5"
+            className="min-h-11 px-3.5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
           >
-            <Users className="w-3.5 h-3.5" />
+            <Users className="w-4 h-4" aria-hidden="true" />
             <span>Bulk Assign ({selectedLeadIds.length})</span>
           </button>
         )}
@@ -261,15 +290,15 @@ export const AdminLeadsView: React.FC = () => {
       {/* Lead List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
         {loading ? (
-          <div className="py-12 text-center space-y-2">
-            <Loader2 className="w-6 h-6 animate-spin text-purple-400 mx-auto" />
-            <p className="text-xs text-slate-400">Loading organization leads...</p>
+          <div className="py-12 text-center space-y-2" role="status">
+            <Loader2 className="w-6 h-6 animate-spin text-accent-text mx-auto" aria-hidden="true" />
+            <p className="text-sm text-soft">Loading organization leads...</p>
           </div>
         ) : leads.length === 0 ? (
-          <div className="py-12 text-center bg-slate-800/40 rounded-2xl border border-slate-700/50">
-            <Building2 className="w-8 h-8 text-slate-500 mx-auto" />
-            <p className="text-xs font-bold text-slate-300 mt-2">No Leads Matched</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Try adjusting search or agent filter.</p>
+          <div className="py-12 text-center bg-inset rounded-2xl border border-line">
+            <Building2 className="w-8 h-8 text-faint mx-auto" aria-hidden="true" />
+            <p className="text-sm font-bold text-ink mt-2">No Leads Matched</p>
+            <p className="text-xs text-soft mt-0.5">Try adjusting search or agent filter.</p>
           </div>
         ) : (
           leads.map((lead) => {
@@ -281,51 +310,53 @@ export const AdminLeadsView: React.FC = () => {
                 key={lead.id}
                 className={`p-3.5 rounded-2xl flex items-center justify-between gap-3 transition-all border ${
                   isSelected
-                    ? 'bg-purple-900/20 border-purple-500/60 shadow-md shadow-purple-600/10'
-                    : 'bg-slate-800/80 border-slate-700/70 hover:border-slate-600'
+                    ? 'bg-accent-soft border-accent shadow-md'
+                    : 'bg-surface border-line hover:border-line-strong'
                 }`}
               >
                 {/* Selection Checkbox */}
                 <button
                   type="button"
                   onClick={() => handleToggleSelectLead(lead.id)}
-                  className="p-1 text-slate-400 hover:text-purple-400 transition-colors shrink-0"
+                  aria-pressed={isSelected}
+                  aria-label={`Select ${lead.businessName}`}
+                  className="w-11 h-11 flex items-center justify-center text-soft hover:text-accent-text transition-colors shrink-0"
                 >
                   {isSelected ? (
-                    <CheckSquare className="w-5 h-5 text-purple-400" />
+                    <CheckSquare className="w-5 h-5 text-accent-text" aria-hidden="true" />
                   ) : (
-                    <Square className="w-5 h-5 text-slate-500" />
+                    <Square className="w-5 h-5 text-faint" aria-hidden="true" />
                   )}
                 </button>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold text-white truncate">{lead.businessName}</h3>
-                    <span className="px-1.5 py-0.5 rounded-md bg-slate-700 text-slate-300 font-semibold text-[10px]">
-                      {lead.status}
+                    <h3 className="text-sm font-bold text-ink truncate">{lead.businessName}</h3>
+                    <span className="px-1.5 py-0.5 rounded-md bg-inset text-soft font-semibold text-xs">
+                      {labelFor(lead.status)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
+                  <div className="flex items-center gap-3 text-xs text-soft mt-1">
                     <span className="flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-slate-500" />
+                      <Phone className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
                       {lead.phone}
                     </span>
                     <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-500" />
+                      <MapPin className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
                       {lead.locality}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2 mt-1.5">
                     {assignee ? (
-                      <span className="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-300 text-[10px] font-semibold flex items-center gap-1 border border-blue-500/20">
-                        <UserCheck className="w-3 h-3" />
+                      <span className="px-2 py-0.5 rounded-md bg-info-soft text-info text-xs font-semibold flex items-center gap-1 border border-info">
+                        <UserCheck className="w-3.5 h-3.5" aria-hidden="true" />
                         Assigned: {assignee.name}
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[10px] font-semibold flex items-center gap-1 border border-amber-500/20">
-                        <UserX className="w-3 h-3" />
+                      <span className="px-2 py-0.5 rounded-md bg-warning-soft text-warning-text text-xs font-semibold flex items-center gap-1 border border-warning">
+                        <UserX className="w-3.5 h-3.5" aria-hidden="true" />
                         Unassigned
                       </span>
                     )}
@@ -335,7 +366,8 @@ export const AdminLeadsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleOpenAssignModal(lead)}
-                  className="px-3 py-1.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 hover:text-white border border-purple-500/40 text-xs font-bold transition-all active:scale-95 flex-shrink-0"
+                  aria-label={`${lead.assignedTo ? 'Reassign' : 'Assign'} ${lead.businessName}`}
+                  className="min-h-11 px-3 rounded-xl bg-accent-soft hover:opacity-80 text-accent-text border border-accent text-sm font-bold transition-all active:scale-95 flex-shrink-0"
                 >
                   {lead.assignedTo ? 'Reassign' : 'Assign'}
                 </button>

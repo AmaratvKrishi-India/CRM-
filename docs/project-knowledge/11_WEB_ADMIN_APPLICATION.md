@@ -37,4 +37,4 @@ This document covers the administrative interfaces and capabilities available to
 - Excel Importer wizard.
 - Duplicate detection and cleanup tools.
 - Real-time Sync health inspection.
-- Backup & Restore (`[BackupRestoreModal](file:///c:/Users/PC/Desktop/calling app/src/components/admin/BackupRestoreModal.tsx)`) for generating full-system JSON snapshots.
+- Backup & Restore (`[BackupRestoreModal](file:///c:/Users/PC/Desktop/calling app/src/components/backup/BackupRestoreModal.tsx)`) for generating full-system JSON snapshots.

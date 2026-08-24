@@ -6,7 +6,7 @@
 
 import { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { CallOutcome, CallRecord, CallVerificationStatus } from '../types';
+import { CallOutcome, CallRecord, CallRecordStatus, CallVerificationStatus } from '../types';
 
 export interface AgentCallMetrics {
   total: number;
@@ -58,11 +58,14 @@ export class CallRecordRepository {
     leadId: string;
     userId: string;
     deviceId?: string | null;
+    dialAttemptId?: string | null;
     startedAt: string;
     answeredAt?: string | null;
     endedAt?: string | null;
     durationSeconds?: number;
+    reportedDurationSeconds?: number | null;
     outcome: CallOutcome;
+    callStatus?: CallRecordStatus;
     remark?: string | null;
     verificationStatus?: CallVerificationStatus;
   }): Promise<CallRecord> {
@@ -72,11 +75,15 @@ export class CallRecordRepository {
       leadId: input.leadId,
       userId: input.userId,
       deviceId: input.deviceId || null,
+      dialAttemptId: input.dialAttemptId || null,
       startedAt: input.startedAt,
       answeredAt: input.answeredAt || null,
       endedAt: input.endedAt || null,
       durationSeconds: Math.max(0, input.durationSeconds || 0),
+      reportedDurationSeconds:
+        typeof input.reportedDurationSeconds === 'number' ? input.reportedDurationSeconds : null,
       outcome: input.outcome,
+      callStatus: input.callStatus,
       remark: input.remark || null,
       verificationStatus: input.verificationStatus || 'UNVERIFIED',
       createdAt: now,
@@ -85,9 +92,9 @@ export class CallRecordRepository {
       deletedAt: null,
     };
 
-    await this.db.callRecords.add(record);
-
-    try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.callRecords, this.db.outbox], async () => {
+      await this.db.callRecords.add(record);
       await this.getSyncQueue().enqueue({
         entityType: 'call_records',
         entityId: record.id,
@@ -95,9 +102,7 @@ export class CallRecordRepository {
         payload: record,
         userId: record.userId || 'local-user',
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for createCallRecord:', err);
-    }
+    });
 
     return record;
   }

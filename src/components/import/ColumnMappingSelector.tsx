@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SlidersHorizontal, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import { ColumnMapping } from '../../services/excelParser';
 
 interface ColumnMappingSelectorProps {
@@ -33,34 +33,44 @@ export const ColumnMappingSelector: React.FC<ColumnMappingSelectorProps> = ({
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
+    <div className="bg-surface rounded-xl border border-line shadow-sm overflow-hidden mb-3">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-3.5 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 transition-colors"
+        aria-expanded={isOpen}
+        aria-controls="column-mapping-panel"
+        className="min-h-11 w-full flex items-center justify-between p-3.5 text-left text-sm font-semibold text-ink hover:bg-inset transition-colors"
       >
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-emerald-600" />
+          <SlidersHorizontal className="w-4 h-4 text-accent-text" aria-hidden="true" />
           <span>Column Field Mapping</span>
-          <span className="text-xs font-normal text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+          <span className="text-xs font-normal text-accent-text bg-accent-soft px-2 py-0.5 rounded-full border border-accent">
             Auto-detected
           </span>
         </div>
-        {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        {isOpen ? (
+          <ChevronUp className="w-4 h-4 text-faint" aria-hidden="true" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-faint" aria-hidden="true" />
+        )}
       </button>
 
       {isOpen && (
-        <div className="p-3.5 pt-1 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50/50">
+        <div
+          id="column-mapping-panel"
+          className="p-3.5 pt-2 border-t border-line grid grid-cols-1 sm:grid-cols-2 gap-3 bg-inset"
+        >
           {fields.map(({ key, label, required }) => (
             <div key={key} className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-slate-700 flex items-center gap-1">
+              <label htmlFor={`mapping-${key}`} className="text-sm font-medium text-soft flex items-center gap-1">
                 {label}
-                {required && <span className="text-rose-500">*</span>}
+                {required && <span className="text-danger-text">*</span>}
               </label>
               <select
+                id={`mapping-${key}`}
                 value={mapping[key] || ''}
                 onChange={(e) => handleFieldChange(key, e.target.value)}
-                className="text-xs bg-white border border-slate-200 rounded-lg p-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-medium"
+                className="min-h-11 text-sm bg-surface border border-line rounded-xl p-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
               >
                 <option value="">-- None / Skip --</option>
                 {availableColumns.map((col) => (

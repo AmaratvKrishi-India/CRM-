@@ -57,9 +57,9 @@ export class ActivityRepository {
       deletedAt: null,
     };
 
-    await this.db.activities.add(activity);
-
-    try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.activities, this.db.outbox], async () => {
+      await this.db.activities.add(activity);
       await this.getSyncQueue().enqueue({
         entityType: 'activities',
         entityId: activity.id,
@@ -67,9 +67,7 @@ export class ActivityRepository {
         payload: activity,
         userId: activity.userId || 'local-user',
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for logActivity:', err);
-    }
+    });
 
     return activity;
   }

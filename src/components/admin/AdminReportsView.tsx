@@ -3,9 +3,10 @@
  * Comprehensive Analytics & Reporting command center for administrators.
  * Supports Lead Reports, Call Volume & Verified Talk Time, Agent Productivity,
  * Follow-up Completion, WhatsApp Engagement, Import Audits, and sanitized CSV Exports.
+ * Rewritten for design tokens + accessible tablist (F1/F2/F14/F15).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   BarChart3,
   Users,
@@ -20,7 +21,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
-  Download,
   Flame,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -38,8 +38,9 @@ import {
 import { ReportKpiCard } from './reports/ReportKpiCard';
 import { ReportFilterBar } from './reports/ReportFilterBar';
 import { RealtimeService } from '../../services/realtime/realtimeService';
-import { User, LeadStatus } from '../../db/types';
+import { User } from '../../db/types';
 import { getDatabase } from '../../db/database';
+import { labelFor } from '../../lib/labels';
 
 export type ReportTab =
   | 'LEADS'
@@ -50,9 +51,40 @@ export type ReportTab =
   | 'IMPORTS'
   | 'ACTIVITY';
 
+const TAB_ORDER: ReportTab[] = [
+  'LEADS',
+  'CALLS',
+  'PRODUCTIVITY',
+  'FOLLOW_UPS',
+  'WHATSAPP',
+  'IMPORTS',
+  'ACTIVITY',
+];
+
+const TAB_META: Record<ReportTab, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  LEADS: { label: 'Leads', icon: TrendingUp },
+  CALLS: { label: 'Calls', icon: PhoneCall },
+  PRODUCTIVITY: { label: 'Productivity', icon: Award },
+  FOLLOW_UPS: { label: 'Follow-ups', icon: Calendar },
+  WHATSAPP: { label: 'WhatsApp', icon: MessageSquare },
+  IMPORTS: { label: 'Imports', icon: FileSpreadsheet },
+  ACTIVITY: { label: 'Activity Log', icon: ActivityIcon },
+};
+
+const formatSeconds = (seconds: number) => {
+  if (!seconds || seconds <= 0) return '0s';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+};
+
 export const AdminReportsView: React.FC = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<ReportTab>('LEADS');
+  const tabRefs = useRef<Partial<Record<ReportTab, HTMLButtonElement | null>>>({});
   const [filters, setFilters] = useState<ReportFilterOptions>({
     datePreset: 'ALL_TIME',
     agentId: 'ALL',
@@ -73,11 +105,28 @@ export const AdminReportsView: React.FC = () => {
   const [importReport, setImportReport] = useState<ImportReportData | null>(null);
   const [activityReport, setActivityReport] = useState<ActivityReportItem[]>([]);
 
+  // Roving-tabindex keyboard support for the report tablist (F14).
+  const handleTabKeyDown = (e: React.KeyboardEvent, id: ReportTab) => {
+    const idx = TAB_ORDER.indexOf(id);
+    let next: ReportTab | null = null;
+    if (e.key === 'ArrowRight') next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+    else if (e.key === 'ArrowLeft') next = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+    else if (e.key === 'Home') next = TAB_ORDER[0];
+    else if (e.key === 'End') next = TAB_ORDER[TAB_ORDER.length - 1];
+    if (next) {
+      e.preventDefault();
+      setActiveTab(next);
+      tabRefs.current[next]?.focus();
+    }
+  };
+
   useEffect(() => {
     const loadMetadata = async () => {
       try {
         const db = getDatabase();
-        const allAgents = await db.users.filter((u) => u.role === 'AGENT' && u.deletedAt === null).toArray();
+        const allAgents = await db.users
+          .filter((u) => u.role === 'AGENT' && u.deletedAt === null)
+          .toArray();
         setAgents(allAgents);
 
         const allLeads = await db.leads.filter((l) => l.deletedAt === null).toArray();
@@ -142,16 +191,6 @@ export const AdminReportsView: React.FC = () => {
     };
   }, [activeTab, filters, currentUser]);
 
-  const formatSeconds = (seconds: number) => {
-    if (!seconds || seconds <= 0) return '0s';
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-  };
-
   const handleExportCSV = async () => {
     setExportLoading(true);
     try {
@@ -166,7 +205,10 @@ export const AdminReportsView: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.setAttribute('href', url);
-      link.setAttribute('download', `amaratv_report_${activeTab.toLowerCase()}_${new Date().toISOString().substring(0, 10)}.csv`);
+      link.setAttribute(
+        'download',
+        `amaratv_report_${activeTab.toLowerCase()}_${new Date().toISOString().substring(0, 10)}.csv`
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -178,54 +220,59 @@ export const AdminReportsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 pb-12 font-sans text-white">
+    <div className="space-y-5 pb-12 font-sans text-ink">
       {/* Header */}
-      <div className="p-5 bg-gradient-to-r from-purple-950/50 via-slate-900 to-slate-900 rounded-3xl border border-purple-500/20 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-5 bg-surface rounded-3xl border border-accent/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-purple-400">
-            <BarChart3 className="w-4 h-4" />
+          <div className="flex items-center gap-2 text-accent-text">
+            <BarChart3 className="w-4 h-4" aria-hidden="true" />
             <span className="text-xs font-bold uppercase tracking-wider">Territory Reports</span>
           </div>
-          <h2 className="text-xl font-black text-white mt-0.5">Analytics & Reporting</h2>
-          <p className="text-xs text-slate-400">
+          <h2 className="text-xl font-black text-ink mt-0.5">Analytics &amp; Reporting</h2>
+          <p className="text-xs text-soft">
             Organization intelligence, verified talk times, and sales conversion ratios.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-xs flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="px-2.5 py-1 rounded-full bg-success-soft text-success-text border border-success font-bold text-xs flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" aria-hidden="true" />
             <span>Dexie Indexed Aggregation</span>
           </span>
         </div>
       </div>
 
       {/* Report Category Navigation Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {[
-          { id: 'LEADS', label: 'Leads', icon: TrendingUp },
-          { id: 'CALLS', label: 'Calls', icon: PhoneCall },
-          { id: 'PRODUCTIVITY', label: 'Productivity', icon: Award },
-          { id: 'FOLLOW_UPS', label: 'Follow-ups', icon: Calendar },
-          { id: 'WHATSAPP', label: 'WhatsApp', icon: MessageSquare },
-          { id: 'IMPORTS', label: 'Imports', icon: FileSpreadsheet },
-          { id: 'ACTIVITY', label: 'Activity Log', icon: ActivityIcon },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+      <div
+        role="tablist"
+        aria-label="Report categories"
+        className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+      >
+        {TAB_ORDER.map((tabId) => {
+          const { label, icon: Icon } = TAB_META[tabId];
+          const isActive = activeTab === tabId;
           return (
             <button
-              key={tab.id}
+              key={tabId}
+              ref={(el) => {
+                tabRefs.current[tabId] = el;
+              }}
               type="button"
-              onClick={() => setActiveTab(tab.id as ReportTab)}
-              className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
+              role="tab"
+              id={`report-tab-${tabId.toLowerCase()}`}
+              aria-selected={isActive}
+              aria-controls={`report-panel-${tabId.toLowerCase()}`}
+              tabIndex={isActive ? 0 : -1}
+              onClick={() => setActiveTab(tabId)}
+              onKeyDown={(e) => handleTabKeyDown(e, tabId)}
+              className={`min-h-11 py-2 px-3 rounded-xl font-bold text-sm flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
                 isActive
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80'
+                  ? 'bg-accent text-on-accent shadow-md'
+                  : 'bg-surface border border-line text-soft hover:text-ink hover:bg-inset'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
+              <Icon className="w-4 h-4" aria-hidden="true" />
+              <span>{label}</span>
             </button>
           );
         })}
@@ -243,12 +290,16 @@ export const AdminReportsView: React.FC = () => {
 
       {/* Report Content Body */}
       {loading ? (
-        <div className="py-16 text-center text-xs text-slate-400">
-          <Clock className="w-6 h-6 animate-pulse mx-auto mb-2 text-purple-400" />
+        <div className="py-16 text-center text-sm text-soft" role="status">
+          <Clock className="w-6 h-6 animate-pulse mx-auto mb-2 text-accent-text" aria-hidden="true" />
           Computing report metrics from Dexie database...
         </div>
       ) : (
-        <>
+        <div
+          role="tabpanel"
+          id={`report-panel-${activeTab.toLowerCase()}`}
+          aria-labelledby={`report-tab-${activeTab.toLowerCase()}`}
+        >
           {/* 1. LEAD REPORT */}
           {activeTab === 'LEADS' && leadReport && (
             <div className="space-y-4">
@@ -284,17 +335,17 @@ export const AdminReportsView: React.FC = () => {
               </div>
 
               {/* Status Breakdown Table */}
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                   Lead Status Distribution
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {Object.entries(leadReport.statusBreakdown).map(([status, count]) => (
-                    <div key={status} className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 text-center">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
-                        {status.replace(/_/g, ' ')}
+                    <div key={status} className="p-2.5 bg-inset rounded-xl border border-line text-center">
+                      <span className="text-xs uppercase font-bold text-soft block truncate">
+                        {labelFor(status)}
                       </span>
-                      <span className="text-base font-black text-white">{count}</span>
+                      <span className="text-base font-black text-ink">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -337,37 +388,40 @@ export const AdminReportsView: React.FC = () => {
               </div>
 
               {/* Outcome Breakdown */}
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                   Call Outcome Distribution
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {Object.entries(callReport.callsByOutcome).map(([outcome, count]) => (
-                    <div key={outcome} className="p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 text-center">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block truncate">
-                        {outcome.replace(/_/g, ' ')}
+                    <div key={outcome} className="p-2.5 bg-inset rounded-xl border border-line text-center">
+                      <span className="text-xs uppercase font-bold text-soft block truncate">
+                        {labelFor(outcome)}
                       </span>
-                      <span className="text-base font-black text-white">{count}</span>
+                      <span className="text-base font-black text-ink">{count}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Talk Time by Agent */}
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                   Verified Talk Time by Sales Representative
                 </h3>
                 <div className="space-y-2">
                   {callReport.talkTimeByAgent.map((stat) => (
-                    <div key={stat.agentId} className="p-3 bg-slate-800/50 rounded-xl flex items-center justify-between text-xs">
+                    <div
+                      key={stat.agentId}
+                      className="p-3 bg-inset rounded-xl flex items-center justify-between text-sm"
+                    >
                       <div>
-                        <span className="font-bold text-white block">{stat.agentName}</span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="font-bold text-ink block">{stat.agentName}</span>
+                        <span className="text-xs text-soft">
                           Avg: {formatSeconds(stat.avgVerifiedDurationSeconds)}
                         </span>
                       </div>
-                      <span className="font-black text-purple-300 text-sm">
+                      <span className="font-black text-accent-text text-sm">
                         {formatSeconds(stat.verifiedTalkTimeSeconds)}
                       </span>
                     </div>
@@ -381,43 +435,50 @@ export const AdminReportsView: React.FC = () => {
           {activeTab === 'PRODUCTIVITY' && (
             <div className="space-y-3">
               {productivityReport.length === 0 ? (
-                <div className="py-12 text-center text-xs text-slate-500">No agent productivity records found.</div>
+                <div className="py-12 text-center text-sm text-faint">
+                  No agent productivity records found.
+                </div>
               ) : (
                 productivityReport.map((agent) => (
-                  <div key={agent.agentId} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div
+                    key={agent.agentId}
+                    className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-line">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs">
+                        <div className="w-8 h-8 rounded-xl bg-accent-soft text-accent-text flex items-center justify-center font-bold text-xs">
                           {agent.agentName.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <h4 className="font-bold text-sm text-white">{agent.agentName}</h4>
-                          <p className="text-[11px] text-slate-400">{agent.email}</p>
+                          <h4 className="font-bold text-sm text-ink">{agent.agentName}</h4>
+                          <p className="text-xs text-soft">{agent.email}</p>
                         </div>
                       </div>
-                      <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-accent-soft text-accent-text text-xs font-bold">
                         {agent.conversionRatePercentage}% Converted
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                      <div className="p-2 bg-slate-800/50 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Assigned</span>
-                        <span className="text-sm font-black text-white">{agent.leadsAssigned}</span>
+                      <div className="p-2 bg-inset rounded-xl">
+                        <span className="text-xs uppercase font-bold text-soft block">Assigned</span>
+                        <span className="text-sm font-black text-ink">{agent.leadsAssigned}</span>
                       </div>
-                      <div className="p-2 bg-slate-800/50 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Calls</span>
-                        <span className="text-sm font-black text-white">{agent.callsMade} (✓{agent.verifiedCalls})</span>
+                      <div className="p-2 bg-inset rounded-xl">
+                        <span className="text-xs uppercase font-bold text-soft block">Calls</span>
+                        <span className="text-sm font-black text-ink">
+                          {agent.callsMade} (✓{agent.verifiedCalls})
+                        </span>
                       </div>
-                      <div className="p-2 bg-slate-800/50 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Talk Time</span>
-                        <span className="text-sm font-black text-purple-300">
+                      <div className="p-2 bg-inset rounded-xl">
+                        <span className="text-xs uppercase font-bold text-soft block">Talk Time</span>
+                        <span className="text-sm font-black text-accent-text">
                           {formatSeconds(agent.verifiedTalkTimeSeconds)}
                         </span>
                       </div>
-                      <div className="p-2 bg-slate-800/50 rounded-xl">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Follow-ups</span>
-                        <span className="text-sm font-black text-emerald-400">{agent.followUpsCompleted}</span>
+                      <div className="p-2 bg-inset rounded-xl">
+                        <span className="text-xs uppercase font-bold text-soft block">Follow-ups</span>
+                        <span className="text-sm font-black text-success-text">{agent.followUpsCompleted}</span>
                       </div>
                     </div>
                   </div>
@@ -519,22 +580,25 @@ export const AdminReportsView: React.FC = () => {
               </div>
 
               {/* Import List */}
-              <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-2.5">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-2.5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                   Spreadsheet Ingestion Audit History
                 </h3>
                 {importReport.importsList.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-4">No import audit records recorded.</p>
+                  <p className="text-sm text-faint text-center py-4">No import audit records recorded.</p>
                 ) : (
                   importReport.importsList.map((imp) => (
-                    <div key={imp.id} className="p-3 bg-slate-800/50 rounded-xl flex items-center justify-between text-xs">
+                    <div
+                      key={imp.id}
+                      className="p-3 bg-inset rounded-xl flex items-center justify-between text-sm"
+                    >
                       <div>
-                        <span className="font-bold text-white block">{imp.filename}</span>
-                        <span className="text-[11px] text-slate-400">By {imp.uploadedByName}</span>
+                        <span className="font-bold text-ink block">{imp.filename}</span>
+                        <span className="text-xs text-soft">By {imp.uploadedByName}</span>
                       </div>
                       <div className="text-right">
-                        <span className="font-bold text-emerald-400">+{imp.imported} leads</span>
-                        <span className="text-[10px] text-slate-500 block">
+                        <span className="font-bold text-success-text">+{imp.imported} leads</span>
+                        <span className="text-xs text-faint block">
                           {new Date(imp.completedAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -547,25 +611,30 @@ export const AdminReportsView: React.FC = () => {
 
           {/* 7. ACTIVITY AUDIT STREAM */}
           {activeTab === 'ACTIVITY' && (
-            <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+            <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-2.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                 Chronological CRM Activity Stream
               </h3>
               {activityReport.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-4">No activity records match the filter.</p>
+                <p className="text-sm text-faint text-center py-4">
+                  No activity records match the filter.
+                </p>
               ) : (
                 activityReport.map((act) => (
-                  <div key={act.id} className="py-2.5 border-b border-slate-800/60 last:border-0 flex items-start justify-between gap-3 text-xs">
+                  <div
+                    key={act.id}
+                    className="py-2.5 border-b border-line last:border-0 flex items-start justify-between gap-3 text-sm"
+                  >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-purple-300">{act.actorName}</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300">
+                        <span className="font-bold text-accent-text">{act.actorName}</span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-bold uppercase bg-inset text-soft">
                           {act.activityType.replace(/_/g, ' ')}
                         </span>
                       </div>
-                      {act.leadName && <p className="text-[11px] text-slate-400 mt-0.5">Lead: {act.leadName}</p>}
+                      {act.leadName && <p className="text-xs text-soft mt-0.5">Lead: {act.leadName}</p>}
                     </div>
-                    <span className="text-[10px] text-slate-500 shrink-0">
+                    <span className="text-xs text-faint shrink-0">
                       {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -573,7 +642,7 @@ export const AdminReportsView: React.FC = () => {
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

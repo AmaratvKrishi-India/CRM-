@@ -19,14 +19,14 @@ test.describe('CRM Navigation & Lead Management Workflow', () => {
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
 
     // Wait for Dashboard to be ready
-    await expect(page.getByRole('button', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
   });
 
   test('loads Dashboard metrics and navigation tabs', async ({ page }) => {
-    // Check navigation buttons exist in bottom nav
-    const dashboardTab = page.getByRole('button', { name: /Dashboard/i });
-    const leadsTab = page.getByRole('button', { name: /Leads/i });
-    const followUpsTab = page.getByRole('button', { name: /Follow-ups/i });
+    // Check navigation tabs exist in bottom nav
+    const dashboardTab = page.getByRole('tab', { name: /Dashboard/i });
+    const leadsTab = page.getByRole('tab', { name: /Leads/i });
+    const followUpsTab = page.getByRole('tab', { name: /Follow-ups/i });
 
     await expect(dashboardTab).toBeVisible();
     await expect(leadsTab).toBeVisible();
@@ -41,7 +41,7 @@ test.describe('CRM Navigation & Lead Management Workflow', () => {
     const uniqueGymName = `Ozone Club ${Date.now().toString().slice(-4)}`;
 
     // 1. Switch to Leads tab
-    const leadsTab = page.getByRole('button', { name: /Leads/i });
+    const leadsTab = page.getByRole('tab', { name: /Leads/i });
     await leadsTab.click();
 
     // 2. Open Create Lead Modal
@@ -80,7 +80,7 @@ test.describe('CRM Navigation & Lead Management Workflow', () => {
   });
 
   test('navigates to Follow-ups tab and displays filter sections', async ({ page }) => {
-    const followUpsTab = page.getByRole('button', { name: /Follow-ups/i });
+    const followUpsTab = page.getByRole('tab', { name: /Follow-ups/i });
     await followUpsTab.click();
 
     // Verify follow-ups section header or pills
@@ -92,7 +92,7 @@ test.describe('CRM Navigation & Lead Management Workflow', () => {
     const uniqueGymName = `FitPro ${Date.now().toString().slice(-4)}`;
 
     // Navigate to leads
-    await page.getByRole('button', { name: /Leads/i }).click();
+    await page.getByRole('tab', { name: /Leads/i }).click();
 
     // Open add lead modal and create one
     const addLeadBtn = page.getByRole('button', { name: /Add Lead|New Lead/i }).first();

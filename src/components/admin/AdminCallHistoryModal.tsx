@@ -1,19 +1,18 @@
 /**
  * Admin Call History Modal (Phase 2L)
- * Displays organization-wide call records with filters for Agent, Date, Outcome, and Verification Status.
+ * Displays organization-wide call records with filters for Agent, Date,
+ * Outcome, and Verification Status.
+ * Rewritten for the shared accessible Modal + design tokens (F1/F2/F5/F15).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  X,
   PhoneCall,
   Clock,
-  Filter,
   CheckCircle2,
   AlertCircle,
   Search,
-  Calendar,
-  User as UserIcon,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -23,11 +22,23 @@ import {
 } from '../../services/adminAnalyticsService';
 import { CallRecord, User } from '../../db/types';
 import { getDatabase } from '../../db/database';
+import { Modal } from '../common/Modal';
+import { labelFor } from '../../lib/labels';
 
 interface AdminCallHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const formatSeconds = (seconds: number) => {
+  if (!seconds || seconds <= 0) return '0s';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+};
+
+const selectClass =
+  'w-full min-h-11 bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
   isOpen,
@@ -37,6 +48,7 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
   const [calls, setCalls] = useState<Array<CallRecord & { leadName?: string; agentName?: string }>>([]);
   const [agents, setAgents] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Filters
   const [selectedAgent, setSelectedAgent] = useState<string>('ALL');
@@ -51,7 +63,9 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
     const loadAgents = async () => {
       try {
         const db = getDatabase();
-        const allAgents = await db.users.filter((u) => u.role === 'AGENT' && u.deletedAt === null).toArray();
+        const allAgents = await db.users
+          .filter((u) => u.role === 'AGENT' && u.deletedAt === null)
+          .toArray();
         setAgents(allAgents);
       } catch (err) {
         console.warn('Failed to load agents for call history filter:', err);
@@ -61,9 +75,10 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
     loadAgents();
   }, [isOpen]);
 
-  const loadCalls = async () => {
+  const loadCalls = useCallback(async () => {
     if (!isOpen) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const params: CallRecordFilterParams = {
         agentId: selectedAgent !== 'ALL' ? selectedAgent : undefined,
@@ -77,16 +92,15 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
       setCalls(result);
     } catch (err) {
       console.warn('Failed to load call history records:', err);
+      setLoadError('Could not load call history. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [isOpen, currentUser, selectedAgent, selectedVerification, selectedOutcome, dateRange]);
 
   useEffect(() => {
     loadCalls();
-  }, [isOpen, selectedAgent, selectedVerification, selectedOutcome, dateRange]);
-
-  if (!isOpen) return null;
+  }, [loadCalls]);
 
   const filteredCalls = calls.filter((c) => {
     if (!searchQuery) return true;
@@ -98,57 +112,52 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
     );
   });
 
-  const formatSeconds = (seconds: number) => {
-    if (!seconds || seconds <= 0) return '0s';
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}m ${s}s`;
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden font-sans text-white">
-        {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
-              <PhoneCall className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white">Organization Call History</h3>
-              <p className="text-xs text-slate-400">
-                {filteredCalls.length} calls logged across sales team
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Organization Call History"
+      subtitle={`${filteredCalls.length} calls logged across sales team`}
+      maxWidthClassName="max-w-2xl"
+      headerIcon={
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-accent-soft text-accent-text border border-accent">
+          <PhoneCall className="w-5 h-5" aria-hidden="true" />
         </div>
-
-        {/* Filter Bar */}
-        <div className="p-4 border-b border-slate-800/80 bg-slate-900/50 space-y-2.5 text-xs">
+      }
+    >
+      {/* Filter bar stays pinned above the scrolling list */}
+      <div className="sticky top-0 z-10 -mx-4 px-4 pb-3 -mt-1 bg-surface border-b border-line space-y-2.5">
+        <div>
+          <label htmlFor="call-history-search" className="sr-only">
+            Search by lead name, agent, or note
+          </label>
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <Search
+              className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-faint pointer-events-none"
+              aria-hidden="true"
+            />
             <input
+              id="call-history-search"
               type="text"
-              placeholder="Search by gym name, agent, or note..."
+              data-autofocus
+              placeholder="Search by lead name, agent, or note..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+              className="w-full min-h-11 bg-inset border border-line rounded-xl pl-9 pr-3 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
             />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {/* Agent Filter */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div>
+            <label htmlFor="filter-agent" className="block text-xs font-semibold text-faint mb-1">
+              Agent
+            </label>
             <select
+              id="filter-agent"
               value={selectedAgent}
               onChange={(e) => setSelectedAgent(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+              className={selectClass}
             >
               <option value="ALL">All Agents</option>
               {agents.map((a) => (
@@ -157,23 +166,33 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
                 </option>
               ))}
             </select>
+          </div>
 
-            {/* Verification Status Filter */}
+          <div>
+            <label htmlFor="filter-verification" className="block text-xs font-semibold text-faint mb-1">
+              Verification
+            </label>
             <select
+              id="filter-verification"
               value={selectedVerification}
-              onChange={(e) => setSelectedVerification(e.target.value as any)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+              onChange={(e) => setSelectedVerification(e.target.value as 'ALL' | 'VERIFIED' | 'UNVERIFIED')}
+              className={selectClass}
             >
               <option value="ALL">All Verification</option>
               <option value="VERIFIED">Verified Only</option>
               <option value="UNVERIFIED">Unverified Only</option>
             </select>
+          </div>
 
-            {/* Outcome Filter */}
+          <div>
+            <label htmlFor="filter-outcome" className="block text-xs font-semibold text-faint mb-1">
+              Outcome
+            </label>
             <select
+              id="filter-outcome"
               value={selectedOutcome}
               onChange={(e) => setSelectedOutcome(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+              className={selectClass}
             >
               <option value="ALL">All Outcomes</option>
               <option value="CONNECTED">Connected</option>
@@ -182,12 +201,17 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
               <option value="WRONG_NUMBER">Wrong Number</option>
               <option value="CALL_BACK">Call Back</option>
             </select>
+          </div>
 
-            {/* Date Range Filter */}
+          <div>
+            <label htmlFor="filter-date-range" className="block text-xs font-semibold text-faint mb-1">
+              Date Range
+            </label>
             <select
+              id="filter-date-range"
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as any)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none"
+              onChange={(e) => setDateRange(e.target.value as DashboardDateRange)}
+              className={selectClass}
             >
               <option value="ALL_TIME">All Time</option>
               <option value="TODAY">Today</option>
@@ -197,74 +221,106 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
             </select>
           </div>
         </div>
+      </div>
 
-        {/* Call Records List */}
-        <div className="p-4 overflow-y-auto divide-y divide-slate-800/60 max-h-[60vh]">
-          {loading ? (
-            <div className="py-12 text-center text-xs text-slate-400">Loading call history...</div>
-          ) : filteredCalls.length === 0 ? (
-            <div className="py-12 text-center text-xs text-slate-500">No call records match the filter criteria.</div>
-          ) : (
-            filteredCalls.map((c) => {
-              const isVerified = c.verificationStatus === 'VERIFIED' && c.durationSeconds > 0;
-              const durStr = isVerified
-                ? `${formatSeconds(c.durationSeconds)} • VERIFIED`
-                : (c as any).reportedDurationSeconds
-                ? `Reported ${formatSeconds((c as any).reportedDurationSeconds)} • UNVERIFIED`
-                : 'Duration unavailable • UNVERIFIED';
+      {/* Call Records List */}
+      {loading ? (
+        <div className="py-12 flex flex-col items-center gap-2 text-sm text-soft" role="status">
+          <Loader2 className="w-5 h-5 animate-spin text-accent-text" aria-hidden="true" />
+          <span>Loading call history...</span>
+        </div>
+      ) : loadError ? (
+        <div className="py-10 flex flex-col items-center gap-3 text-center">
+          <AlertCircle className="w-6 h-6 text-danger-text" aria-hidden="true" />
+          <p role="alert" className="text-sm text-danger-text font-medium max-w-sm">
+            {loadError}
+          </p>
+          <button
+            type="button"
+            onClick={loadCalls}
+            className="min-h-11 px-5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      ) : filteredCalls.length === 0 ? (
+        <div className="py-12 text-center text-sm text-faint">
+          No call records match the filter criteria.
+        </div>
+      ) : (
+        <ul className="divide-y divide-line">
+          {filteredCalls.map((c) => {
+            const isVerified = c.verificationStatus === 'VERIFIED' && c.durationSeconds > 0;
+            const durStr = isVerified
+              ? formatSeconds(c.durationSeconds)
+              : c.reportedDurationSeconds
+              ? `Reported ${formatSeconds(c.reportedDurationSeconds)}`
+              : 'Duration unavailable';
 
-              return (
-                <div key={c.id} className="py-3 flex items-start justify-between gap-3 hover:bg-slate-800/30 px-2 rounded-xl transition">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-sm text-white truncate">{c.leadName}</h4>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                        {c.outcome}
-                      </span>
-                    </div>
-
-                    <p className="text-xs text-purple-300 font-medium mt-0.5">
-                      Rep: <span className="font-bold">{c.agentName}</span>
-                    </p>
-
-                    {c.remark && (
-                      <p className="text-xs text-slate-400 mt-1 italic line-clamp-1">
-                        &ldquo;{c.remark}&rdquo;
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
-                      <Clock className="w-3 h-3 text-slate-500" />
-                      <span
-                        className={
-                          isVerified ? 'text-emerald-400 font-semibold' : 'text-slate-400'
-                        }
-                      >
-                        {durStr}
-                      </span>
-                    </div>
+            return (
+              <li
+                key={c.id}
+                className="py-3 flex items-start justify-between gap-3 px-2 rounded-xl hover:bg-inset transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-sm text-ink truncate">{c.leadName}</h4>
+                    <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-inset text-soft border border-line">
+                      {labelFor(c.outcome)}
+                    </span>
                   </div>
 
-                  <div className="text-right shrink-0">
-                    <span className="text-[11px] text-slate-400 block">
-                      {new Date(c.startedAt || c.createdAt).toLocaleDateString([], {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
+                  <p className="text-xs text-accent-text font-medium mt-0.5">
+                    Rep: <span className="font-bold">{c.agentName}</span>
+                  </p>
+
+                  {c.remark && (
+                    <p className="text-xs text-soft mt-1 italic line-clamp-1">
+                      &ldquo;{c.remark}&rdquo;
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                    <Clock className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
+                    <span className={isVerified ? 'text-success-text font-semibold' : 'text-soft'}>
+                      {durStr}
                     </span>
-                    <span className="text-[10px] text-slate-500">
-                      {new Date(c.startedAt || c.createdAt).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                    <span
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold ${
+                        isVerified
+                          ? 'bg-success-soft text-success-text'
+                          : 'bg-warning-soft text-warning-text'
+                      }`}
+                    >
+                      {isVerified ? (
+                        <CheckCircle2 className="w-3 h-3" aria-hidden="true" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3" aria-hidden="true" />
+                      )}
+                      {isVerified ? 'Verified' : 'Unverified'}
                     </span>
                   </div>
                 </div>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </div>
+
+                <div className="text-right shrink-0">
+                  <span className="text-xs text-soft block">
+                    {new Date(c.startedAt || c.createdAt).toLocaleDateString([], {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                  <span className="text-xs text-faint">
+                    {new Date(c.startedAt || c.createdAt).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Modal>
   );
 };

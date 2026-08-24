@@ -2,10 +2,11 @@
  * Report Filter Bar Component (Phase 2M)
  * Provides preset date range selection, representative selector, locality filter,
  * and quick CSV Export button.
+ * Rewritten for design tokens + labeled selects (F1/F2).
  */
 
 import React from 'react';
-import { Filter, Download, Calendar, Users, MapPin } from 'lucide-react';
+import { Filter, Download } from 'lucide-react';
 import { ReportDatePreset, ReportFilterOptions } from '../../../services/adminReportsService';
 import { User } from '../../../db/types';
 
@@ -18,6 +19,9 @@ interface ReportFilterBarProps {
   exportLoading?: boolean;
 }
 
+const selectClass =
+  'w-full min-h-11 bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring';
+
 export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
   filters,
   agents,
@@ -27,10 +31,10 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
   exportLoading = false,
 }) => {
   return (
-    <div className="p-3.5 bg-slate-900 border border-slate-800 rounded-2xl shadow-md space-y-2.5 text-xs">
+    <div className="p-3.5 bg-surface border border-line rounded-2xl shadow-md space-y-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
-          <Filter className="w-3.5 h-3.5 text-purple-400" />
+        <div className="flex items-center gap-1.5 text-soft font-bold uppercase tracking-wider text-xs">
+          <Filter className="w-4 h-4 text-accent-text" aria-hidden="true" />
           <span>Report Scope Filters</span>
         </div>
 
@@ -38,20 +42,24 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
           type="button"
           onClick={onExportCSV}
           disabled={exportLoading}
-          className="py-1.5 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition active:scale-95"
+          className="min-h-11 py-1.5 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-50 text-on-accent font-bold text-sm flex items-center gap-1.5 shadow-md transition active:scale-95"
         >
-          <Download className="w-3.5 h-3.5" />
+          <Download className="w-4 h-4" aria-hidden="true" />
           <span>{exportLoading ? 'Exporting...' : 'Export CSV'}</span>
         </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {/* Date Preset Filter */}
-        <div className="relative">
+        <div>
+          <label htmlFor="report-filter-date" className="sr-only">
+            Date range
+          </label>
           <select
+            id="report-filter-date"
             value={filters.datePreset || 'ALL_TIME'}
             onChange={(e) => onFilterChange({ datePreset: e.target.value as ReportDatePreset })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+            className={selectClass}
           >
             <option value="ALL_TIME">Date: All Time</option>
             <option value="TODAY">Date: Today</option>
@@ -64,11 +72,15 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
         </div>
 
         {/* Representative Filter */}
-        <div className="relative">
+        <div>
+          <label htmlFor="report-filter-agent" className="sr-only">
+            Representative
+          </label>
           <select
+            id="report-filter-agent"
             value={filters.agentId || 'ALL'}
             onChange={(e) => onFilterChange({ agentId: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+            className={selectClass}
           >
             <option value="ALL">Rep: All Team</option>
             <option value="UNASSIGNED">Rep: Unassigned Leads</option>
@@ -81,11 +93,15 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
         </div>
 
         {/* Locality Filter */}
-        <div className="relative">
+        <div>
+          <label htmlFor="report-filter-locality" className="sr-only">
+            Locality
+          </label>
           <select
+            id="report-filter-locality"
             value={filters.locality || 'ALL'}
             onChange={(e) => onFilterChange({ locality: e.target.value })}
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+            className={selectClass}
           >
             <option value="ALL">Locality: All Areas</option>
             {localities.map((loc) => (

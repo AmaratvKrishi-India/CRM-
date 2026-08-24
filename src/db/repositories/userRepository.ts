@@ -86,9 +86,9 @@ export class UserRepository {
       deletedAt: null,
     };
 
-    await this.db.users.add(newUser);
-
-    try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.users, this.db.outbox], async () => {
+      await this.db.users.add(newUser);
       await this.getSyncQueue().enqueue({
         entityType: 'profiles',
         entityId: newUser.id,
@@ -96,9 +96,7 @@ export class UserRepository {
         payload: newUser,
         userId: newUser.createdBy || newUser.id,
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for createUser:', err);
-    }
+    });
 
     return newUser;
   }
@@ -181,15 +179,16 @@ export class UserRepository {
     }
 
     const now = new Date().toISOString();
-    await this.db.users.update(id, {
-      ...updates,
-      updatedAt: now,
-      isSynced: 0,
-    });
-
-    const updated = await this.db.users.get(id);
-    if (updated) {
-      try {
+    let updated: User | undefined;
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.users, this.db.outbox], async () => {
+      await this.db.users.update(id, {
+        ...updates,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      updated = await this.db.users.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'profiles',
           entityId: updated.id,
@@ -197,10 +196,8 @@ export class UserRepository {
           payload: updated,
           userId: id,
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for updateUser:', err);
       }
-    }
+    });
 
     return updated!;
   }
@@ -231,15 +228,15 @@ export class UserRepository {
     const user = await this.getUserById(id);
     if (!user) throw new Error(`User with id ${id} not found.`);
     const now = new Date().toISOString();
-    await this.db.users.update(id, {
-      deletedAt: now,
-      updatedAt: now,
-      isSynced: 0,
-    });
-
-    const updated = await this.db.users.get(id);
-    if (updated) {
-      try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.users, this.db.outbox], async () => {
+      await this.db.users.update(id, {
+        deletedAt: now,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      const updated = await this.db.users.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'profiles',
           entityId: updated.id,
@@ -247,10 +244,8 @@ export class UserRepository {
           payload: updated,
           userId: id,
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for softDeleteUser:', err);
       }
-    }
+    });
   }
 
   /**
@@ -261,16 +256,17 @@ export class UserRepository {
     const user = await this.getUserById(id, true);
     if (!user) throw new Error(`User with id ${id} not found.`);
     const now = new Date().toISOString();
-    await this.db.users.update(id, {
-      status: 'INACTIVE',
-      deletedAt: now,
-      updatedAt: now,
-      isSynced: 0,
-    });
-
-    const updated = await this.db.users.get(id);
-    if (updated) {
-      try {
+    let updated: User | undefined;
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.users, this.db.outbox], async () => {
+      await this.db.users.update(id, {
+        status: 'INACTIVE',
+        deletedAt: now,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      updated = await this.db.users.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'profiles',
           entityId: updated.id,
@@ -278,10 +274,8 @@ export class UserRepository {
           payload: updated,
           userId: id,
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for deleteUser:', err);
       }
-    }
+    });
 
     return updated!;
   }

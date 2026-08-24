@@ -68,9 +68,9 @@ export class ImportAuditRepository {
       isSynced: 0,
     };
 
-    await this.db.importAudits.add(audit);
-
-    try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.importAudits, this.db.outbox], async () => {
+      await this.db.importAudits.add(audit);
       await this.getSyncQueue().enqueue({
         entityType: 'import_audits',
         entityId: audit.id,
@@ -78,9 +78,7 @@ export class ImportAuditRepository {
         payload: audit,
         userId: audit.uploadedBy || 'local-user',
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for createAudit:', err);
-    }
+    });
 
     return audit;
   }

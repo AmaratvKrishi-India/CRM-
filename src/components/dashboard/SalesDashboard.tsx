@@ -8,23 +8,21 @@ import {
   AlertTriangle,
   Award,
   Package,
-  Clock,
   MapPin,
   ChevronRight,
-  Loader2,
   CheckCircle2,
   Activity,
-  Plus,
   Settings,
+  RefreshCw,
+  CloudOff,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import {
-  FullDashboardData,
-  DashboardMetrics,
-} from '../../services/dashboardService';
+import { FullDashboardData } from '../../services/dashboardService';
 import { Lead, LeadStatus } from '../../db/types';
 import { SyncStatusBadge } from '../sync/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../common/Toast';
+import { labelFor } from '../../lib/labels';
 
 interface SalesDashboardProps {
   onOpenLeadsWithStatus: (status: LeadStatus) => void;
@@ -38,6 +36,32 @@ interface SalesDashboardProps {
   onOpenSettings?: () => void;
 }
 
+/** F19 — skeleton placeholder matching the dashboard layout. */
+const DashboardSkeleton: React.FC = () => (
+  <div className="max-w-2xl w-full mx-auto p-4 space-y-5 animate-pulse" aria-hidden="true">
+    <div className="space-y-1.5">
+      <div className="h-4 w-48 rounded bg-inset" />
+      <div className="grid grid-cols-3 gap-2">
+        {Array.from({ length: 9 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-2xl bg-surface border border-line" />
+        ))}
+      </div>
+    </div>
+    <div className="space-y-2">
+      <div className="h-4 w-40 rounded bg-inset" />
+      <div className="h-28 rounded-2xl bg-surface border border-line" />
+    </div>
+    <div className="space-y-2">
+      <div className="h-4 w-52 rounded bg-inset" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-16 rounded-2xl bg-surface border border-line" />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
 export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   onOpenLeadsWithStatus,
   onOpenLeadsWithLocality,
@@ -50,16 +74,21 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   onOpenSettings,
 }) => {
   const { currentUser } = useAuth();
+  const { showToast } = useToast();
   const [data, setData] = useState<FullDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadDashboard = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const res = await crmData.dashboard.getDashboardData();
       setData(res);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
+      // F4 — never blank the screen on failure; show a retryable error state.
+      setLoadError('Could not load your sales metrics.');
     } finally {
       setLoading(false);
     }
@@ -75,6 +104,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       await loadDashboard();
     } catch (err) {
       console.error('Failed to complete follow up:', err);
+      showToast({
+        message: 'Could not mark the follow-up as done. Please try again.',
+        tone: 'error',
+        action: { label: 'Retry', onClick: () => void handleCompleteTodayFollowUp(id) },
+      });
     }
   };
 
@@ -93,32 +127,65 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     });
   };
 
-  if (loading) {
+  // F4 — visible error state with retry instead of a blank screen.
+  if (loadError && !data) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
-          <p className="text-xs text-slate-500 font-medium">Loading sales metrics...</p>
+      <div className="min-h-screen bg-app flex flex-col">
+        <div className="bg-surface border-b border-line px-4 py-4 sticky top-0 z-30">
+          <div className="max-w-2xl mx-auto flex items-center gap-2">
+            <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
+            <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi</h1>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="bg-surface border border-line rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+            <CloudOff className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
+            <h2 className="text-base font-bold text-ink">{loadError}</h2>
+            <p className="text-sm text-soft">
+              Your data is still stored safely on this device. Check the connection and try again.
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadDashboard()}
+              className="w-full min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-colors flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" aria-hidden="true" />
+              <span>Retry</span>
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!data) return null;
+  if (loading || !data) {
+    return (
+      <div className="min-h-screen bg-app flex flex-col pb-20">
+        <div className="bg-surface border-b border-line px-4 py-4 sticky top-0 z-30">
+          <div className="max-w-2xl mx-auto flex items-center gap-2">
+            <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
+            <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi</h1>
+          </div>
+        </div>
+        <DashboardSkeleton />
+        <p className="sr-only" role="status">Loading sales metrics…</p>
+      </div>
+    );
+  }
 
   const { metrics, todayFollowUps, pipeline, localities, recentActivities } = data;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-20">
+    <div className="min-h-screen bg-app flex flex-col pb-20">
       {/* Top Brand Header */}
-      <div className="bg-slate-900 text-white px-4 py-4 sticky top-0 z-30 shadow-md">
+      <div className="bg-surface border-b border-line px-4 py-3 sticky top-0 z-30 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
               <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
-              <h1 className="text-base font-bold tracking-tight">Amaratv Krishi</h1>
+              <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi</h1>
             </div>
-            <p className="text-[11px] text-slate-400">Lucknow Field Sales Dashboard</p>
+            <p className="text-xs text-faint">Lucknow Field Sales Dashboard</p>
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -127,18 +194,17 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="p-1.5 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors"
-                title="Settings & Pitch Templates"
+                aria-label="Settings and pitch templates"
+                className="w-11 h-11 flex items-center justify-center text-soft hover:text-ink bg-inset hover:bg-inset-strong rounded-xl transition-colors"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-5 h-5" aria-hidden="true" />
               </button>
             )}
             {currentUser?.role === 'ADMIN' && (
               <button
                 type="button"
                 onClick={onOpenBackupModal}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded-xl font-semibold text-xs transition-colors"
-                title="Backup & Restore local database"
+                className="min-h-11 bg-inset hover:bg-inset-strong text-soft px-3 rounded-xl font-semibold text-xs transition-colors"
               >
                 Backup
               </button>
@@ -147,7 +213,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               <button
                 type="button"
                 onClick={onOpenImporter}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-2.5 py-1.5 rounded-xl font-bold text-xs transition-colors"
+                className="min-h-11 bg-accent hover:bg-accent-hover text-on-accent px-3 rounded-xl font-bold text-xs transition-colors"
               >
                 Import Data
               </button>
@@ -159,135 +225,141 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       {/* Main Dashboard Content */}
       <div className="max-w-2xl w-full mx-auto p-4 flex-1 flex flex-col space-y-5">
         {/* KPI METRICS GRID */}
-        <div className="space-y-1.5">
-          <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
+        <section className="space-y-1.5" aria-label="Today and pipeline performance">
+          <h2 className="text-xs font-bold text-faint uppercase tracking-wide px-1">
             Today & Pipeline Performance
           </h2>
 
           <div className="grid grid-cols-3 gap-2">
             {/* Total Leads */}
-            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Total Leads</span>
-                <Users className="w-3.5 h-3.5 text-blue-600" />
+            <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
+              <div className="flex items-center justify-between text-faint mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Total Leads</span>
+                <Users className="w-3.5 h-3.5 text-info" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-slate-900">{metrics.totalLeads}</span>
+              <span className="text-xl font-black text-ink">{metrics.totalLeads}</span>
             </div>
 
             {/* Calls Today */}
-            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Calls Today</span>
-                <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+            <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
+              <div className="flex items-center justify-between text-faint mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Calls Today</span>
+                <PhoneCall className="w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-slate-900">{metrics.callsToday}</span>
+              <span className="text-xl font-black text-ink">{metrics.callsToday}</span>
             </div>
 
             {/* WhatsApp Today */}
-            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
-              <div className="flex items-center justify-between text-slate-400 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">WA Pitches</span>
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+            <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
+              <div className="flex items-center justify-between text-faint mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">WA Pitches</span>
+                <MessageSquare className="w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-slate-900">{metrics.whatsAppToday}</span>
+              <span className="text-xl font-black text-ink">{metrics.whatsAppToday}</span>
             </div>
 
             {/* Interested */}
-            <div
+            <button
+              type="button"
               onClick={() => onOpenLeadsWithStatus('INTERESTED')}
-              className="bg-emerald-50/50 hover:bg-emerald-50 p-3 rounded-2xl border border-emerald-200 shadow-xs cursor-pointer transition-colors"
+              className="bg-success-soft hover:bg-success/20 p-3 rounded-2xl border border-success/30 shadow-xs transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-emerald-800 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Interested</span>
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+              <div className="flex items-center justify-between text-success-text mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Interested</span>
+                <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-emerald-900">{metrics.interested}</span>
-            </div>
+              <span className="text-xl font-black text-success-text">{metrics.interested}</span>
+            </button>
 
             {/* Samples Sent / Requested */}
-            <div
+            <button
+              type="button"
               onClick={() => onOpenLeadsWithStatus('SAMPLE_REQUESTED')}
-              className="bg-amber-50/50 hover:bg-amber-50 p-3 rounded-2xl border border-amber-200 shadow-xs cursor-pointer transition-colors"
+              className="bg-warning-soft hover:bg-warning/20 p-3 rounded-2xl border border-warning/30 shadow-xs transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-amber-800 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Samples</span>
-                <Package className="w-3.5 h-3.5 text-amber-600" />
+              <div className="flex items-center justify-between text-warning-text mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Samples</span>
+                <Package className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-amber-900">{metrics.samplesRequested}</span>
-            </div>
+              <span className="text-xl font-black text-warning-text">{metrics.samplesRequested}</span>
+            </button>
 
             {/* Customers */}
-            <div
+            <button
+              type="button"
               onClick={() => onOpenLeadsWithStatus('CUSTOMER')}
-              className="bg-emerald-700 p-3 rounded-2xl border border-emerald-800 text-white shadow-xs cursor-pointer hover:bg-emerald-800 transition-colors"
+              className="bg-success hover:opacity-90 p-3 rounded-2xl border border-success text-on-accent shadow-xs transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-emerald-200 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Customers</span>
-                <Award className="w-3.5 h-3.5 text-emerald-300" />
+              <div className="flex items-center justify-between text-on-accent/80 mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Customers</span>
+                <Award className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-white">{metrics.customers}</span>
-            </div>
+              <span className="text-xl font-black text-on-accent">{metrics.customers}</span>
+            </button>
 
             {/* Follow-ups Today */}
-            <div
+            <button
+              type="button"
               onClick={onOpenFollowUps}
-              className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs cursor-pointer hover:border-slate-300 transition-colors"
+              className="bg-surface p-3 rounded-2xl border border-line shadow-xs hover:border-line-strong transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-slate-400 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Due Today</span>
-                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+              <div className="flex items-center justify-between text-faint mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Due Today</span>
+                <Calendar className="w-3.5 h-3.5 text-info" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-slate-900">{metrics.followUpsToday}</span>
-            </div>
+              <span className="text-xl font-black text-ink">{metrics.followUpsToday}</span>
+            </button>
 
             {/* Overdue */}
-            <div
+            <button
+              type="button"
               onClick={onOpenFollowUps}
-              className="bg-rose-50/60 p-3 rounded-2xl border border-rose-200 shadow-xs cursor-pointer hover:bg-rose-50 transition-colors"
+              className="bg-danger-soft hover:bg-danger/20 p-3 rounded-2xl border border-danger/30 shadow-xs transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-rose-800 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Overdue</span>
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <div className="flex items-center justify-between text-danger-text mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Overdue</span>
+                <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-rose-700">{metrics.overdueFollowUps}</span>
-            </div>
+              <span className="text-xl font-black text-danger-text">{metrics.overdueFollowUps}</span>
+            </button>
 
             {/* Uncontacted Leads */}
-            <div
+            <button
+              type="button"
               onClick={() => onOpenLeadsWithStatus('NEW')}
-              className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs cursor-pointer hover:border-slate-300 transition-colors"
+              className="bg-surface p-3 rounded-2xl border border-line shadow-xs hover:border-line-strong transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-slate-400 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-tight">Uncontacted</span>
-                <Users className="w-3.5 h-3.5 text-slate-400" />
+              <div className="flex items-center justify-between text-faint mb-1">
+                <span className="text-xs font-bold uppercase tracking-tight">Uncontacted</span>
+                <Users className="w-3.5 h-3.5" aria-hidden="true" />
               </div>
-              <span className="text-lg font-black text-slate-700">{metrics.notContacted}</span>
-            </div>
+              <span className="text-xl font-black text-ink">{metrics.notContacted}</span>
+            </button>
           </div>
-        </div>
+        </section>
 
         {/* SECTION 2: TODAY'S FOLLOW-UPS PROMINENT SECTION */}
-        <div className="space-y-2">
+        <section className="space-y-2" aria-label="Today's follow-ups">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-emerald-600" />
+            <h2 className="text-sm font-bold text-ink flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-accent-text" aria-hidden="true" />
               <span>Today's Follow-ups ({todayFollowUps.length})</span>
             </h2>
             <button
               type="button"
               onClick={onOpenFollowUps}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-0.5"
+              className="min-h-11 px-2 text-xs font-bold text-accent-text flex items-center gap-0.5"
             >
               <span>View All</span>
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
 
           {todayFollowUps.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-1.5 shadow-xs">
-              <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
-              <h4 className="text-xs font-bold text-slate-800">No Follow-ups Due Today</h4>
-              <p className="text-[11px] text-slate-400">
+            <div className="bg-surface rounded-2xl border border-line p-6 text-center space-y-1.5 shadow-xs">
+              <CheckCircle2 className="w-8 h-8 text-accent mx-auto" aria-hidden="true" />
+              <h3 className="text-sm font-bold text-ink">No Follow-ups Due Today</h3>
+              <p className="text-xs text-faint">
                 You are all caught up for today! Call new gym leads or review sample feedback.
               </p>
             </div>
@@ -300,42 +372,44 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 return (
                   <div
                     key={item.id}
-                    className="bg-white rounded-2xl border border-emerald-200 p-3.5 shadow-xs space-y-2.5"
+                    className="bg-surface rounded-2xl border border-accent/30 p-3.5 shadow-xs space-y-2.5"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div
+                      {/* F3 — real button instead of a clickable div */}
+                      <button
+                        type="button"
                         onClick={() => onOpenLead(item.leadId)}
-                        className="flex-1 min-w-0 cursor-pointer group"
+                        className="flex-1 min-w-0 text-left group"
                       >
-                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 truncate">
+                        <h3 className="text-sm font-bold text-ink group-hover:text-accent-text truncate">
                           {lead?.businessName || 'Gym Lead'}
-                        </h4>
-                        <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                          <MapPin className="w-3 h-3 text-slate-400" />
+                        </h3>
+                        <div className="flex items-center gap-1 text-xs text-soft mt-0.5">
+                          <MapPin className="w-3 h-3 text-faint" aria-hidden="true" />
                           <span>{lead?.locality || 'Lucknow'}</span>
-                          <span className="text-slate-300">•</span>
-                          <span className="font-semibold text-blue-700">
+                          <span className="text-faint">•</span>
+                          <span className="font-semibold text-info-text">
                             {formatTimeOnly(item.scheduledAt)}
                           </span>
                         </div>
-                      </div>
+                      </button>
 
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
-                        {item.priority}
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-info-soft text-info-text border border-info/30">
+                        {labelFor(item.priority)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-700 font-medium bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <p className="text-xs text-soft font-medium bg-inset p-2 rounded-lg border border-line">
                       {item.title}
                     </p>
 
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-line">
                       <button
                         type="button"
                         onClick={() => handleCompleteTodayFollowUp(item.id)}
-                        className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1"
+                        className="min-h-11 text-xs font-bold text-accent-text bg-accent-soft hover:bg-accent/20 border border-accent/30 px-3 rounded-xl transition-colors flex items-center gap-1"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                         <span>Mark Done</span>
                       </button>
 
@@ -343,20 +417,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                         {isMobile && (
                           <button
                             type="button"
-                            onClick={() => onOpenWhatsApp(lead as any)}
-                            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
+                            onClick={() => onOpenWhatsApp(lead as Lead)}
+                            className="min-h-11 px-3 bg-accent hover:bg-accent-hover text-on-accent rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
                           >
-                            <MessageSquare className="w-3 h-3" />
+                            <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>WhatsApp</span>
                           </button>
                         )}
 
                         <button
                           type="button"
-                          onClick={() => onCallLead(lead as any)}
-                          className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
+                          onClick={() => onCallLead(lead as Lead)}
+                          className="min-h-11 px-3 bg-ink hover:opacity-90 text-app rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs"
                         >
-                          <PhoneCall className="w-3 h-3 text-emerald-400" />
+                          <PhoneCall className="w-3.5 h-3.5 text-success" aria-hidden="true" />
                           <span>Call</span>
                         </button>
                       </div>
@@ -366,101 +440,105 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               })}
             </div>
           )}
-        </div>
+        </section>
 
         {/* SECTION 3: SALES PIPELINE SUMMARY (CLICKABLE) */}
-        <div className="space-y-2">
-          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-tight px-1 flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
+        <section className="space-y-2" aria-label="Sales pipeline">
+          <h2 className="text-sm font-bold text-ink px-1 flex items-center gap-1.5">
+            <TrendingUp className="w-4 h-4 text-accent-text" aria-hidden="true" />
             <span>Sales Pipeline (Tap to Filter Leads)</span>
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {pipeline.map((stage) => (
-              <div
+              <button
                 key={stage.status}
+                type="button"
                 onClick={() => onOpenLeadsWithStatus(stage.status)}
-                className="bg-white hover:bg-slate-50 p-3 rounded-2xl border border-slate-200 shadow-xs cursor-pointer transition-all flex items-center justify-between group"
+                className="bg-surface hover:bg-inset p-3 rounded-2xl border border-line shadow-xs transition-all flex items-center justify-between group text-left"
               >
                 <div>
-                  <span className="text-[11px] font-bold text-slate-700 block truncate group-hover:text-emerald-700">
+                  <span className="text-xs font-bold text-soft block truncate group-hover:text-accent-text">
                     {stage.label}
                   </span>
-                  <span className="text-base font-black text-slate-900">{stage.count}</span>
+                  <span className="text-base font-black text-ink">{stage.count}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-600 transition-transform group-hover:translate-x-0.5" />
-              </div>
+                <ChevronRight className="w-4 h-4 text-faint group-hover:text-accent-text transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </button>
             ))}
           </div>
-        </div>
+        </section>
 
         {/* SECTION 4: LOCALITY SUMMARY */}
         {localities.length > 0 && (
-          <div className="space-y-2">
-            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-tight px-1 flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-emerald-600" />
+          <section className="space-y-2" aria-label="Localities breakdown">
+            <h2 className="text-sm font-bold text-ink px-1 flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-accent-text" aria-hidden="true" />
               <span>Lucknow Localities Breakdown</span>
             </h2>
 
-            <div className="bg-white rounded-2xl border border-slate-200 p-3 shadow-xs space-y-2">
-              <div className="grid grid-cols-3 text-[10px] font-bold text-slate-400 uppercase tracking-tight px-2 pb-1 border-b border-slate-100">
+            <div className="bg-surface rounded-2xl border border-line p-3 shadow-xs space-y-1">
+              <div className="grid grid-cols-3 text-xs font-bold text-faint uppercase tracking-tight px-2 pb-1 border-b border-line">
                 <span>Locality / Area</span>
                 <span className="text-center">Total Leads</span>
                 <span className="text-right">Interested/Cust</span>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div>
                 {localities.map((loc) => (
-                  <div
+                  <button
                     key={loc.locality}
+                    type="button"
                     onClick={() => onOpenLeadsWithLocality(loc.locality)}
-                    className="grid grid-cols-3 items-center py-2 px-2 text-xs hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                    className="w-full grid grid-cols-3 items-center py-2.5 px-2 text-xs hover:bg-inset rounded-lg transition-colors text-left"
                   >
-                    <span className="font-bold text-slate-800 truncate">{loc.locality}</span>
-                    <span className="text-center font-semibold text-slate-700">{loc.total}</span>
+                    <span className="font-bold text-ink truncate">{loc.locality}</span>
+                    <span className="text-center font-semibold text-soft">{loc.total}</span>
                     <div className="text-right flex items-center justify-end gap-1 font-bold">
-                      <span className="text-emerald-700">{loc.interested + loc.customers}</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                      <span className="text-accent-text">{loc.interested + loc.customers}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
         )}
 
         {/* SECTION 5: RECENT ACTIVITY FEED */}
-        <div className="space-y-2">
-          <h2 className="text-xs font-bold text-slate-800 uppercase tracking-tight px-1 flex items-center gap-1.5">
-            <Activity className="w-4 h-4 text-emerald-600" />
+        <section className="space-y-2" aria-label="Recent activity">
+          <h2 className="text-sm font-bold text-ink px-1 flex items-center gap-1.5">
+            <Activity className="w-4 h-4 text-accent-text" aria-hidden="true" />
             <span>Recent Activity Stream</span>
           </h2>
 
           {recentActivities.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 text-center text-xs text-slate-400">
+            <div className="bg-surface rounded-2xl border border-line p-6 text-center text-xs text-faint">
               No sales activity recorded yet.
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-xs overflow-hidden">
+            <div className="bg-surface rounded-2xl border border-line divide-y divide-line shadow-xs overflow-hidden">
               {recentActivities.map((act) => (
-                <div
+                <button
                   key={act.id}
+                  type="button"
                   onClick={() => onOpenLead(act.leadId)}
-                  className="p-3 hover:bg-slate-50 cursor-pointer transition-colors flex items-start gap-2.5"
+                  className="w-full p-3 hover:bg-inset transition-colors flex items-start gap-2.5 text-left"
                 >
                   <div
                     className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 text-white mt-0.5 ${
                       act.type === 'CALL'
-                        ? 'bg-slate-900'
+                        ? 'bg-ink'
                         : act.type === 'WHATSAPP'
-                        ? 'bg-emerald-600'
+                        ? 'bg-accent'
                         : act.type === 'FOLLOW_UP_COMPLETED'
-                        ? 'bg-blue-600'
-                        : 'bg-amber-600'
+                        ? 'bg-info'
+                        : 'bg-warning'
                     }`}
+                    aria-hidden="true"
                   >
                     {act.type === 'CALL' ? (
-                      <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />
+                      <PhoneCall className="w-3.5 h-3.5 text-success" />
                     ) : act.type === 'WHATSAPP' ? (
                       <MessageSquare className="w-3.5 h-3.5" />
                     ) : act.type === 'FOLLOW_UP_COMPLETED' ? (
@@ -472,24 +550,24 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <h4 className="text-xs font-bold text-slate-900 truncate">
+                      <h3 className="text-xs font-bold text-ink truncate">
                         {act.businessName}
-                      </h4>
-                      <span className="text-[10px] text-slate-400 flex-shrink-0">
+                      </h3>
+                      <span className="text-xs text-faint flex-shrink-0">
                         {formatActivityTime(act.timestamp)}
                       </span>
                     </div>
 
-                    <p className="text-[11px] text-slate-600 font-medium truncate">{act.title}</p>
+                    <p className="text-xs text-soft font-medium truncate">{act.title}</p>
                     {act.detail && (
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{act.detail}</p>
+                      <p className="text-xs text-faint truncate mt-0.5">{act.detail}</p>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

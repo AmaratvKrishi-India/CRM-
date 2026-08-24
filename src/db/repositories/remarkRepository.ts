@@ -61,15 +61,13 @@ export class RemarkRepository {
       deletedAt: null,
     };
 
-    await this.db.transaction('rw', [this.db.remarks, this.db.leads], async () => {
+    // Data writes + outbox enqueues are atomic: either all persist or none.
+    await this.db.transaction('rw', [this.db.remarks, this.db.leads, this.db.outbox], async () => {
       await this.db.remarks.add(remark);
       await this.db.leads.update(leadId, {
         updatedAt: now,
         isSynced: 0,
       });
-    });
-
-    try {
       const queue = this.getSyncQueue();
       await queue.enqueue({
         entityType: 'remarks',
@@ -89,9 +87,7 @@ export class RemarkRepository {
           userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
         });
       }
-    } catch (err) {
-      console.warn('Outbox enqueue failed for addRemark:', err);
-    }
+    });
 
     return remark;
   }
@@ -113,15 +109,15 @@ export class RemarkRepository {
    */
   async softDeleteRemark(id: string): Promise<void> {
     const now = new Date().toISOString();
-    await this.db.remarks.update(id, {
-      deletedAt: now,
-      updatedAt: now,
-      isSynced: 0,
-    });
-
-    const updated = await this.db.remarks.get(id);
-    if (updated) {
-      try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.remarks, this.db.outbox], async () => {
+      await this.db.remarks.update(id, {
+        deletedAt: now,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      const updated = await this.db.remarks.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'remarks',
           entityId: updated.id,
@@ -129,10 +125,8 @@ export class RemarkRepository {
           payload: updated,
           userId: 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for softDeleteRemark:', err);
       }
-    }
+    });
   }
 
   /**

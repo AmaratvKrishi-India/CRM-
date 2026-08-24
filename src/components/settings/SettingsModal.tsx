@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X,
   MessageSquare,
   Paperclip,
   Settings,
@@ -15,7 +14,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Eye,
-  ArrowRight,
   Upload,
   LogOut,
   User as UserIcon,
@@ -31,6 +29,9 @@ import { renderMessageTemplate } from '../../services/templateRenderer';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSync } from '../../services/sync/useSync';
+import { Modal } from '../common/Modal';
+import { useToast } from '../common/Toast';
+import { labelFor } from '../../lib/labels';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -38,6 +39,10 @@ interface SettingsModalProps {
   onTemplatesChanged?: () => void;
   initialTab?: 'MESSAGES' | 'CATALOGUE' | 'PREFERENCES';
 }
+
+type SettingsTab = 'MESSAGES' | 'CATALOGUE' | 'PREFERENCES';
+
+const TAB_ORDER: SettingsTab[] = ['MESSAGES', 'CATALOGUE', 'PREFERENCES'];
 
 const SAMPLE_LEAD: Lead = {
   id: 'sample-lead-001',
@@ -92,7 +97,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const { currentUser, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { syncState, isSyncing, synchronizeNow } = useSync();
-  const [activeTab, setActiveTab] = useState<'MESSAGES' | 'CATALOGUE' | 'PREFERENCES'>(initialTab);
+  const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -123,6 +129,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const tabRefs = useRef<Partial<Record<SettingsTab, HTMLButtonElement | null>>>({});
 
   const loadData = async () => {
     setLoading(true);
@@ -137,6 +144,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setPreviewEnabled(isPrev);
     } catch (err) {
       console.error('Failed to load settings data:', err);
+      showToast({ message: 'Could not load settings. Please try again.', tone: 'error' });
     } finally {
       setLoading(false);
     }
@@ -151,17 +159,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setDeleteConfirmId(null);
       setCatalogueError(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialTab]);
 
-  if (!isOpen) return null;
+  const handleTabKeyDown = (e: React.KeyboardEvent, id: SettingsTab) => {
+    const idx = TAB_ORDER.indexOf(id);
+    let next: SettingsTab | null = null;
+    if (e.key === 'ArrowRight') next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+    else if (e.key === 'ArrowLeft') next = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+    else if (e.key === 'Home') next = TAB_ORDER[0];
+    else if (e.key === 'End') next = TAB_ORDER[TAB_ORDER.length - 1];
+    if (next) {
+      e.preventDefault();
+      setActiveTab(next);
+      tabRefs.current[next]?.focus();
+    }
+  };
 
   const handleSetDefault = async (templateId: string) => {
     try {
       await crmData.templates.setDefaultTemplate(templateId);
       await loadData();
       if (onTemplatesChanged) onTemplatesChanged();
+      showToast({ message: 'Default template updated.', tone: 'success' });
     } catch (err) {
       console.error('Failed to set default template:', err);
+      showToast({ message: 'Could not set the default template.', tone: 'error' });
     }
   };
 
@@ -170,8 +193,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       await crmData.templates.duplicateTemplate(templateId);
       await loadData();
       if (onTemplatesChanged) onTemplatesChanged();
+      showToast({ message: 'Template duplicated.', tone: 'success' });
     } catch (err) {
       console.error('Failed to duplicate template:', err);
+      showToast({ message: 'Could not duplicate the template.', tone: 'error' });
     }
   };
 
@@ -181,8 +206,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setDeleteConfirmId(null);
       await loadData();
       if (onTemplatesChanged) onTemplatesChanged();
+      showToast({ message: 'Template deleted.', tone: 'success' });
     } catch (err) {
       console.error('Failed to delete template:', err);
+      showToast({ message: 'Could not delete the template.', tone: 'error' });
     }
   };
 
@@ -232,8 +259,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setEditingTemplate(null);
       await loadData();
       if (onTemplatesChanged) onTemplatesChanged();
+      showToast({ message: 'Template saved.', tone: 'success' });
     } catch (err) {
       console.error('Failed to save template:', err);
+      showToast({ message: 'Could not save the template. Please try again.', tone: 'error' });
     }
   };
 
@@ -268,6 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     try {
       const saved = await AppSettingsService.setDefaultCatalogue(file);
       setDefaultCatalogue(saved);
+      showToast({ message: 'Catalogue saved for Quick Send.', tone: 'success' });
     } catch (err: any) {
       setCatalogueError(err.message || 'Failed to process file.');
     }
@@ -279,6 +309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    showToast({ message: 'Catalogue removed.', tone: 'info' });
   };
 
   const handleTogglePreview = (enabled: boolean) => {
@@ -286,611 +317,698 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     AppSettingsService.setWhatsappPreviewEnabled(enabled);
   };
 
+  const tabButtonClass = (selected: boolean) =>
+    `min-h-11 py-2 px-3 text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all ${
+      selected
+        ? 'border-accent text-accent-text bg-surface'
+        : 'border-transparent text-soft hover:text-ink'
+    }`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
-        {/* Top Header */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-              <Settings className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm">Settings & Pitch Templates</h3>
-              <p className="text-[11px] text-slate-400">Manage WhatsApp messages & collateral</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Settings & Pitch Templates"
+      subtitle="Manage WhatsApp messages & collateral"
+      maxWidthClassName="max-w-xl"
+      headerIcon={
+        <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent-text flex items-center justify-center shrink-0">
+          <Settings className="w-5 h-5" aria-hidden="true" />
         </div>
+      }
+    >
+      {/* Navigation Tabs */}
+      <div
+        role="tablist"
+        aria-label="Settings sections"
+        className="flex border-b border-line bg-inset px-2 -mx-4 -mt-4 mb-4"
+      >
+        <button
+          ref={(el) => {
+            tabRefs.current['MESSAGES'] = el;
+          }}
+          type="button"
+          role="tab"
+          id="settings-tab-messages"
+          aria-selected={activeTab === 'MESSAGES'}
+          aria-controls="settings-panel-messages"
+          tabIndex={activeTab === 'MESSAGES' ? 0 : -1}
+          onClick={() => {
+            setActiveTab('MESSAGES');
+            setIsCreating(false);
+            setEditingTemplate(null);
+          }}
+          onKeyDown={(e) => handleTabKeyDown(e, 'MESSAGES')}
+          className={tabButtonClass(activeTab === 'MESSAGES')}
+        >
+          <MessageSquare className="w-4 h-4" aria-hidden="true" />
+          <span>WhatsApp Messages</span>
+        </button>
 
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50 px-2">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('MESSAGES');
-              setIsCreating(false);
-              setEditingTemplate(null);
-            }}
-            className={`py-3 px-3 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'MESSAGES'
-                ? 'border-emerald-600 text-emerald-700 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span>WhatsApp Messages</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('CATALOGUE')}
-            className={`py-3 px-3 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'CATALOGUE'
-                ? 'border-emerald-600 text-emerald-700 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Paperclip className="w-4 h-4" />
-            <span>Default Catalogue</span>
-            {defaultCatalogue && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500" title="Catalogue configured" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('PREFERENCES')}
-            className={`py-3 px-3 text-xs font-bold flex items-center gap-1.5 border-b-2 transition-all ${
-              activeTab === 'PREFERENCES'
-                ? 'border-emerald-600 text-emerald-700 bg-white'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Preferences</span>
-          </button>
-        </div>
-
-        {/* Tab Body */}
-        <div className="p-4 overflow-y-auto space-y-4 flex-1">
-          {/* TAB 1: WHATSAPP MESSAGES */}
-          {activeTab === 'MESSAGES' && (
-            <div className="space-y-4">
-              {!isCreating && !editingTemplate ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
-                        Saved Pitch Templates ({templates.length})
-                      </h4>
-                      <p className="text-[11px] text-slate-500">
-                        Default template is automatically pre-filled when tapping WhatsApp on any lead.
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleStartCreate}
-                      className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>New Message</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    {templates.map((tpl) => {
-                      const renderedSample = renderMessageTemplate(tpl.body, { lead: SAMPLE_LEAD });
-                      const isConfirmingDelete = deleteConfirmId === tpl.id;
-
-                      return (
-                        <div
-                          key={tpl.id}
-                          className={`p-3 rounded-2xl border transition-all ${
-                            tpl.isDefault
-                              ? 'bg-emerald-50/50 border-emerald-300 shadow-xs'
-                              : 'bg-white border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h5 className="font-bold text-xs text-slate-900">{tpl.title}</h5>
-                                {tpl.isDefault && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-600 text-white uppercase tracking-wider">
-                                    <Check className="w-2.5 h-2.5" /> Default Pitch
-                                  </span>
-                                )}
-                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
-                                  {tpl.category}
-                                </span>
-                              </div>
-
-                              <p className="text-[11px] text-slate-600 font-mono mt-1.5 line-clamp-2 leading-relaxed bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                {renderedSample}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Template Action Buttons */}
-                          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                            {!tpl.isDefault ? (
-                              <button
-                                type="button"
-                                onClick={() => handleSetDefault(tpl.id)}
-                                className="text-[11px] font-bold text-slate-600 hover:text-emerald-700 flex items-center gap-1 transition-colors"
-                              >
-                                <Star className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Set as Default</span>
-                              </button>
-                            ) : (
-                              <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                Active for One-Tap Send
-                              </span>
-                            )}
-
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleDuplicate(tpl.id)}
-                                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                                title="Duplicate template"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleStartEdit(tpl)}
-                                className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                                title="Edit template"
-                              >
-                                <Edit3 className="w-3.5 h-3.5" />
-                              </button>
-
-                              {isConfirmingDelete ? (
-                                <div className="flex items-center gap-1 bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 animate-in fade-in">
-                                  <span className="text-[10px] font-bold text-rose-700">Delete?</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete(tpl.id)}
-                                    className="text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-700 px-1.5 py-0.5 rounded"
-                                  >
-                                    Yes
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeleteConfirmId(null)}
-                                    className="text-[10px] font-medium text-slate-600 hover:text-slate-900 px-1"
-                                  >
-                                    No
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteConfirmId(tpl.id)}
-                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                  title="Delete template"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              ) : (
-                /* CREATE / EDIT TEMPLATE FORM */
-                <div className="space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
-                      {isCreating ? 'Create WhatsApp Pitch Message' : 'Edit WhatsApp Pitch Message'}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCreating(false);
-                        setEditingTemplate(null);
-                      }}
-                      className="text-xs text-slate-500 hover:text-slate-800"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-
-                  {/* Title & Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-700">Template Title *</label>
-                      <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        placeholder="e.g. Standard Gym Intro Pitch"
-                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 mt-1 font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-700">Category</label>
-                      <select
-                        value={formData.category}
-                        onChange={(e) =>
-                          setFormData({ ...formData, category: e.target.value as TemplateCategory })
-                        }
-                        className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 mt-1 font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500"
-                      >
-                        <option value="INTRO">INTRO — Introduction & First Pitch</option>
-                        <option value="SAMPLE_OFFER">SAMPLE_OFFER — 1kg Sample Offer</option>
-                        <option value="PRICING">PRICING — Wholesale Margins & Rates</option>
-                        <option value="FOLLOW_UP">FOLLOW_UP — Post-Call Follow-up</option>
-                        <option value="RE_ENGAGE">RE_ENGAGE — Re-engagement & Restock</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Dynamic Variable Tag Chips */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
-                      <span>Insert Dynamic Lead Variables (tap to insert)</span>
-                    </label>
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {TEMPLATE_VARIABLES.map(({ tag }) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => handleInsertTag(tag)}
-                          className="py-1 px-2 rounded-lg text-[10px] font-mono font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors"
-                          title="Click to insert"
-                        >
-                          + {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Body Textarea */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700">Message Body *</label>
-                    <textarea
-                      ref={textareaRef}
-                      rows={6}
-                      value={formData.body}
-                      onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                      placeholder="Type your message with {{businessName}} and {{locality}}..."
-                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 mt-1 font-mono text-slate-800 leading-relaxed focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
-
-                  {/* Set as Default Checkbox */}
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={formData.isDefault}
-                      onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
-                      className="w-4 h-4 text-emerald-600 rounded-sm border-slate-300 focus:ring-emerald-500"
-                    />
-                    <span className="text-xs font-bold text-slate-800">
-                      Set as the default message for all leads (One-Tap Send)
-                    </span>
-                  </label>
-
-                  {/* Live Rendered Preview */}
-                  <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 space-y-1">
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 uppercase tracking-tight">
-                      <Eye className="w-3 h-3 text-slate-400" />
-                      <span>Live Preview (with sample lead: Skywards Fitness Zone, Alambagh)</span>
-                    </div>
-                    <p className="text-xs text-slate-800 font-mono whitespace-pre-wrap leading-relaxed">
-                      {renderMessageTemplate(formData.body, { lead: SAMPLE_LEAD })}
-                    </p>
-                  </div>
-
-                  {/* Form Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleSaveForm}
-                      disabled={!formData.title.trim() || !formData.body.trim()}
-                      className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 disabled:opacity-50 transition-colors"
-                    >
-                      Save Template
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCreating(false);
-                        setEditingTemplate(null);
-                      }}
-                      className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+        <button
+          ref={(el) => {
+            tabRefs.current['CATALOGUE'] = el;
+          }}
+          type="button"
+          role="tab"
+          id="settings-tab-catalogue"
+          aria-selected={activeTab === 'CATALOGUE'}
+          aria-controls="settings-panel-catalogue"
+          tabIndex={activeTab === 'CATALOGUE' ? 0 : -1}
+          onClick={() => setActiveTab('CATALOGUE')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'CATALOGUE')}
+          className={tabButtonClass(activeTab === 'CATALOGUE')}
+        >
+          <Paperclip className="w-4 h-4" aria-hidden="true" />
+          <span>Default Catalogue</span>
+          {defaultCatalogue && (
+            <span
+              className="w-2 h-2 rounded-full bg-success"
+              role="img"
+              aria-label="Catalogue configured"
+            />
           )}
+        </button>
 
-          {/* TAB 2: DEFAULT CATALOGUE */}
-          {activeTab === 'CATALOGUE' && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
-                  Default Product Catalogue & Collateral
-                </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Select your product catalogue PDF or price sheet once. When you tap Quick Send on any lead, this catalogue is automatically attached.
-                </p>
-              </div>
+        <button
+          ref={(el) => {
+            tabRefs.current['PREFERENCES'] = el;
+          }}
+          type="button"
+          role="tab"
+          id="settings-tab-preferences"
+          aria-selected={activeTab === 'PREFERENCES'}
+          aria-controls="settings-panel-preferences"
+          tabIndex={activeTab === 'PREFERENCES' ? 0 : -1}
+          onClick={() => setActiveTab('PREFERENCES')}
+          onKeyDown={(e) => handleTabKeyDown(e, 'PREFERENCES')}
+          className={tabButtonClass(activeTab === 'PREFERENCES')}
+        >
+          <Settings className="w-4 h-4" aria-hidden="true" />
+          <span>Preferences</span>
+        </button>
+      </div>
 
-              {catalogueError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-                  <span>{catalogueError}</span>
-                </div>
-              )}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,image/*,.doc,.docx"
-                onChange={handleCatalogueUpload}
-                className="hidden"
-              />
-
-              {defaultCatalogue ? (
-                <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      {defaultCatalogue.isPdf ? (
-                        <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center flex-shrink-0">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
-                          <ImageIcon className="w-5 h-5" />
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-bold text-xs text-slate-900">{defaultCatalogue.name}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          {defaultCatalogue.sizeFormatted} • {defaultCatalogue.isPdf ? 'PDF Document' : 'Image'}
-                        </p>
-                        <p className="text-[10px] text-emerald-700 font-semibold mt-1">
-                          ✓ Ready for auto-attachment during Quick Send
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-2 border-t border-emerald-200/60">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Replace Catalogue</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleRemoveCatalogue}
-                      className="py-2 px-3 rounded-xl bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-6 border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl bg-slate-50 hover:bg-emerald-50/40 text-center cursor-pointer transition-all space-y-2"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-xs text-slate-800">Select Default Catalogue PDF</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      PDF, Images, or DOC up to 25 MB. Saved 100% locally on this device.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="py-1.5 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs mt-2"
-                  >
-                    Browse Files
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 3: PREFERENCES */}
-          {activeTab === 'PREFERENCES' && (
-            <div className="space-y-4">
-
-              {/* ── Sync Status Section ── */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
-                  Sync Status
-                </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Data is automatically synced in the background. You can also trigger a sync manually.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl border border-slate-200 bg-white space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-0.5">
-                    <p className="font-bold text-xs text-slate-900">Cloud Sync</p>
-                    <p className="text-[11px] text-slate-500 leading-normal">
-                      {syncState?.lastSuccessfulSyncAt
-                        ? `Last synced: ${new Date(syncState.lastSuccessfulSyncAt).toLocaleString()}`
-                        : 'Not yet synced this session'}
-                    </p>
-                    {syncState?.lastSyncError && (
-                      <p className="text-[11px] text-rose-500">{syncState.lastSyncError}</p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => synchronizeNow()}
-                    disabled={isSyncing}
-                    className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-default flex-shrink-0"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-                    <span>{isSyncing ? 'Syncing…' : 'Sync Now'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Appearance Section ── */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight mt-2">
-                  Appearance
-                </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Choose your preferred app theme. This setting is saved on your device.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl border border-slate-200 bg-white space-y-2">
-                <p className="font-bold text-xs text-slate-900">App Theme</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTheme('NIGHT')}
-                    className={`flex-1 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      theme === 'NIGHT'
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                    }`}
-                  >
-                    <Moon className="w-4 h-4" />
-                    <span>Night</span>
-                    {theme === 'NIGHT' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTheme('DAY')}
-                    className={`flex-1 py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                      theme === 'DAY'
-                        ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-                    }`}
-                  >
-                    <Sun className="w-4 h-4" />
-                    <span>Day</span>
-                    {theme === 'DAY' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* ── WhatsApp Preferences ── */}
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-tight mt-2">
-                  WhatsApp Outreach Preferences
-                </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Configure the one-tap sales workflow behavior on your device.
-                </p>
-              </div>
-
-              {/* Toggle 1: Preview Before WhatsApp */}
-              <div className="p-3.5 rounded-2xl border border-slate-200 bg-white flex items-center justify-between gap-3">
-                <div className="space-y-0.5">
-                  <p className="font-bold text-xs text-slate-900">Preview Before WhatsApp</p>
-                  <p className="text-[11px] text-slate-500 leading-normal">
-                    Show the personalized message & catalogue preview before launching WhatsApp.
+      {/* TAB 1: WHATSAPP MESSAGES */}
+      {activeTab === 'MESSAGES' && (
+        <div
+          role="tabpanel"
+          id="settings-panel-messages"
+          aria-labelledby="settings-tab-messages"
+          className="space-y-4"
+        >
+          {!isCreating && !editingTemplate ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-bold text-ink">
+                    Saved Pitch Templates ({templates.length})
+                  </h4>
+                  <p className="text-xs text-soft mt-0.5">
+                    Default template is automatically pre-filled when tapping WhatsApp on any lead.
                   </p>
                 </div>
 
-                <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={previewEnabled}
-                    onChange={(e) => handleTogglePreview(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600" />
-                </label>
+                <button
+                  type="button"
+                  onClick={handleStartCreate}
+                  className="min-h-11 py-1.5 px-3 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm flex items-center gap-1 shadow-xs transition-colors shrink-0"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                  <span>New Message</span>
+                </button>
               </div>
 
-              {/* User Profile & Session Info */}
-              {currentUser && (
-                <div className="p-3.5 rounded-2xl border border-slate-200 bg-white space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <UserIcon className="w-3.5 h-3.5 text-slate-500" />
-                        <p className="font-bold text-xs text-slate-900">{currentUser.name}</p>
-                      </div>
-                      <p className="text-[11px] text-slate-500 ml-5">{currentUser.email}</p>
+              {loading ? (
+                <div className="space-y-2.5" aria-label="Loading templates" role="status">
+                  {[0, 1].map((i) => (
+                    <div key={i} className="p-3 rounded-2xl border border-line bg-surface animate-pulse">
+                      <div className="h-3.5 w-1/3 rounded bg-inset-strong" />
+                      <div className="h-3 w-full rounded bg-inset mt-2.5" />
+                      <div className="h-3 w-2/3 rounded bg-inset mt-1.5" />
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                        currentUser.role === 'ADMIN'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      }`}
-                    >
-                      {currentUser.role}
-                    </span>
-                  </div>
+                  ))}
+                </div>
+              ) : templates.length === 0 ? (
+                <div className="p-6 rounded-2xl border border-dashed border-line-strong bg-inset text-center">
+                  <p className="text-sm font-semibold text-ink">No templates yet</p>
+                  <p className="text-xs text-soft mt-1">
+                    Create your first pitch message to speed up WhatsApp outreach.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {templates.map((tpl) => {
+                    const renderedSample = renderMessageTemplate(tpl.body, { lead: SAMPLE_LEAD });
+                    const isConfirmingDelete = deleteConfirmId === tpl.id;
 
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      onClose();
-                      await signOut();
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors active:scale-98"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
+                    return (
+                      <div
+                        key={tpl.id}
+                        className={`p-3 rounded-2xl border transition-all ${
+                          tpl.isDefault
+                            ? 'bg-accent-soft border-accent shadow-xs'
+                            : 'bg-surface border-line hover:border-line-strong'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h5 className="font-bold text-sm text-ink">{tpl.title}</h5>
+                              {tpl.isDefault && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-black bg-accent text-on-accent uppercase tracking-wide">
+                                  <Check className="w-3 h-3" aria-hidden="true" /> Default Pitch
+                                </span>
+                              )}
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-inset text-soft">
+                                {labelFor(tpl.category)}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-soft font-mono mt-1.5 line-clamp-2 leading-relaxed bg-inset p-2 rounded-lg border border-line">
+                              {renderedSample}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Template Action Buttons */}
+                        <div className="mt-3 pt-2 border-t border-line flex items-center justify-between">
+                          {!tpl.isDefault ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSetDefault(tpl.id)}
+                              className="min-h-11 px-1 text-sm font-bold text-soft hover:text-accent-text flex items-center gap-1 transition-colors"
+                            >
+                              <Star className="w-4 h-4 text-faint" aria-hidden="true" />
+                              <span>Set as Default</span>
+                            </button>
+                          ) : (
+                            <span className="text-sm font-semibold text-success-text flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+                              Active for One-Tap Send
+                            </span>
+                          )}
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicate(tpl.id)}
+                              aria-label={`Duplicate template ${tpl.title}`}
+                              className="w-11 h-11 flex items-center justify-center text-faint hover:text-ink hover:bg-inset rounded-lg transition-colors"
+                            >
+                              <Copy className="w-4 h-4" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(tpl)}
+                              aria-label={`Edit template ${tpl.title}`}
+                              className="w-11 h-11 flex items-center justify-center text-faint hover:text-accent-text hover:bg-accent-soft rounded-lg transition-colors"
+                            >
+                              <Edit3 className="w-4 h-4" aria-hidden="true" />
+                            </button>
+
+                            {isConfirmingDelete ? (
+                              <div className="flex items-center gap-1 bg-danger-soft px-2 py-1 rounded-lg border border-danger">
+                                <span className="text-xs font-bold text-danger-text">Delete?</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(tpl.id)}
+                                  aria-label={`Confirm delete ${tpl.title}`}
+                                  className="min-h-9 px-2 text-xs font-bold text-white bg-danger hover:opacity-90 rounded-lg"
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteConfirmId(null)}
+                                  aria-label="Cancel delete"
+                                  className="min-h-9 px-2 text-xs font-medium text-soft hover:text-ink rounded-lg"
+                                >
+                                  No
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setDeleteConfirmId(tpl.id)}
+                                aria-label={`Delete template ${tpl.title}`}
+                                className="w-11 h-11 flex items-center justify-center text-faint hover:text-danger-text hover:bg-danger-soft rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" aria-hidden="true" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
+            </>
+          ) : (
+            /* CREATE / EDIT TEMPLATE FORM */
+            <div className="space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between pb-2 border-b border-line">
+                <h4 className="text-sm font-bold text-ink">
+                  {isCreating ? 'Create WhatsApp Pitch Message' : 'Edit WhatsApp Pitch Message'}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreating(false);
+                    setEditingTemplate(null);
+                  }}
+                  className="min-h-11 px-2 text-sm text-soft hover:text-ink"
+                >
+                  Cancel
+                </button>
+              </div>
 
-              {/* Status Note */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <p className="font-bold text-slate-800">Local-First & Offline Integrity</p>
-                <p>
-                  All templates, lead records, and settings are preserved locally on your device in IndexedDB. Logging out clears the authenticated session but does not delete local CRM records.
+              {/* Title & Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="tpl-title" className="text-xs font-bold text-soft">
+                    Template Title *
+                  </label>
+                  <input
+                    id="tpl-title"
+                    data-autofocus
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="e.g. Standard Gym Intro Pitch"
+                    className="w-full text-sm bg-inset border border-line rounded-xl p-2.5 mt-1 font-semibold text-ink focus:ring-2 focus:ring-focus-ring"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="tpl-category" className="text-xs font-bold text-soft">
+                    Category
+                  </label>
+                  <select
+                    id="tpl-category"
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData({ ...formData, category: e.target.value as TemplateCategory })
+                    }
+                    className="w-full text-sm bg-inset border border-line rounded-xl p-2.5 mt-1 font-semibold text-ink focus:ring-2 focus:ring-focus-ring"
+                  >
+                    <option value="INTRO">Intro — Introduction & First Pitch</option>
+                    <option value="SAMPLE_OFFER">Sample Offer — 1kg Sample Offer</option>
+                    <option value="PRICING">Pricing — Wholesale Margins & Rates</option>
+                    <option value="FOLLOW_UP">Follow-up — Post-Call Follow-up</option>
+                    <option value="RE_ENGAGE">Re-engage — Re-engagement & Restock</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Dynamic Variable Tag Chips */}
+              <div>
+                <span className="text-xs font-bold text-soft" id="tpl-vars-label">
+                  Insert Dynamic Lead Variables (tap to insert)
+                </span>
+                <div
+                  className="flex flex-wrap gap-1.5 mt-1.5"
+                  role="group"
+                  aria-labelledby="tpl-vars-label"
+                >
+                  {TEMPLATE_VARIABLES.map(({ tag, desc }) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleInsertTag(tag)}
+                      aria-label={`Insert ${desc}`}
+                      className="min-h-9 py-1 px-2 rounded-lg text-xs font-mono font-bold bg-accent-soft hover:bg-accent/20 text-accent-text border border-accent transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Body Textarea */}
+              <div>
+                <label htmlFor="tpl-body" className="text-xs font-bold text-soft">
+                  Message Body *
+                </label>
+                <textarea
+                  id="tpl-body"
+                  ref={textareaRef}
+                  rows={6}
+                  value={formData.body}
+                  onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                  placeholder="Type your message with {{businessName}} and {{locality}}..."
+                  className="w-full text-sm bg-inset border border-line rounded-xl p-3 mt-1 font-mono text-ink leading-relaxed focus:ring-2 focus:ring-focus-ring focus:outline-none"
+                />
+              </div>
+
+              {/* Set as Default Checkbox */}
+              <label className="flex items-center gap-2 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={formData.isDefault}
+                  onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
+                  className="w-4 h-4 accent-[var(--accent)] rounded-sm border-line-strong focus:ring-2 focus:ring-focus-ring"
+                />
+                <span className="text-sm font-bold text-ink">
+                  Set as the default message for all leads (One-Tap Send)
+                </span>
+              </label>
+
+              {/* Live Rendered Preview */}
+              <div className="p-3 bg-inset rounded-xl border border-line space-y-1">
+                <div className="flex items-center gap-1 text-xs font-bold text-faint uppercase tracking-tight">
+                  <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Live Preview (with sample lead: Skywards Fitness Zone, Alambagh)</span>
+                </div>
+                <p className="text-sm text-ink font-mono whitespace-pre-wrap leading-relaxed">
+                  {renderMessageTemplate(formData.body, { lead: SAMPLE_LEAD })}
                 </p>
+              </div>
+
+              {/* Form Action Buttons */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveForm}
+                  disabled={!formData.title.trim() || !formData.body.trim()}
+                  className="min-h-11 flex-1 py-3 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm shadow-md disabled:opacity-50 transition-colors"
+                >
+                  Save Template
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreating(false);
+                    setEditingTemplate(null);
+                  }}
+                  className="min-h-11 py-3 px-4 rounded-xl bg-inset hover:bg-inset-strong text-ink font-bold text-sm transition-colors"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           )}
         </div>
+      )}
 
-        {/* Footer */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-colors"
-          >
-            Close Settings
-          </button>
+      {/* TAB 2: DEFAULT CATALOGUE */}
+      {activeTab === 'CATALOGUE' && (
+        <div
+          role="tabpanel"
+          id="settings-panel-catalogue"
+          aria-labelledby="settings-tab-catalogue"
+          className="space-y-4"
+        >
+          <div>
+            <h4 className="text-sm font-bold text-ink">Default Product Catalogue & Collateral</h4>
+            <p className="text-xs text-soft mt-0.5">
+              Select your product catalogue PDF or price sheet once. When you tap Quick Send on any
+              lead, this catalogue is automatically attached.
+            </p>
+          </div>
+
+          {catalogueError && (
+            <div
+              role="alert"
+              className="p-3 bg-danger-soft border border-danger rounded-xl text-sm text-danger-text flex items-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              <span>{catalogueError}</span>
+            </div>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,image/*,.doc,.docx"
+            onChange={handleCatalogueUpload}
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+          />
+
+          {defaultCatalogue ? (
+            <div className="bg-accent-soft border border-accent rounded-2xl p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  {defaultCatalogue.isPdf ? (
+                    <div className="w-10 h-10 rounded-xl bg-danger-soft text-danger-text flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5" aria-hidden="true" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-accent-soft text-accent-text flex items-center justify-center flex-shrink-0">
+                      <ImageIcon className="w-5 h-5" aria-hidden="true" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-bold text-sm text-ink">{defaultCatalogue.name}</p>
+                    <p className="text-xs text-soft mt-0.5">
+                      {defaultCatalogue.sizeFormatted} •{' '}
+                      {defaultCatalogue.isPdf ? 'PDF Document' : 'Image'}
+                    </p>
+                    <p className="text-xs text-success-text font-semibold mt-1">
+                      ✓ Ready for auto-attachment during Quick Send
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="min-h-11 py-2 px-3 rounded-xl bg-surface hover:bg-inset border border-line-strong text-ink text-sm font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Upload className="w-4 h-4" aria-hidden="true" />
+                  <span>Replace Catalogue</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveCatalogue}
+                  className="min-h-11 py-2 px-3 rounded-xl bg-surface hover:bg-danger-soft border border-danger text-danger-text text-sm font-bold flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" aria-hidden="true" />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 border-2 border-dashed border-line-strong rounded-2xl bg-inset text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-accent-soft text-accent-text flex items-center justify-center mx-auto">
+                <Upload className="w-6 h-6" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-ink">Select Default Catalogue PDF</p>
+                <p className="text-xs text-soft mt-0.5">
+                  PDF, Images, or DOC up to 25 MB. Saved 100% locally on this device.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="min-h-11 py-1.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm mt-2"
+              >
+                Browse Files
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* TAB 3: PREFERENCES */}
+      {activeTab === 'PREFERENCES' && (
+        <div
+          role="tabpanel"
+          id="settings-panel-preferences"
+          aria-labelledby="settings-tab-preferences"
+          className="space-y-4"
+        >
+          {/* ── Sync Status Section ── */}
+          <div>
+            <h4 className="text-sm font-bold text-ink">Sync Status</h4>
+            <p className="text-xs text-soft mt-0.5">
+              Data is automatically synced in the background. You can also trigger a sync manually.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border border-line bg-surface space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="space-y-0.5">
+                <p className="font-bold text-sm text-ink">Cloud Sync</p>
+                <p className="text-xs text-soft leading-normal">
+                  {syncState?.lastSuccessfulSyncAt
+                    ? `Last synced: ${new Date(syncState.lastSuccessfulSyncAt).toLocaleString()}`
+                    : 'Not yet synced this session'}
+                </p>
+                {syncState?.lastSyncError && (
+                  <p className="text-xs text-danger-text">{syncState.lastSyncError}</p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => synchronizeNow()}
+                disabled={isSyncing}
+                className="min-h-11 py-2 px-3 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-default flex-shrink-0"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`}
+                  aria-hidden="true"
+                />
+                <span>{isSyncing ? 'Syncing…' : 'Sync Now'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ── Appearance Section ── */}
+          <div>
+            <h4 className="text-sm font-bold text-ink mt-2">Appearance</h4>
+            <p className="text-xs text-soft mt-0.5">
+              Choose your preferred app theme. This setting is saved on your device.
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border border-line bg-surface space-y-2">
+            <p className="font-bold text-sm text-ink" id="theme-choice-label">
+              App Theme
+            </p>
+            <div
+              className="flex items-center gap-2"
+              role="group"
+              aria-labelledby="theme-choice-label"
+            >
+              <button
+                type="button"
+                onClick={() => setTheme('NIGHT')}
+                aria-pressed={theme === 'NIGHT'}
+                className={`min-h-11 flex-1 py-2.5 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  theme === 'NIGHT'
+                    ? 'bg-ink text-app border-ink shadow-sm'
+                    : 'bg-surface text-soft border-line hover:border-line-strong'
+                }`}
+              >
+                <Moon className="w-4 h-4" aria-hidden="true" />
+                <span>Night</span>
+                {theme === 'NIGHT' && (
+                  <CheckCircle2 className="w-4 h-4 text-accent-text" aria-hidden="true" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('DAY')}
+                aria-pressed={theme === 'DAY'}
+                className={`min-h-11 flex-1 py-2.5 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                  theme === 'DAY'
+                    ? 'bg-warning-soft text-warning-text border-warning shadow-sm'
+                    : 'bg-surface text-soft border-line hover:border-line-strong'
+                }`}
+              >
+                <Sun className="w-4 h-4" aria-hidden="true" />
+                <span>Day</span>
+                {theme === 'DAY' && (
+                  <CheckCircle2 className="w-4 h-4 text-accent-text" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ── WhatsApp Preferences ── */}
+          <div>
+            <h4 className="text-sm font-bold text-ink mt-2">WhatsApp Outreach Preferences</h4>
+            <p className="text-xs text-soft mt-0.5">
+              Configure the one-tap sales workflow behavior on your device.
+            </p>
+          </div>
+
+          {/* Toggle 1: Preview Before WhatsApp */}
+          <div className="p-3.5 rounded-2xl border border-line bg-surface flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="font-bold text-sm text-ink" id="preview-toggle-label">
+                Preview Before WhatsApp
+              </p>
+              <p className="text-xs text-soft leading-normal">
+                Show the personalized message & catalogue preview before launching WhatsApp.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={previewEnabled}
+              aria-labelledby="preview-toggle-label"
+              onClick={() => handleTogglePreview(!previewEnabled)}
+              className={`relative inline-flex w-11 h-6 rounded-full transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring ${
+                previewEnabled ? 'bg-accent' : 'bg-inset-strong'
+              }`}
+            >
+              <span
+                className={`absolute top-[2px] left-[2px] w-5 h-5 bg-white border border-line rounded-full transition-transform ${
+                  previewEnabled ? 'translate-x-full' : ''
+                }`}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          {/* User Profile & Session Info */}
+          {currentUser && (
+            <div className="p-3.5 rounded-2xl border border-line bg-surface space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <UserIcon className="w-4 h-4 text-faint" aria-hidden="true" />
+                    <p className="font-bold text-sm text-ink">{currentUser.name}</p>
+                  </div>
+                  <p className="text-xs text-soft ml-6">{currentUser.email}</p>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide border ${
+                    currentUser.role === 'ADMIN'
+                      ? 'bg-info-soft text-info-text border-info'
+                      : 'bg-success-soft text-success-text border-success'
+                  }`}
+                >
+                  {labelFor(currentUser.role)}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  onClose();
+                  await signOut();
+                }}
+                className="min-h-11 w-full py-2 px-3 rounded-xl bg-danger-soft hover:bg-danger/20 border border-danger text-danger-text text-sm font-bold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <LogOut className="w-4 h-4" aria-hidden="true" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          )}
+
+          {/* Status Note */}
+          <div className="p-3 bg-inset rounded-xl border border-line text-xs text-soft space-y-1">
+            <p className="font-bold text-ink">Local-First & Offline Integrity</p>
+            <p>
+              All templates, lead records, and settings are preserved locally on your device in
+              IndexedDB. Logging out clears the authenticated session but does not delete local CRM
+              records.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="pt-4 mt-2 border-t border-line flex justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-11 py-2 px-4 rounded-xl bg-ink hover:opacity-90 text-app font-bold text-sm transition-colors"
+        >
+          Close Settings
+        </button>
       </div>
-    </div>
+    </Modal>
   );
 };

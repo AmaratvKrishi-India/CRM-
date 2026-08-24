@@ -2,16 +2,16 @@
 
 How to bring this project up on a fresh checkout of this machine: dependencies, local Supabase stack, dev server, emulators, and the first-run checklist.
 
-## Current Machine State (2026-08-22)
+## Current Machine State (2026-08-23)
 
 | Item | State |
 |------|-------|
 | Node v26.5.0 / npm 11.17.0 | Installed |
 | Docker 29.7.2 | Running |
-| `node_modules` | MISSING - run `npm install` |
-| `dist/` | Absent until `npm run build` |
+| `node_modules` | Present |
+| `dist/` | Present |
 | Local Supabase stack | Stopped (`npx supabase start` to launch) |
-| Supabase project link | Not linked (`linked_project: null`) |
+| Supabase project link | Linked (`lahvcodvgubplzfshare`) |
 | Android emulators | 3 online (5556, 5558, 5560) via adb |
 | `JAVA_HOME` / `ANDROID_HOME` | NOT SET - Android builds broken until fixed |
 | `adb` | Works via full path, not on PATH |
@@ -31,7 +31,7 @@ npx supabase status          # prints local URLs/keys (local demo values only)
 # 3. Dev server (port 3000)
 npm run dev
 
-# 4. Optional: link repo to cloud project (needed for db push / functions deploy)
+# 4. Optional: link repo to cloud project (needed for db push / functions deploy; already linked on this machine)
 npx supabase link --project-ref lahvcodvgubplzfshare
 ```
 
@@ -39,8 +39,8 @@ npx supabase link --project-ref lahvcodvgubplzfshare
 
 Local development uses [.env.local](file:///c:/Users/PC/Desktop/calling%20app/.env.local), which points at the Dockerized Supabase stack (`http://127.0.0.1:15432`). See [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md) for the full file matrix and loading order.
 
-> [!WARNING]
-> [.env.staging](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) currently has all four variables EMPTY. Do not use staging mode until it is filled in.
+> [!NOTE]
+> [.env.staging](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) is populated with the shared cloud project URL/anon key and `VITE_APP_ENV=staging`. Only `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` are intentionally empty (machine-local, needed only for `db push`).
 
 ## Local Supabase Ports
 

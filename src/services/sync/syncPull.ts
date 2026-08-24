@@ -73,11 +73,17 @@ export class SyncPull {
           leadId: row.lead_id,
           userId: row.user_id || null,
           deviceId: row.device_id || null,
+          dialAttemptId: row.dial_attempt_id ?? null,
           startedAt: row.started_at,
           answeredAt: row.answered_at || null,
           endedAt: row.ended_at || null,
           durationSeconds: Number(row.duration_seconds || 0),
+          reportedDurationSeconds:
+            row.reported_duration_seconds !== null && row.reported_duration_seconds !== undefined
+              ? Number(row.reported_duration_seconds)
+              : null,
           outcome: row.outcome || 'OTHER',
+          callStatus: row.call_status || undefined,
           remark: row.remark || null,
           verificationStatus: row.verification_status || 'UNVERIFIED',
         };

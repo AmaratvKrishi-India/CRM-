@@ -2,6 +2,9 @@
  * Lead Activity & Assignment Timeline (Phase 2I)
  * Chronological visualization of all events for a lead:
  * Lead Created -> Assigned -> Reassigned -> Calls -> Follow-ups -> Remarks.
+ *
+ * UX remediation: design tokens (F1/F12) so the timeline follows the active
+ * day/night theme; aria-hidden icons; readable text sizes (F7).
  */
 
 import React, { useEffect, useState } from 'react';
@@ -12,7 +15,6 @@ import {
   Calendar,
   MessageSquare,
   Clock,
-  Sparkles,
   Loader2,
   Share2,
 } from 'lucide-react';
@@ -29,6 +31,7 @@ export const LeadTimelineView: React.FC<LeadTimelineViewProps> = ({ leadId }) =>
 
   useEffect(() => {
     loadTimeline();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadId]);
 
   const loadTimeline = async () => {
@@ -47,23 +50,23 @@ export const LeadTimelineView: React.FC<LeadTimelineViewProps> = ({ leadId }) =>
     switch (type) {
       case 'LEAD_CREATED':
       case 'LEAD_IMPORTED':
-        return <UserPlus className="w-3.5 h-3.5 text-blue-400" />;
+        return <UserPlus className="w-3.5 h-3.5 text-info-text" aria-hidden="true" />;
       case 'LEAD_ASSIGNED':
       case 'LEAD_REASSIGNED':
-        return <UserCheck className="w-3.5 h-3.5 text-purple-400" />;
+        return <UserCheck className="w-3.5 h-3.5 text-accent-text" aria-hidden="true" />;
       case 'LEAD_UNASSIGNED':
-        return <Share2 className="w-3.5 h-3.5 text-amber-400" />;
+        return <Share2 className="w-3.5 h-3.5 text-warning-text" aria-hidden="true" />;
       case 'CALL_STARTED':
       case 'CALL_COMPLETED':
       case 'CALL_OUTCOME_LOGGED':
-        return <PhoneCall className="w-3.5 h-3.5 text-emerald-400" />;
+        return <PhoneCall className="w-3.5 h-3.5 text-success-text" aria-hidden="true" />;
       case 'FOLLOW_UP_CREATED':
       case 'FOLLOW_UP_COMPLETED':
-        return <Calendar className="w-3.5 h-3.5 text-amber-400" />;
+        return <Calendar className="w-3.5 h-3.5 text-warning-text" aria-hidden="true" />;
       case 'REMARK_ADDED':
-        return <MessageSquare className="w-3.5 h-3.5 text-sky-400" />;
+        return <MessageSquare className="w-3.5 h-3.5 text-info-text" aria-hidden="true" />;
       default:
-        return <Clock className="w-3.5 h-3.5 text-slate-400" />;
+        return <Clock className="w-3.5 h-3.5 text-faint" aria-hidden="true" />;
     }
   };
 
@@ -106,22 +109,22 @@ export const LeadTimelineView: React.FC<LeadTimelineViewProps> = ({ leadId }) =>
 
   if (loading) {
     return (
-      <div className="p-4 text-center">
-        <Loader2 className="w-5 h-5 animate-spin text-slate-400 mx-auto" />
+      <div className="p-4 text-center" role="status">
+        <Loader2 className="w-5 h-5 animate-spin text-faint mx-auto" aria-hidden="true" />
       </div>
     );
   }
 
   if (activities.length === 0) {
     return (
-      <div className="p-4 text-center text-xs text-slate-500">
+      <div className="p-4 text-center text-sm text-soft">
         No recorded history yet.
       </div>
     );
   }
 
   return (
-    <div className="relative pl-6 space-y-3 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-700/60">
+    <div className="relative pl-6 space-y-3 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-line">
       {activities.map((act) => {
         const timeFormatted = new Date(act.createdAt).toLocaleDateString('en-IN', {
           day: 'numeric',
@@ -131,15 +134,15 @@ export const LeadTimelineView: React.FC<LeadTimelineViewProps> = ({ leadId }) =>
         });
 
         return (
-          <div key={act.id} className="relative flex items-start gap-2.5 text-xs">
-            <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center flex-shrink-0">
+          <div key={act.id} className="relative flex items-start gap-2.5 text-sm">
+            <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-surface border border-line-strong flex items-center justify-center shrink-0">
               {getActivityIcon(act.activityType)}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-slate-200 font-medium leading-tight">
+              <p className="text-ink font-medium leading-tight">
                 {getActivityDescription(act)}
               </p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{timeFormatted}</p>
+              <p className="text-xs text-faint mt-0.5">{timeFormatted}</p>
             </div>
           </div>
         );

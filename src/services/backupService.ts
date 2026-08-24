@@ -83,6 +83,9 @@ export interface MergeRestoreResult {
     activities?: { added: number; updated: number; skipped: number };
     callRecords?: { added: number; updated: number; skipped: number };
     importAudits?: { added: number; updated: number; skipped: number };
+    outbox?: { added: number; updated: number; skipped: number };
+    syncState?: { added: number; updated: number; skipped: number };
+    bulkAssignmentAudits?: { added: number; updated: number; skipped: number };
   };
 }
 
@@ -393,6 +396,9 @@ export class BackupService {
         activities: { added: 0, updated: 0, skipped: 0 },
         callRecords: { added: 0, updated: 0, skipped: 0 },
         importAudits: { added: 0, updated: 0, skipped: 0 },
+        outbox: { added: 0, updated: 0, skipped: 0 },
+        syncState: { added: 0, updated: 0, skipped: 0 },
+        bulkAssignmentAudits: { added: 0, updated: 0, skipped: 0 },
       },
     };
 
@@ -449,6 +455,37 @@ export class BackupService {
       if (payload.data.activities) await mergeTable('activities', payload.data.activities, result.details.activities!);
       if (payload.data.callRecords) await mergeTable('callRecords', payload.data.callRecords, result.details.callRecords!);
       if (payload.data.importAudits) await mergeTable('importAudits', payload.data.importAudits, result.details.importAudits!);
+      // Push sync is purely outbox-driven, so unsynced mutations only survive a
+      // restore if the outbox is merged too (mirrors replaceRestore behaviour).
+      if (payload.data.outbox) await mergeTable('outbox', payload.data.outbox, result.details.outbox!);
+      if (payload.data.bulkAssignmentAudits)
+        await mergeTable('bulkAssignmentAudits', payload.data.bulkAssignmentAudits, result.details.bulkAssignmentAudits!);
+
+      // Sync cursor: adopt the backup's state on a fresh device, but never
+      // regress a strictly-newer local cursor (that would only cause harmless
+      // re-fetching, yet keeping the newer cursor is cheaper and correct).
+      if (payload.data.syncState && payload.data.syncState.length > 0) {
+        for (const incoming of payload.data.syncState) {
+          const local = await this.db.syncState.get(incoming.id);
+          if (!local) {
+            await this.db.syncState.put(incoming);
+            result.details.syncState!.added++;
+            result.added++;
+          } else {
+            const localTs = new Date(local.lastSuccessfulSyncAt || 0).getTime();
+            const incomingTs = new Date(incoming.lastSuccessfulSyncAt || 0).getTime();
+            if (incomingTs >= localTs) {
+              await this.db.syncState.put(incoming);
+              result.details.syncState!.updated++;
+              result.updated++;
+            } else {
+              result.details.syncState!.skipped++;
+              result.skipped++;
+              result.conflicts++;
+            }
+          }
+        }
+      }
     });
 
     this.logAudit({

@@ -1,6 +1,7 @@
 /**
  * Report KPI Card Component (Phase 2M)
  * Reusable metric card with badge styling, icon accents, and responsive layout.
+ * Rewritten for design tokens + button semantics when clickable (F1/F3).
  */
 
 import React from 'react';
@@ -15,6 +16,38 @@ interface ReportKpiCardProps {
   onClick?: () => void;
 }
 
+/** Map the legacy colour names onto the shared token families. */
+const colorStyles: Record<
+  NonNullable<ReportKpiCardProps['color']>,
+  { border: string; iconBg: string; val: string }
+> = {
+  purple: {
+    border: 'hover:border-accent/50',
+    iconBg: 'bg-accent-soft text-accent-text border-accent/30',
+    val: 'text-accent-text',
+  },
+  emerald: {
+    border: 'hover:border-success/50',
+    iconBg: 'bg-success-soft text-success-text border-success/30',
+    val: 'text-success-text',
+  },
+  blue: {
+    border: 'hover:border-info/50',
+    iconBg: 'bg-info-soft text-info border-info/30',
+    val: 'text-info',
+  },
+  amber: {
+    border: 'hover:border-warning/50',
+    iconBg: 'bg-warning-soft text-warning-text border-warning/30',
+    val: 'text-warning-text',
+  },
+  rose: {
+    border: 'hover:border-danger/50',
+    iconBg: 'bg-danger-soft text-danger-text border-danger/30',
+    val: 'text-danger-text',
+  },
+};
+
 export const ReportKpiCard: React.FC<ReportKpiCardProps> = ({
   title,
   value,
@@ -23,49 +56,30 @@ export const ReportKpiCard: React.FC<ReportKpiCardProps> = ({
   color = 'purple',
   onClick,
 }) => {
-  const colorStyles = {
-    purple: {
-      border: 'hover:border-purple-500/40',
-      iconBg: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-      val: 'text-purple-300',
-    },
-    emerald: {
-      border: 'hover:border-emerald-500/40',
-      iconBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      val: 'text-emerald-300',
-    },
-    blue: {
-      border: 'hover:border-blue-500/40',
-      iconBg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      val: 'text-blue-300',
-    },
-    amber: {
-      border: 'hover:border-amber-500/40',
-      iconBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      val: 'text-amber-300',
-    },
-    rose: {
-      border: 'hover:border-rose-500/40',
-      iconBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-      val: 'text-rose-300',
-    },
-  }[color];
+  const styles = colorStyles[color];
 
-  return (
-    <div
-      onClick={onClick}
-      className={`p-4 bg-slate-900 border border-slate-800 ${colorStyles.border} rounded-2xl shadow-md transition-all ${
-        onClick ? 'cursor-pointer active:scale-98' : ''
-      }`}
-    >
-      <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-        <span className="font-bold uppercase tracking-wider text-[10px] truncate">{title}</span>
-        <div className={`p-1.5 rounded-lg border ${colorStyles.iconBg}`}>
-          <Icon className="w-3.5 h-3.5" />
+  const content = (
+    <>
+      <div className="flex items-center justify-between text-xs text-soft mb-1.5">
+        <span className="font-bold uppercase tracking-wider truncate">{title}</span>
+        <div className={`p-1.5 rounded-lg border ${styles.iconBg}`}>
+          <Icon className="w-4 h-4" aria-hidden="true" />
         </div>
       </div>
-      <div className={`text-2xl font-black ${colorStyles.val}`}>{value}</div>
-      {subtitle && <div className="text-[11px] text-slate-400 mt-1 truncate">{subtitle}</div>}
-    </div>
+      <div className={`text-2xl font-black ${styles.val}`}>{value}</div>
+      {subtitle && <div className="text-xs text-soft mt-1 truncate">{subtitle}</div>}
+    </>
   );
+
+  const baseClass = `w-full p-4 bg-surface border border-line ${styles.border} rounded-2xl shadow-md transition-all text-left`;
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`${baseClass} active:scale-98`}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={baseClass}>{content}</div>;
 };

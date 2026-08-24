@@ -25,19 +25,19 @@ This document provides a comprehensive history of the database migrations applie
     *   `message_history`
     *   `import_audits`
 *   **Indexes Created (13):**
-    *   `idx_profiles_org_id` on `profiles(org_id)`
-    *   `idx_profiles_auth_user_id` on `profiles(auth_user_id)`
-    *   `idx_leads_org_id` on `leads(org_id)`
-    *   `idx_leads_assigned_to` on `leads(assigned_to)`
-    *   `idx_leads_status` on `leads(status)`
-    *   `idx_leads_phone` on `leads(primary_phone)`
-    *   `idx_call_records_lead_id` on `call_records(lead_id)`
-    *   `idx_call_records_user_id` on `call_records(user_id)`
-    *   `idx_activities_lead_id` on `activities(lead_id)`
-    *   `idx_activities_user_id` on `activities(user_id)`
-    *   `idx_remarks_lead_id` on `remarks(lead_id)`
-    *   `idx_follow_ups_lead_id` on `follow_ups(lead_id)`
-    *   `idx_message_history_lead_id` on `message_history(lead_id)`
+    *   `idx_profiles_org_email` (UNIQUE) on `profiles(organization_id, LOWER(email)) WHERE deleted_at IS NULL`
+    *   `idx_profiles_org_role_status` on `profiles(organization_id, role, status)`
+    *   `idx_leads_org_assigned_deleted` on `leads(organization_id, assigned_to, deleted_at)`
+    *   `idx_leads_org_status_deleted` on `leads(organization_id, status, deleted_at)`
+    *   `idx_leads_org_locality_deleted` on `leads(organization_id, locality, deleted_at)`
+    *   `idx_call_records_org_lead` on `call_records(organization_id, lead_id)`
+    *   `idx_call_records_org_user` on `call_records(organization_id, user_id)`
+    *   `idx_activities_org_lead` on `activities(organization_id, lead_id)`
+    *   `idx_activities_org_user` on `activities(organization_id, user_id)`
+    *   `idx_remarks_org_lead` on `remarks(organization_id, lead_id)`
+    *   `idx_follow_ups_org_lead_status` on `follow_ups(organization_id, lead_id, status)`
+    *   `idx_message_history_org_lead` on `message_history(organization_id, lead_id)`
+    *   `idx_import_audits_org_user` on `import_audits(organization_id, uploaded_by)`
 
 ---
 
@@ -94,8 +94,8 @@ This document provides a comprehensive history of the database migrations applie
 **Summary:** Adds performance indexes specifically for call analytics.
 
 *   **Indexes Created (2):**
-    *   `idx_call_records_duration_user`: Optimizes analytics queries filtering by user and duration.
-    *   `idx_call_records_duration_org`: Optimizes analytics queries filtering by organization and duration.
+    *   `idx_call_records_org_user_verif_started` on `call_records(organization_id, user_id, verification_status, started_at DESC)`: Optimizes per-user call analytics and verification-status filtering.
+    *   `idx_call_records_org_lead_started` on `call_records(organization_id, lead_id, started_at DESC)`: Optimizes per-lead call history lookups.
 
 ---
 
@@ -116,8 +116,8 @@ This document provides a comprehensive history of the database migrations applie
 *   **Tables Created (1):**
     *   `bulk_assignment_audits` (16 columns)
 *   **Indexes Created (2):**
-    *   `idx_bulk_assignment_audits_org_id` on `bulk_assignment_audits(org_id)`
-    *   `idx_bulk_assignment_audits_performed_by` on `bulk_assignment_audits(performed_by)`
+    *   `idx_bulk_assign_org_target_started` on `bulk_assignment_audits(organization_id, target_agent_id, started_at DESC)`
+    *   `idx_bulk_assign_org_performed` on `bulk_assignment_audits(organization_id, performed_by, started_at DESC)`
 *   **RLS Policies (Admin-only):**
     *   "Admins can view bulk assignment audits in their organization" (SELECT)
     *   "Admins can insert bulk assignment audits in their organization" (INSERT)
@@ -176,3 +176,21 @@ This document provides a comprehensive history of the database migrations applie
 *   **Triggers:**
     *   Created function `protect_lead_immutable_fields()`
     *   Created trigger `trg_protect_lead_immutable_fields` on `leads`
+
+---
+
+### Migration 7: [20260820000007_call_records_extended_fields_and_lead_delete.sql](file:///c:/Users/PC/Desktop/calling%20app/supabase/migrations/20260820000007_call_records_extended_fields_and_lead_delete.sql)
+
+**Status (2026-08-23):** Applied to LOCAL Docker Supabase only (`supabase_migrations.schema_migrations` version `20260820000007`, verified via catalog queries). NOT applied to the cloud project — cloud application is a deliberate release step (production mutations prohibited during the bugfix task).
+
+**Summary:** Supports the BUG-1 and BUG-8 fixes from the final end-to-end functional audit remediation.
+
+*   **call_records extended fields (BUG-1):**
+    *   `dial_attempt_id uuid NULL` — idempotency key linking the call record to its dial attempt
+    *   `reported_duration_seconds integer NULL` — device-reported duration, kept distinct from verified `duration_seconds`
+    *   `call_status text NULL` with CHECK constraint `call_records_call_status_check` (allowed statuses)
+*   **Cloud hard-delete support (BUG-8):**
+    *   Child FKs referencing `leads(id)` changed RESTRICT → `ON DELETE CASCADE`: `call_records`, `remarks`, `follow_ups`, `message_history`
+    *   `activities.lead_id` FK stays `ON DELETE SET NULL` (activity audit trail preserved)
+    *   New RLS policy `leads_delete_policy` (FOR DELETE), mirrors the update policy: org-scoped; admins may delete any org lead, agents only leads they created or are assigned to
+*   **Backward compatibility:** all new columns nullable; existing rows unaffected; no data backfill required.

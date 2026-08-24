@@ -14,7 +14,6 @@ import { ActivityRepository } from './repositories/activityRepository';
 import { CallRecordRepository } from './repositories/callRecordRepository';
 import { ImportAuditRepository } from './repositories/importAuditRepository';
 import { BulkAssignmentAuditRepository } from './repositories/bulkAssignmentAuditRepository';
-import { SyncHelper } from './services/syncHelper';
 import { DashboardService } from '../services/dashboardService';
 import { BackupService } from '../services/backupService';
 import { DeviceService } from '../services/deviceService';
@@ -29,7 +28,6 @@ import { SyncEngine } from '../services/sync/syncEngine';
 export * from './types';
 export * from './database';
 export * from './services/leadNormalizer';
-export * from './services/syncHelper';
 export * from './seeds/defaultTemplates';
 export * from './repositories/leadRepository';
 export * from './repositories/remarkRepository';
@@ -76,7 +74,6 @@ export function createCRMDataLayer(customDb: SalesCRMDatabase = db) {
     callRecords: new CallRecordRepository(customDb, syncQueue),
     importAudits: new ImportAuditRepository(customDb, syncQueue),
     bulkAssignmentAudits: new BulkAssignmentAuditRepository(customDb, syncQueue),
-    sync: new SyncHelper(customDb),
     syncEngine,
     syncQueue,
     syncPush,
@@ -89,3 +86,14 @@ export function createCRMDataLayer(customDb: SalesCRMDatabase = db) {
 }
 
 export const crmData = createCRMDataLayer(db);
+
+// Dev-only test seam: lets Playwright specs drive the data layer deterministically
+// (e.g. gating in-flight queries to reproduce list races). Vite strips
+// import.meta.env.DEV from production builds, so this never ships.
+if (
+  typeof window !== 'undefined' &&
+  typeof import.meta.env !== 'undefined' &&
+  import.meta.env.DEV
+) {
+  (window as unknown as Record<string, unknown>).__crmData = crmData;
+}

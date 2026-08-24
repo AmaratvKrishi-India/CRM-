@@ -2,6 +2,10 @@
 
 ## PostgreSQL Tables (10 tables)
 
+> FK delete behaviour for `leads` children (migration 7, local-only pending release):
+> `call_records`, `remarks`, `follow_ups`, `message_history` → ON DELETE CASCADE;
+> `activities` → ON DELETE SET NULL (audit trail preserved).
+
 ### 1. `organizations`
 | Column | Type | Constraints / Default |
 |--------|------|-----------------------|
@@ -67,18 +71,26 @@
 | `deleted_at` | TIMESTAMPTZ | |
 
 ### 4. `call_records`
+
+> Migration 7 (2026-08-23, local-only pending release): adds `dial_attempt_id`,
+> `reported_duration_seconds`, `call_status` (CHECK-constrained), and changes the
+> `lead_id` FK from RESTRICT to ON DELETE CASCADE.
+
 | Column | Type | Constraints / Default |
 |--------|------|-----------------------|
 | `id` | UUID | PK |
 | `organization_id` | UUID | |
-| `lead_id` | UUID | REF `leads` ON DELETE RESTRICT |
+| `lead_id` | UUID | REF `leads` ON DELETE CASCADE (migration 7; was RESTRICT) |
 | `user_id` | UUID | REF `profiles` |
 | `device_id` | TEXT | |
+| `dial_attempt_id` | UUID | NULL (migration 7) |
 | `started_at` | TIMESTAMPTZ | |
 | `answered_at` | TIMESTAMPTZ | |
 | `ended_at` | TIMESTAMPTZ | |
 | `duration_seconds` | INT | DEFAULT `0` |
+| `reported_duration_seconds` | INT | NULL (migration 7) — device-reported, distinct from verified duration |
 | `outcome` | TEXT | |
+| `call_status` | TEXT | NULL (migration 7), CHECK-constrained |
 | `remark` | TEXT | |
 | `verification_status` | TEXT | DEFAULT `'UNVERIFIED'`, CHECK IN `UNVERIFIED`/`VERIFIED` |
 | `created_at` | TIMESTAMPTZ | |
@@ -102,11 +114,14 @@
 | `deleted_at` | TIMESTAMPTZ | |
 
 ### 6. `remarks`
+
+> Migration 7 (local-only pending release): `lead_id` FK is ON DELETE CASCADE (was RESTRICT).
+
 | Column | Type | Constraints / Default |
 |--------|------|-----------------------|
 | `id` | UUID | PK |
 | `organization_id` | UUID | |
-| `lead_id` | UUID | REF `leads` ON DELETE RESTRICT |
+| `lead_id` | UUID | REF `leads` ON DELETE CASCADE (migration 7; was RESTRICT) |
 | `user_id` | UUID | REF `profiles` |
 | `content` | TEXT | |
 | `type` | TEXT | DEFAULT `'CUSTOM'` |

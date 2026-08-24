@@ -71,17 +71,15 @@ export class FollowUpRepository {
 
     const updatedLead = await this.db.leads.get(leadId);
     if (updatedLead) {
-      try {
-        await this.getSyncQueue().enqueue({
-          entityType: 'leads',
-          entityId: leadId,
-          operation: 'UPDATE',
-          payload: updatedLead,
-          userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
-        });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for recalculateLeadNextFollowUp:', err);
-      }
+      // Runs inside the caller's transaction; enqueue failure aborts it so
+      // data and outbox stay atomic.
+      await this.getSyncQueue().enqueue({
+        entityType: 'leads',
+        entityId: leadId,
+        operation: 'UPDATE',
+        payload: updatedLead,
+        userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
+      });
     }
   }
 
@@ -123,9 +121,6 @@ export class FollowUpRepository {
     await this.db.transaction('rw', [this.db.followUps, this.db.leads, this.db.outbox], async () => {
       await this.db.followUps.add(followUp);
       await this.recalculateLeadNextFollowUp(leadId);
-    });
-
-    try {
       await this.getSyncQueue().enqueue({
         entityType: 'follow_ups',
         entityId: followUp.id,
@@ -133,9 +128,7 @@ export class FollowUpRepository {
         payload: followUp,
         userId: followUp.userId || 'local-user',
       });
-    } catch (err) {
-      console.warn('Outbox enqueue failed for scheduleFollowUp:', err);
-    }
+    });
 
     return followUp;
   }
@@ -179,14 +172,12 @@ export class FollowUpRepository {
     if (newNotes !== undefined) updates.notes = newNotes ? newNotes.trim() : null;
     if (newPriority !== undefined) updates.priority = newPriority;
 
+    let updated: FollowUp | undefined;
     await this.db.transaction('rw', [this.db.followUps, this.db.leads, this.db.outbox], async () => {
       await this.db.followUps.update(id, updates);
       await this.recalculateLeadNextFollowUp(existing.leadId);
-    });
-
-    const updated = await this.db.followUps.get(id);
-    if (updated) {
-      try {
+      updated = await this.db.followUps.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'follow_ups',
           entityId: updated.id,
@@ -194,10 +185,8 @@ export class FollowUpRepository {
           payload: updated,
           userId: updated.userId || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for rescheduleFollowUp:', err);
       }
-    }
+    });
 
     return updated!;
   }
@@ -219,11 +208,8 @@ export class FollowUpRepository {
         isSynced: 0,
       });
       await this.recalculateLeadNextFollowUp(item.leadId);
-    });
-
-    const updated = await this.db.followUps.get(id);
-    if (updated) {
-      try {
+      const updated = await this.db.followUps.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'follow_ups',
           entityId: updated.id,
@@ -231,12 +217,10 @@ export class FollowUpRepository {
           payload: updated,
           userId: updated.userId || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for completeFollowUp:', err);
       }
-    }
+    });
 
-    return updated!;
+    return (await this.db.followUps.get(id))!;
   }
 
   /**
@@ -255,11 +239,8 @@ export class FollowUpRepository {
         isSynced: 0,
       });
       await this.recalculateLeadNextFollowUp(item.leadId);
-    });
-
-    const updated = await this.db.followUps.get(id);
-    if (updated) {
-      try {
+      const updated = await this.db.followUps.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'follow_ups',
           entityId: updated.id,
@@ -267,12 +248,10 @@ export class FollowUpRepository {
           payload: updated,
           userId: updated.userId || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for cancelFollowUp:', err);
       }
-    }
+    });
 
-    return updated!;
+    return (await this.db.followUps.get(id))!;
   }
 
   /**
@@ -356,18 +335,15 @@ export class FollowUpRepository {
     if (!item) return;
 
     const now = new Date().toISOString();
-    await this.db.transaction('rw', [this.db.followUps, this.db.leads], async () => {
+    await this.db.transaction('rw', [this.db.followUps, this.db.leads, this.db.outbox], async () => {
       await this.db.followUps.update(id, {
         deletedAt: now,
         updatedAt: now,
         isSynced: 0,
       });
       await this.recalculateLeadNextFollowUp(item.leadId);
-    });
-
-    const updated = await this.db.followUps.get(id);
-    if (updated) {
-      try {
+      const updated = await this.db.followUps.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'follow_ups',
           entityId: updated.id,
@@ -375,9 +351,7 @@ export class FollowUpRepository {
           payload: updated,
           userId: updated.userId || 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for softDeleteFollowUp:', err);
       }
-    }
+    });
   }
 }

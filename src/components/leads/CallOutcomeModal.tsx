@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   PhoneCall,
-  X,
   CheckCircle2,
   Tag,
   FileText,
@@ -17,6 +16,7 @@ import {
   QUICK_SALES_REMARKS,
   determineDefaultLeadStatus,
 } from '../../services/callOutcomeMapping';
+import { Modal } from '../common/Modal';
 
 interface CallOutcomeModalProps {
   isOpen: boolean;
@@ -90,12 +90,13 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
       setReportedMinutes('');
       setWantsFollowUp(false);
       setFollowUpDays(1);
+      setFollowUpDateInput('');
       setFollowUpTitle('');
       setError(null);
     }
   }, [isOpen, lead]);
 
-  if (!isOpen || !lead) return null;
+  if (!lead) return null;
 
   const handleOutcomeChange = (newOutcome: CallOutcome) => {
     setOutcome(newOutcome);
@@ -134,9 +135,19 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
       | undefined;
 
     if (wantsFollowUp) {
-      const scheduledIso = followUpDateInput
-        ? new Date(followUpDateInput).toISOString()
-        : getPresetDateISO(followUpDays);
+      let scheduledIso: string;
+      if (followUpDateInput) {
+        // Date-only input parses as UTC midnight; pin to 10:00 local.
+        const d = new Date(`${followUpDateInput}T10:00:00`);
+        if (isNaN(d.getTime())) {
+          setError('Please pick a valid follow-up date.');
+          setIsSubmitting(false);
+          return;
+        }
+        scheduledIso = d.toISOString();
+      } else {
+        scheduledIso = getPresetDateISO(followUpDays);
+      }
 
       followUpData = {
         scheduledAt: scheduledIso,
@@ -166,247 +177,263 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
     }
   };
 
+  const sectionLabelClass = 'text-sm font-bold text-soft flex items-center gap-1.5';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
-        {/* Header */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
-              <PhoneCall className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="font-bold text-sm truncate">{lead.businessName}</h3>
-              <p className="text-[11px] text-slate-400 font-mono truncate">
-                {lead.phoneE164} • {lead.locality}
-              </p>
-            </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onCancel}
+      title={lead.businessName}
+      subtitle={`${lead.phoneE164} • ${lead.locality}`}
+      closeOnBackdrop={false}
+      maxWidthClassName="max-w-lg"
+      headerIcon={
+        <span className="w-9 h-9 rounded-xl bg-accent-soft text-accent-text flex items-center justify-center flex-shrink-0">
+          <PhoneCall className="w-5 h-5" aria-hidden="true" />
+        </span>
+      }
+    >
+      {/* Form Body */}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-danger flex-shrink-0" aria-hidden="true" />
+            <span>{error}</span>
           </div>
+        )}
+
+        {/* 1. Call Outcome Selection */}
+        <fieldset className="space-y-1.5">
+          <legend className={sectionLabelClass}>
+            <PhoneCall className="w-4 h-4 text-accent-text" aria-hidden="true" />
+            <span>Call outcome</span>
+            <span className="text-danger" aria-hidden="true">*</span>
+          </legend>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            {CALL_OUTCOMES.map((item) => {
+              const isSelected = outcome === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => handleOutcomeChange(item.value)}
+                  aria-pressed={isSelected}
+                  className={`min-h-11 py-2 px-2.5 rounded-xl text-sm font-semibold border text-left transition-all ${
+                    isSelected
+                      ? 'bg-accent text-on-accent border-accent shadow-xs'
+                      : 'bg-inset text-soft border-line hover:bg-inset-strong'
+                  }`}
+                >
+                  <span className="truncate block">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {/* 2. Quick Sales Remarks */}
+        <fieldset className="space-y-1.5">
+          <legend className={sectionLabelClass}>
+            <Tag className="w-4 h-4 text-accent-text" aria-hidden="true" />
+            <span>Quick remark (optional)</span>
+          </legend>
+
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_SALES_REMARKS.map((remark) => {
+              const isSelected = quickRemark === remark;
+              return (
+                <button
+                  key={remark}
+                  type="button"
+                  onClick={() => handleQuickRemarkToggle(remark)}
+                  aria-pressed={isSelected}
+                  className={`min-h-11 py-1.5 px-2.5 rounded-lg text-sm font-medium border transition-all ${
+                    isSelected
+                      ? 'bg-accent text-on-accent border-accent shadow-xs'
+                      : 'bg-accent-soft/60 text-accent-text border-accent/30 hover:bg-accent-soft'
+                  }`}
+                >
+                  {remark}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {/* 3. Call Duration & Verification Status */}
+        <div className="p-3 bg-inset rounded-2xl border border-line space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="reported-minutes" className={`${sectionLabelClass}`}>
+              <Clock className="w-4 h-4 text-faint" aria-hidden="true" />
+              <span>Call duration</span>
+            </label>
+            <span className="px-2 py-0.5 rounded-md bg-warning-soft text-warning-text text-xs font-bold border border-warning/30">
+              Unverified (ACTION_DIAL)
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-soft font-medium">Automatic talk time:</span>
+            <span className="text-soft font-semibold italic">Duration unavailable</span>
+          </div>
+
+          <div className="pt-1.5 border-t border-line flex items-center justify-between gap-2">
+            <span className="text-sm text-soft">Reported talk time (optional, mins):</span>
+            <input
+              id="reported-minutes"
+              type="number"
+              min="0"
+              max="120"
+              step="1"
+              placeholder="e.g. 3"
+              value={reportedMinutes}
+              onChange={(e) => setReportedMinutes(e.target.value)}
+              className="w-24 min-h-11 text-sm bg-surface border border-line rounded-lg p-1.5 text-ink font-semibold text-right focus:outline-none focus:ring-2 focus:ring-focus-ring"
+            />
+          </div>
+        </div>
+
+        {/* 4. Custom Remark Notes */}
+        <div className="space-y-1.5">
+          <label htmlFor="custom-note" className={sectionLabelClass}>
+            <FileText className="w-4 h-4 text-accent-text" aria-hidden="true" />
+            <span>Sales notes / observation</span>
+          </label>
+          <textarea
+            id="custom-note"
+            rows={2}
+            placeholder="e.g. Owner interested in 500g sample. Spoke with head trainer Vikram..."
+            value={customNote}
+            onChange={(e) => setCustomNote(e.target.value)}
+            className="w-full text-sm bg-inset border border-line rounded-xl p-2.5 text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
+          />
+        </div>
+
+        {/* 5. Quick Follow-up Section */}
+        <div className="p-3 bg-info-soft/60 rounded-2xl border border-info/30 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="wants-follow-up" className="text-sm font-bold text-info-text flex items-center gap-1.5 cursor-pointer">
+              <Calendar className="w-4 h-4" aria-hidden="true" />
+              <span>Schedule next follow-up?</span>
+            </label>
+            <input
+              id="wants-follow-up"
+              type="checkbox"
+              checked={wantsFollowUp}
+              onChange={(e) => setWantsFollowUp(e.target.checked)}
+              className="w-5 h-5 rounded accent-current"
+            />
+          </div>
+
+          {wantsFollowUp && (
+            <div className="space-y-2 pt-1 border-t border-info/20 animate-in fade-in">
+              <div className="grid grid-cols-4 gap-1" role="group" aria-label="Quick follow-up date presets">
+                {[
+                  { label: 'Tomorrow', days: 1 },
+                  { label: '2 days', days: 2 },
+                  { label: '3 days', days: 3 },
+                  { label: '1 week', days: 7 },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => {
+                      setFollowUpDays(p.days);
+                      setFollowUpDateInput('');
+                    }}
+                    aria-pressed={followUpDays === p.days && !followUpDateInput}
+                    className={`min-h-11 py-1 px-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                      followUpDays === p.days && !followUpDateInput
+                        ? 'bg-accent text-on-accent border-accent'
+                        : 'bg-surface text-soft border-line hover:bg-inset'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* F5 audit gap — the custom date was never exposed; now it is. */}
+              <div>
+                <label htmlFor="follow-up-date" className="block text-sm font-semibold text-soft mb-1">
+                  Or pick a specific date
+                </label>
+                <input
+                  id="follow-up-date"
+                  type="date"
+                  value={followUpDateInput}
+                  onChange={(e) => setFollowUpDateInput(e.target.value)}
+                  className="w-full min-h-11 text-sm bg-surface border border-line rounded-lg p-2 text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="follow-up-title" className="block text-sm font-semibold text-soft mb-1">
+                  Follow-up reason
+                </label>
+                <input
+                  id="follow-up-title"
+                  type="text"
+                  placeholder="e.g. Call for sample feedback"
+                  value={followUpTitle}
+                  onChange={(e) => setFollowUpTitle(e.target.value)}
+                  className="w-full min-h-11 text-sm bg-surface border border-line rounded-lg p-2 text-ink font-semibold placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 6. Updated Pipeline Status */}
+        <div className="space-y-1.5 pt-1 border-t border-line">
+          <label htmlFor="pipeline-status" className="text-sm font-bold text-soft flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <TrendingUp className="w-4 h-4 text-accent-text" aria-hidden="true" />
+              <span>Lead pipeline status</span>
+            </span>
+            <span className="text-xs text-faint font-normal">Auto-suggested</span>
+          </label>
+
+          <select
+            id="pipeline-status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as LeadStatus)}
+            className="w-full min-h-11 text-sm bg-inset border border-line rounded-xl p-2.5 font-bold text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
+          >
+            {ALL_STATUSES.map((st) => (
+              <option key={st.value} value={st.value}>
+                {st.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Actions */}
+        <div className="pt-2 border-t border-line flex flex-col gap-2">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full min-h-12 py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {isSubmitting ? (
+              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
+            )}
+            <span>Save call outcome &amp; notes</span>
+          </button>
 
           <button
             type="button"
             onClick={onCancel}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            disabled={isSubmitting}
+            className="w-full min-h-11 py-2.5 px-4 rounded-xl font-medium text-sm text-soft hover:text-ink hover:bg-inset transition-colors"
           >
-            <X className="w-5 h-5" />
+            Skip / do not record
           </button>
         </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 overflow-y-auto space-y-4 flex-1">
-          {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* 1. Call Outcome Selection */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center gap-1.5">
-              <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Call Outcome</span>
-              <span className="text-rose-500">*</span>
-            </label>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-              {CALL_OUTCOMES.map((item) => {
-                const isSelected = outcome === item.value;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => handleOutcomeChange(item.value)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-semibold border text-left transition-all ${
-                      isSelected
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className="truncate">{item.label}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. Quick Sales Remarks */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center gap-1.5">
-              <Tag className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Quick Remark (Optional)</span>
-            </label>
-
-            <div className="flex flex-wrap gap-1.5">
-              {QUICK_SALES_REMARKS.map((remark) => {
-                const isSelected = quickRemark === remark;
-                return (
-                  <button
-                    key={remark}
-                    type="button"
-                    onClick={() => handleQuickRemarkToggle(remark)}
-                    className={`py-1.5 px-2.5 rounded-lg text-xs font-medium border transition-all ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                        : 'bg-emerald-50/60 text-emerald-900 border-emerald-200 hover:bg-emerald-100/60'
-                    }`}
-                  >
-                    {remark}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Call Duration & Verification Status */}
-          <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-slate-500" />
-                <span>Call Duration</span>
-              </label>
-              <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 text-[10px] font-bold border border-amber-500/20">
-                Unverified (ACTION_DIAL)
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-500 font-medium">Automatic Talk Time:</span>
-              <span className="text-slate-700 font-semibold italic">Duration unavailable</span>
-            </div>
-
-            <div className="pt-1.5 border-t border-slate-200/70 flex items-center justify-between gap-2">
-              <span className="text-[11px] text-slate-500">Reported Talk Time (Optional mins):</span>
-              <input
-                type="number"
-                min="0"
-                max="120"
-                step="1"
-                placeholder="e.g. 3"
-                value={reportedMinutes}
-                onChange={(e) => setReportedMinutes(e.target.value)}
-                className="w-20 text-xs bg-white border border-slate-200 rounded-lg p-1.5 text-slate-800 font-semibold text-right focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          {/* 4. Custom Remark Notes */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Sales Notes / Observation</span>
-            </label>
-            <textarea
-              rows={2}
-              placeholder="e.g. Owner interested in 500g sample. Spoke with head trainer Vikram..."
-              value={customNote}
-              onChange={(e) => setCustomNote(e.target.value)}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-            />
-          </div>
-
-          {/* 4. Quick Follow-up Section */}
-          <div className="p-3 bg-blue-50/60 rounded-2xl border border-blue-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-blue-900 uppercase tracking-tight flex items-center gap-1.5 cursor-pointer">
-                <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                <span>Schedule Next Follow-up?</span>
-              </label>
-              <input
-                type="checkbox"
-                checked={wantsFollowUp}
-                onChange={(e) => setWantsFollowUp(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-              />
-            </div>
-
-            {wantsFollowUp && (
-              <div className="space-y-2 pt-1 border-t border-blue-200/60 animate-in fade-in">
-                <div className="grid grid-cols-4 gap-1">
-                  {[
-                    { label: 'Tomorrow', days: 1 },
-                    { label: '2 Days', days: 2 },
-                    { label: '3 Days', days: 3 },
-                    { label: '1 Week', days: 7 },
-                  ].map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => {
-                        setFollowUpDays(p.days);
-                        setFollowUpDateInput('');
-                      }}
-                      className={`py-1 px-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
-                        followUpDays === p.days && !followUpDateInput
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-
-                <input
-                  type="text"
-                  placeholder="Follow-up reason (e.g. Call for sample feedback)"
-                  value={followUpTitle}
-                  onChange={(e) => setFollowUpTitle(e.target.value)}
-                  className="w-full text-xs bg-white border border-blue-200 rounded-lg p-2 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 5. Updated Pipeline Status */}
-          <div className="space-y-1.5 pt-1 border-t border-slate-100">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-tight flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Lead Pipeline Status</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-normal">Auto-suggested</span>
-            </label>
-
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as LeadStatus)}
-              className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {ALL_STATUSES.map((st) => (
-                <option key={st.value} value={st.value}>
-                  {st.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Actions */}
-          <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 px-4 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              {isSubmitting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4" />
-              )}
-              <span>Save Call Outcome & Notes</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              className="w-full py-2.5 px-4 rounded-xl font-medium text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            >
-              Skip / Do Not Record
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };

@@ -1,5 +1,10 @@
 # Phase 2 Remediation, Master Audit & Verification Report
 
+> **SUPERSEDED (2026-08-23):** Historical snapshot. The "RELEASE BLOCKED" verdict and the
+> "remote project not linked" blocker no longer apply: the repo is linked to
+> `lahvcodvgubplzfshare`, all 6 migrations are applied to cloud, and the project is
+> FULLY_RELEASED (v2.0.0). See `docs/project-knowledge/16_CURRENT_STATE.md`.
+
 **Document Version:** 2.0.0-AUDITED  
 **Generated At:** 2026-08-21T16:40:00+05:30  
 **Overall Release Verdict:** **RELEASE BLOCKED**  

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar,
   Clock,
@@ -6,13 +6,11 @@ import {
   CheckCircle2,
   PhoneCall,
   MessageSquare,
-  RotateCcw,
-  Plus,
   Loader2,
   ChevronRight,
-  User,
   MapPin,
   Tag,
+  RefreshCw,
 } from 'lucide-react';
 import { crmData } from '../../db';
 import {
@@ -21,6 +19,9 @@ import {
 } from '../../db/repositories/followUpRepository';
 import { FollowUpModal } from './FollowUpModal';
 import { Lead } from '../../db/types';
+import { SyncStatusBadge } from '../sync/SyncStatusBadge';
+import { useToast } from '../common/Toast';
+import { labelFor } from '../../lib/labels';
 
 interface FollowUpsViewProps {
   onCallLead: (lead: Lead) => void;
@@ -28,14 +29,37 @@ interface FollowUpsViewProps {
   onOpenLead: (leadId: string) => void;
 }
 
+type SectionId = 'ALL' | 'OVERDUE' | 'TODAY' | 'UPCOMING';
+
+/** F19 — skeleton matching the card list layout. */
+const FollowUpsSkeleton: React.FC = () => (
+  <div className="space-y-3 animate-pulse" aria-hidden="true">
+    {Array.from({ length: 3 }).map((_, i) => (
+      <div key={i} className="bg-surface rounded-2xl border border-line p-4 space-y-3">
+        <div className="h-4 w-40 rounded bg-inset" />
+        <div className="h-3 w-56 rounded bg-inset" />
+        <div className="h-8 w-full rounded-lg bg-inset" />
+      </div>
+    ))}
+  </div>
+);
+
 export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   onCallLead,
   onOpenWhatsApp,
   onOpenLead,
 }) => {
+  const { showToast } = useToast();
   const [data, setData] = useState<GroupedFollowUps>({ overdue: [], today: [], upcoming: [] });
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<'ALL' | 'OVERDUE' | 'TODAY' | 'UPCOMING'>('ALL');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<SectionId>('ALL');
+  const tabRefs = useRef<Record<SectionId, HTMLButtonElement | null>>({
+    ALL: null,
+    OVERDUE: null,
+    TODAY: null,
+    UPCOMING: null,
+  });
 
   // Reschedule / Edit Modal State
   const [selectedFollowUp, setSelectedFollowUp] = useState<EnrichedFollowUp | null>(null);
@@ -43,11 +67,14 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const grouped = await crmData.followUps.getGroupedPendingFollowUps();
       setData(grouped);
     } catch (err) {
       console.error('Failed to load follow-ups:', err);
+      // F4 — never leave the screen blank on failure.
+      setLoadError('Could not load your follow-ups.');
     } finally {
       setLoading(false);
     }
@@ -63,6 +90,11 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
       await loadData();
     } catch (err) {
       console.error('Failed to complete follow up:', err);
+      showToast({
+        message: 'Could not mark the follow-up as done. Please try again.',
+        tone: 'error',
+        action: { label: 'Retry', onClick: () => void handleComplete(id) },
+      });
     }
   };
 
@@ -84,13 +116,29 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   const getPriorityBadgeClass = (priority: string) => {
     switch (priority) {
       case 'URGENT':
-        return 'bg-rose-100 text-rose-800 border-rose-200';
+        return 'bg-danger-soft text-danger-text border-danger/30';
       case 'HIGH':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+        return 'bg-warning-soft text-warning-text border-warning/30';
       case 'LOW':
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+        return 'bg-inset text-soft border-line';
       default:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return 'bg-info-soft text-info-text border-info/30';
+    }
+  };
+
+  // F14 — arrow-key navigation across the filter tabs.
+  const handleTabKeyDown = (e: React.KeyboardEvent, id: SectionId) => {
+    const order: SectionId[] = ['ALL', 'OVERDUE', 'TODAY', 'UPCOMING'];
+    const idx = order.indexOf(id);
+    let next: SectionId | null = null;
+    if (e.key === 'ArrowRight') next = order[(idx + 1) % order.length];
+    else if (e.key === 'ArrowLeft') next = order[(idx - 1 + order.length) % order.length];
+    else if (e.key === 'Home') next = order[0];
+    else if (e.key === 'End') next = order[order.length - 1];
+    if (next) {
+      e.preventDefault();
+      setActiveSection(next);
+      tabRefs.current[next]?.focus();
     }
   };
 
@@ -101,68 +149,70 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
     return (
       <div
         key={item.id}
-        className={`bg-white rounded-2xl border p-4 shadow-xs space-y-3 transition-all ${
-          isOverdue ? 'border-rose-200 bg-rose-50/20' : 'border-slate-200 hover:border-slate-300'
+        className={`bg-surface rounded-2xl border p-4 shadow-xs space-y-3 transition-all ${
+          isOverdue ? 'border-danger/40 bg-danger-soft/40' : 'border-line hover:border-line-strong'
         }`}
       >
-        {/* Top Title & Header */}
+        {/* Top Title & Header — F3: real button instead of clickable div */}
         <div className="flex items-start justify-between gap-2">
-          <div
+          <button
+            type="button"
             onClick={() => onOpenLead(item.leadId)}
-            className="flex-1 min-w-0 cursor-pointer group"
+            aria-label={`Open lead ${lead?.businessName || 'Gym Lead'}`}
+            className="flex-1 min-w-0 text-left group rounded-lg"
           >
-            <div className="flex items-center gap-1">
-              <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 truncate transition-colors">
+            <span className="flex items-center gap-1">
+              <span className="text-sm font-bold text-ink group-hover:text-accent-text truncate transition-colors">
                 {lead?.businessName || 'Gym Lead'}
-              </h3>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 flex-shrink-0" />
-            </div>
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-faint group-hover:text-accent-text flex-shrink-0" aria-hidden="true" />
+            </span>
 
-            <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-              <MapPin className="w-3 h-3 text-slate-400" />
+            <span className="flex items-center gap-1 text-sm text-soft mt-0.5">
+              <MapPin className="w-3.5 h-3.5 text-faint" aria-hidden="true" />
               <span>{lead?.locality || 'Lucknow'}</span>
               {lead?.status && (
-                <span className="text-[10px] bg-slate-100 px-1.5 py-0.2 rounded font-medium text-slate-700 ml-1">
-                  {lead.status}
+                <span className="text-xs bg-inset px-1.5 py-0.5 rounded font-medium text-soft ml-1">
+                  {labelFor(lead.status)}
                 </span>
               )}
-            </div>
-          </div>
+            </span>
+          </button>
 
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getPriorityBadgeClass(
+            className={`text-xs font-bold px-2 py-1 rounded-full border ${getPriorityBadgeClass(
               item.priority
             )} flex-shrink-0`}
           >
-            {item.priority}
+            {labelFor(item.priority)}
           </span>
         </div>
 
         {/* Reason / Title */}
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-            <Tag className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+            <Tag className="w-3.5 h-3.5 text-accent-text flex-shrink-0" aria-hidden="true" />
             <span>{item.title}</span>
           </div>
 
           {item.notes && (
-            <p className="text-[11px] text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-100 line-clamp-2">
+            <p className="text-sm text-soft bg-inset p-2 rounded-lg border border-line line-clamp-2">
               {item.notes}
             </p>
           )}
         </div>
 
         {/* Scheduled Time Banner */}
-        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+        <div className="flex items-center justify-between gap-2 text-sm pt-2 border-t border-line flex-wrap">
           <div
             className={`flex items-center gap-1.5 font-bold ${
-              isOverdue ? 'text-rose-700 font-semibold' : 'text-slate-700'
+              isOverdue ? 'text-danger-text' : 'text-ink'
             }`}
           >
             {isOverdue ? (
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <AlertTriangle className="w-4 h-4 text-danger" aria-hidden="true" />
             ) : (
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
+              <Clock className="w-4 h-4 text-info" aria-hidden="true" />
             )}
             <span>{formatDateTime(item.scheduledAt)}</span>
           </div>
@@ -171,16 +221,16 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             <button
               type="button"
               onClick={() => handleReschedule(item)}
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg transition-colors"
+              className="min-h-11 text-sm font-semibold text-soft hover:text-ink bg-inset hover:bg-inset-strong px-3 rounded-lg transition-colors"
             >
               Reschedule
             </button>
             <button
               type="button"
               onClick={() => handleComplete(item.id)}
-              className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1"
+              className="min-h-11 text-sm font-bold text-success-text bg-success-soft hover:bg-success/20 border border-success/30 px-3 rounded-lg transition-colors flex items-center gap-1"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <CheckCircle2 className="w-4 h-4 text-success" aria-hidden="true" />
               <span>Done</span>
             </button>
           </div>
@@ -188,8 +238,8 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
         {/* Quick Communication Bar */}
         {lead && (
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-            <span className="font-mono text-xs font-bold text-slate-800 truncate">
+          <div className="pt-2 border-t border-line flex items-center justify-between gap-2">
+            <span className="font-mono text-sm font-bold text-ink truncate">
               {lead.phoneE164 || lead.phone}
             </span>
 
@@ -197,24 +247,26 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
               {isMobile ? (
                 <button
                   type="button"
-                  onClick={() => onOpenWhatsApp(lead as any)}
-                  className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                  onClick={() => onOpenWhatsApp(lead as Lead)}
+                  aria-label={`Send WhatsApp message to ${lead.businessName || 'lead'}`}
+                  className="min-h-11 py-1 px-3 bg-accent hover:bg-accent-hover text-on-accent rounded-lg text-sm font-bold flex items-center gap-1 transition-colors"
                 >
-                  <MessageSquare className="w-3 h-3" />
+                  <MessageSquare className="w-4 h-4" aria-hidden="true" />
                   <span>WhatsApp</span>
                 </button>
               ) : (
-                <span className="text-[10px] text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-1 rounded-lg">
-                  WA N/A
+                <span className="text-xs text-faint bg-inset border border-line px-2 py-1 rounded-lg">
+                  WhatsApp not available
                 </span>
               )}
 
               <button
                 type="button"
-                onClick={() => onCallLead(lead as any)}
-                className="py-1 px-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                onClick={() => onCallLead(lead as Lead)}
+                aria-label={`Call ${lead.businessName || 'lead'}`}
+                className="min-h-11 py-1 px-3 bg-ink hover:opacity-90 text-app rounded-lg text-sm font-bold flex items-center gap-1 transition-colors"
               >
-                <PhoneCall className="w-3 h-3 text-emerald-400" />
+                <PhoneCall className="w-4 h-4 text-success" aria-hidden="true" />
                 <span>Call</span>
               </button>
             </div>
@@ -229,19 +281,28 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   const totalUpcoming = data.upcoming.length;
   const totalAll = totalOverdue + totalToday + totalUpcoming;
 
+  const tabs: { id: SectionId; label: string }[] = [
+    { id: 'ALL', label: `All (${totalAll})` },
+    { id: 'OVERDUE', label: `Overdue (${totalOverdue})` },
+    { id: 'TODAY', label: `Today (${totalToday})` },
+    { id: 'UPCOMING', label: `Upcoming (${totalUpcoming})` },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-20">
+    <div className="min-h-screen bg-app flex flex-col pb-20">
       {/* Header */}
-      <div className="bg-slate-900 text-white px-4 py-4 sticky top-0 z-30 shadow-md">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold tracking-tight">Sales Follow-ups</h1>
-            <p className="text-[11px] text-slate-400">Scheduled Gym Calls & Sample Visits</p>
+      <div className="bg-surface text-ink px-4 py-4 sticky top-0 z-30 shadow-md border-b border-line">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-base font-bold tracking-tight truncate">Sales Follow-ups</h1>
+            <p className="text-sm text-soft truncate">Scheduled calls &amp; sample visits</p>
           </div>
 
-          <div className="text-right">
-            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full">
-              {totalAll} Pending
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* F18 — sync status on data-entry surfaces */}
+            <SyncStatusBadge />
+            <span className="text-sm font-bold text-success-text bg-success-soft px-2.5 py-1 rounded-full border border-success/30">
+              {totalAll} pending
             </span>
           </div>
         </div>
@@ -249,24 +310,30 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
 
       {/* Main Container */}
       <div className="max-w-2xl w-full mx-auto p-4 flex-1 flex flex-col space-y-4">
-        {/* Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
-          {[
-            { id: 'ALL', label: `All (${totalAll})` },
-            { id: 'OVERDUE', label: `Overdue (${totalOverdue})`, count: totalOverdue, isDanger: true },
-            { id: 'TODAY', label: `Today (${totalToday})`, count: totalToday, isSuccess: true },
-            { id: 'UPCOMING', label: `Upcoming (${totalUpcoming})` },
-          ].map((tab) => {
+        {/* Filter Pills — F14: tablist semantics + arrow keys */}
+        <div
+          role="tablist"
+          aria-label="Filter follow-ups"
+          className="flex items-center gap-2 overflow-x-auto pb-1"
+        >
+          {tabs.map((tab) => {
             const isSelected = activeSection === tab.id;
             return (
               <button
                 key={tab.id}
+                ref={(el) => {
+                  tabRefs.current[tab.id] = el;
+                }}
                 type="button"
-                onClick={() => setActiveSection(tab.id as any)}
-                className={`py-1.5 px-3 rounded-xl font-bold text-xs whitespace-nowrap transition-colors ${
+                role="tab"
+                aria-selected={isSelected}
+                tabIndex={isSelected ? 0 : -1}
+                onClick={() => setActiveSection(tab.id)}
+                onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
+                className={`min-h-11 py-1.5 px-3 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${
                   isSelected
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                    ? 'bg-accent text-on-accent shadow-xs'
+                    : 'bg-surface text-soft border border-line hover:bg-inset'
                 }`}
               >
                 <span>{tab.label}</span>
@@ -276,15 +343,28 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
         </div>
 
         {loading ? (
-          <div className="py-16 text-center space-y-2">
-            <Loader2 className="w-7 h-7 animate-spin text-emerald-600 mx-auto" />
-            <p className="text-xs text-slate-500 font-medium">Loading follow-ups...</p>
+          <FollowUpsSkeleton />
+        ) : loadError ? (
+          <div className="bg-surface rounded-2xl border border-danger/40 p-8 text-center my-auto space-y-3" role="alert">
+            <AlertTriangle className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
+            <h3 className="text-base font-bold text-ink">{loadError}</h3>
+            <p className="text-sm text-soft max-w-xs mx-auto">
+              Check your connection and try again. Your scheduled follow-ups are still saved on this device.
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadData()}
+              className="min-h-11 inline-flex items-center gap-2 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" aria-hidden="true" />
+              Try again
+            </button>
           </div>
         ) : totalAll === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center my-auto space-y-3">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-            <h3 className="text-base font-bold text-slate-800">All Caught Up!</h3>
-            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          <div className="bg-surface rounded-2xl border border-line p-8 text-center my-auto space-y-3">
+            <CheckCircle2 className="w-10 h-10 text-success mx-auto" aria-hidden="true" />
+            <h3 className="text-base font-bold text-ink">All caught up!</h3>
+            <p className="text-sm text-soft max-w-xs mx-auto">
               No pending follow-ups right now. Open any lead to schedule calls, sample drop-offs, or pricing negotiations.
             </p>
           </div>
@@ -292,41 +372,41 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
           <div className="space-y-4">
             {/* SECTION 1: OVERDUE */}
             {(activeSection === 'ALL' || activeSection === 'OVERDUE') && totalOverdue > 0 && (
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 uppercase tracking-tight">
-                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+              <section aria-label={`Overdue follow-ups (${totalOverdue})`} className="space-y-2.5">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-danger-text">
+                  <AlertTriangle className="w-4 h-4 text-danger" aria-hidden="true" />
                   <span>Overdue ({totalOverdue})</span>
                 </div>
                 <div className="space-y-2.5">
                   {data.overdue.map((item) => renderFollowUpCard(item, true))}
                 </div>
-              </div>
+              </section>
             )}
 
             {/* SECTION 2: TODAY */}
             {(activeSection === 'ALL' || activeSection === 'TODAY') && totalToday > 0 && (
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-tight">
-                  <Calendar className="w-4 h-4 text-emerald-600" />
-                  <span>Scheduled For Today ({totalToday})</span>
+              <section aria-label={`Scheduled for today (${totalToday})`} className="space-y-2.5">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-success-text">
+                  <Calendar className="w-4 h-4 text-success" aria-hidden="true" />
+                  <span>Scheduled for today ({totalToday})</span>
                 </div>
                 <div className="space-y-2.5">
                   {data.today.map((item) => renderFollowUpCard(item, false))}
                 </div>
-              </div>
+              </section>
             )}
 
             {/* SECTION 3: UPCOMING */}
             {(activeSection === 'ALL' || activeSection === 'UPCOMING') && totalUpcoming > 0 && (
-              <div className="space-y-2.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-tight">
-                  <Clock className="w-4 h-4 text-blue-600" />
-                  <span>Upcoming Follow-ups ({totalUpcoming})</span>
+              <section aria-label={`Upcoming follow-ups (${totalUpcoming})`} className="space-y-2.5">
+                <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                  <Clock className="w-4 h-4 text-info" aria-hidden="true" />
+                  <span>Upcoming follow-ups ({totalUpcoming})</span>
                 </div>
                 <div className="space-y-2.5">
                   {data.upcoming.map((item) => renderFollowUpCard(item, false))}
                 </div>
-              </div>
+              </section>
             )}
           </div>
         )}
@@ -336,7 +416,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
       {selectedFollowUp && (
         <FollowUpModal
           isOpen={isModalOpen}
-          lead={selectedFollowUp.lead as any}
+          lead={selectedFollowUp.lead as Lead}
           existingFollowUp={selectedFollowUp}
           onClose={() => {
             setIsModalOpen(false);

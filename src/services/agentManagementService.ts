@@ -144,7 +144,22 @@ export class AgentManagementService {
         });
 
         if (edgeError) {
-          throw new Error(edgeError.message || 'Failed to create agent via Edge Function.');
+          // Classify the failure. Only a genuine network-unreachable error
+          // (device offline) may fall back to local-only creation. Server-side
+          // failures (5xx, relay errors, timeouts, non-2xx responses) must
+          // propagate so we never create an orphan local agent whose cloud
+          // account may or may not exist.
+          const name = (edgeError as { name?: string }).name || '';
+          const status = (edgeError as { context?: { status?: number } }).context?.status;
+          if (name === 'FunctionsFetchError') {
+            // Network unreachable / DNS / connection refused: offline fallback.
+            console.warn('Edge function unreachable (offline), creating local agent:', edgeError.message);
+          } else {
+            const detail = status ? ` (HTTP ${status})` : '';
+            throw new Error(
+              `Agent provisioning failed on the server${detail}: ${edgeError.message || 'unknown error'}. No local account was created. Please retry.`
+            );
+          }
         }
 
         if (edgeData && edgeData.error) {
@@ -155,12 +170,25 @@ export class AgentManagementService {
           cloudAgentId = edgeData.agent.id;
         }
       } catch (err: any) {
-        // If Edge function returns an error (e.g. email conflict), throw directly
-        if (err.message && (err.message.includes('already exists') || err.message.includes('Unauthorized') || err.message.includes('Forbidden'))) {
+        // Duplicate-account and authorization errors must always propagate.
+        if (
+          err.message &&
+          (err.message.includes('already exists') ||
+            err.message.includes('Unauthorized') ||
+            err.message.includes('Forbidden') ||
+            err.message.includes('Agent provisioning failed'))
+        ) {
           throw err;
         }
-        // In local/offline or test environment, log warning and proceed with local creation
-        console.warn('Edge function invoke skipped or unavailable:', err.message);
+        // Only a raw network-level fetch failure (thrown, not returned) may
+        // fall back to local creation; everything else propagates.
+        if (err?.name === 'FunctionsFetchError' || err?.name === 'AbortError' || err instanceof TypeError) {
+          console.warn('Edge function unreachable (offline), creating local agent:', err.message);
+        } else {
+          throw new Error(
+            `Agent provisioning failed: ${err.message || 'unknown error'}. No local account was created. Please retry.`
+          );
+        }
       }
     }
 

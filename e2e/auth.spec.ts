@@ -74,8 +74,8 @@ test.describe('Login & Authentication Flow', () => {
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
 
     // Should load CRM content and bottom nav
-    await expect(page.getByRole('button', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('button', { name: /Leads/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Follow-ups/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('tab', { name: /Leads/i })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Follow-ups/i })).toBeVisible();
   });
 });

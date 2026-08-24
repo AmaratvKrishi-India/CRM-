@@ -16,13 +16,13 @@ This document provides a comprehensive overview of the testing and verification 
 
 | Command | Description |
 | --- | --- |
-| `npm test` | Runs all 17 unit/integration suites (102+ tests) |
+| `npm test` | Runs all 18 unit/integration suites (31 describe blocks, 119 tests as of 2026-08-23) |
 | `npm run test:e2e` | Runs 5 Playwright spec files (32 tests) |
 | `npm run verify` | Runs the full 12-stage verification pipeline |
 
 ## Unit & Integration Test Files
 
-There are 17 unit and integration test files located in the `tests/` directory.
+There are 18 unit and integration test files located in the `tests/` directory.
 
 ### 1. [agentDeletion.test.ts](file:///c:/Users/PC/Desktop/calling%20app/tests/agentDeletion.test.ts)
 **Describe Block:** Agent Soft Deletion & Lifecycle (Phase 3)
@@ -177,9 +177,24 @@ There are 17 unit and integration test files located in the `tests/` directory.
 - Default NIGHT theme, switch to DAY, switch back to NIGHT
 - Explicit preference independent of OS system theme
 
+### 18. [bugfixRegression.test.ts](file:///c:/Users/PC/Desktop/calling%20app/tests/bugfixRegression.test.ts)
+**Describe Blocks:** 9 (one per fixed finding)
+**Test Cases:** 16
+**What is tested:** Regression locks for the 2026-08-23 final-audit bugfixes.
+- BUG-1: call extended fields (dialAttemptId, reportedDurationSeconds, callStatus) persist Dexie → outbox → push transform → pull transform; reported vs verified distinct; zero/missing duration
+- BUG-8: DELETE outbox ops execute as deletes (never upserts), upsert-before-delete ordering, retry idempotency, failed DELETE → FAILED → retry SYNCED
+- BUG-2: message_history realtime INSERT reconciles; no duplicate rows
+- BUG-4: enqueue failure rolls back data write atomically (leads/remarks/activities); success path persists both
+- BUG-9: edge-function 502 rejects with no orphan local agent; network-unreachable falls back to local; duplicate propagates
+- BUG-3: assignment no-op paths return null, never `{}`
+- BUG-5: equal-timestamp conflict resolves REMOTE deterministically and is recorded; strictly newer local still wins
+- BUG-7: single-value filters narrow via index with correct totals and soft-delete exclusion
+- BUG-10: Sync Now button exposes `aria-label="Sync Now"`
+- BUG-6: data layer no longer exposes `sync`; syncHelper.ts deleted
+
 ## Playwright E2E Test Files
 
-There are 4 spec files and 1 helper located in the `e2e/` directory.
+There are 5 spec files and 1 helper located in the `e2e/` directory. Each spec runs in two Playwright projects (`chromium` desktop and `Mobile Chrome`), so 16 test cases execute as 32 test runs.
 
 ### 1. [auth.spec.ts](file:///c:/Users/PC/Desktop/calling%20app/e2e/auth.spec.ts)
 **Describe Block:** Login & Authentication Flow
@@ -212,7 +227,12 @@ There are 4 spec files and 1 helper located in the `e2e/` directory.
 - Persists across reload
 - Toggles back to NIGHT
 
-### 5. [helpers/mockAuth.ts](file:///c:/Users/PC/Desktop/calling%20app/e2e/helpers/mockAuth.ts)
+### 5. [bugfix-verification.spec.ts](file:///c:/Users/PC/Desktop/calling%20app/e2e/bugfix-verification.spec.ts)
+**Describe Block:** Bugfix verification: import, WhatsApp, dashboard, backup
+**Test Cases:** 1
+- Import enqueues outbox + audit; WhatsApp uses E.164 numbers; calls-today counts callRecords; backup header v5
+
+### Helper: [helpers/mockAuth.ts](file:///c:/Users/PC/Desktop/calling%20app/e2e/helpers/mockAuth.ts)
 Test helper containing:
 - `MockUserConfig`
 - `MOCK_AGENT`
@@ -222,7 +242,7 @@ Test helper containing:
 
 ## Verification Pipeline
 
-The verification pipeline is executed via `scripts/verify.ts` and consists of 13 stages (including report generation).
+The verification pipeline is executed via `scripts/verify.ts` and consists of 12 stages followed by report generation. Stages 1-11 print as `[Stage N/11]`; the multi-device synchronization test prints as `[Stage 12/12]`.
 
 1. Environment & Production Safety Audit
 2. Docker Desktop Health & Availability
@@ -236,12 +256,15 @@ The verification pipeline is executed via `scripts/verify.ts` and consists of 13
 10. Android Native Release APK Build
 11. Android Emulator Smoke Verification & Remote Audits
 12. Real Multi-Device E2E Synchronization Test
-13. Report Generation & GATES.md Synchronization
+
+After stage 12, the pipeline generates the verification report and synchronizes GATES.md.
 
 ## Scripts Directory
 
-There are 3 significant script files in the `scripts/` directory:
+There are 5 script files in the `scripts/` directory:
 
 - [scripts/verify.ts](file:///c:/Users/PC/Desktop/calling%20app/scripts/verify.ts) — Master verification pipeline
 - [scripts/exportLocalSchemaSnapshot.ts](file:///c:/Users/PC/Desktop/calling%20app/scripts/exportLocalSchemaSnapshot.ts) — Exports local DB schema to JSON
 - [scripts/probeCloudSchema.ts](file:///c:/Users/PC/Desktop/calling%20app/scripts/probeCloudSchema.ts) — Read-only probes against production Supabase
+- [scripts/check_emulators.ps1](file:///c:/Users/PC/Desktop/calling%20app/scripts/check_emulators.ps1) — PowerShell helper to check Android emulator status
+- [scripts/prod_smoke.ps1](file:///c:/Users/PC/Desktop/calling%20app/scripts/prod_smoke.ps1) — PowerShell production smoke test

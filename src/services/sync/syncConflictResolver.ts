@@ -31,6 +31,9 @@ export class SyncConflictResolver {
 
   /**
    * Resolves mutable entity conflicts using Last-Write-Wins (LWW) timestamp comparisons.
+   * Tie-break rule: when local and remote timestamps are exactly equal, REMOTE wins.
+   * The server is the canonical source and pull reconciliation is the convergence
+   * path; the tie is recorded as a REMOTE_WON conflict for observability.
    */
   static resolveMutable<T extends { id: string; updatedAt?: string; updated_at?: string }>(
     entityType: SyncEntityType,
@@ -44,8 +47,8 @@ export class SyncConflictResolver {
     const localTime = new Date(local.updatedAt || (local as any).updated_at || 0).getTime();
     const remoteTime = new Date((remote as any).updated_at || remote.updatedAt || 0).getTime();
 
-    if (remoteTime > localTime) {
-      // Remote is newer
+    if (remoteTime >= localTime) {
+      // Remote is newer, or timestamps tie (tie-break: remote/server wins)
       const conflict: SyncConflict = {
         id: `conflict_${entityType}_${local.id}_${Date.now()}`,
         entityType,
@@ -58,7 +61,7 @@ export class SyncConflictResolver {
       return { winner: 'REMOTE', data: remote, conflict };
     }
 
-    // Local is newer or equal
+    // Local is strictly newer
     return { winner: 'LOCAL', data: local };
   }
 

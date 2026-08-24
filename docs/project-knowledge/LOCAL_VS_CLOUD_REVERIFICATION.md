@@ -49,7 +49,7 @@ SYNCHRONIZED (corrected 2026-08-22; originally reported PARTIALLY SYNCHRONIZED)
 ## 5. REALTIME PUBLICATION
 | Object | Local State | Cloud State | Expected State | Risk | Action Required |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `supabase_realtime` | 10 tables published | 10 tables published | 10 tables published | None | None |
+| `supabase_realtime` | 9 tables published (all except `organizations`) | 9 tables published | 9 tables published | None | None |
 
 ## 6. DATA COMPARISON
 | Object | Local State | Cloud State | Expected State | Risk | Action Required |

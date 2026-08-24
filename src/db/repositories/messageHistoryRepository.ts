@@ -73,16 +73,14 @@ export class MessageHistoryRepository {
       deletedAt: null,
     };
 
-    await this.db.transaction('rw', [this.db.messageHistory, this.db.leads], async () => {
+    // Data writes + outbox enqueues are atomic: either all persist or none.
+    await this.db.transaction('rw', [this.db.messageHistory, this.db.leads, this.db.outbox], async () => {
       await this.db.messageHistory.add(msgRecord);
       await this.db.leads.update(leadId, {
         lastContactedAt: now,
         updatedAt: now,
         isSynced: 0,
       });
-    });
-
-    try {
       const queue = this.getSyncQueue();
       await queue.enqueue({
         entityType: 'message_history',
@@ -102,9 +100,7 @@ export class MessageHistoryRepository {
           userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
         });
       }
-    } catch (err) {
-      console.warn('Outbox enqueue failed for logMessage:', err);
-    }
+    });
 
     return msgRecord;
   }
@@ -126,15 +122,15 @@ export class MessageHistoryRepository {
    */
   async updateMessageStatus(id: string, sentStatus: MessageStatus): Promise<void> {
     const now = new Date().toISOString();
-    await this.db.messageHistory.update(id, {
-      sentStatus,
-      updatedAt: now,
-      isSynced: 0,
-    });
-
-    const updated = await this.db.messageHistory.get(id);
-    if (updated) {
-      try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.messageHistory, this.db.outbox], async () => {
+      await this.db.messageHistory.update(id, {
+        sentStatus,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      const updated = await this.db.messageHistory.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'message_history',
           entityId: updated.id,
@@ -142,10 +138,8 @@ export class MessageHistoryRepository {
           payload: updated,
           userId: 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for updateMessageStatus:', err);
       }
-    }
+    });
   }
 
   /**
@@ -153,15 +147,15 @@ export class MessageHistoryRepository {
    */
   async softDeleteMessage(id: string): Promise<void> {
     const now = new Date().toISOString();
-    await this.db.messageHistory.update(id, {
-      deletedAt: now,
-      updatedAt: now,
-      isSynced: 0,
-    });
-
-    const updated = await this.db.messageHistory.get(id);
-    if (updated) {
-      try {
+    // Data write + outbox enqueue are atomic: either both persist or neither.
+    await this.db.transaction('rw', [this.db.messageHistory, this.db.outbox], async () => {
+      await this.db.messageHistory.update(id, {
+        deletedAt: now,
+        updatedAt: now,
+        isSynced: 0,
+      });
+      const updated = await this.db.messageHistory.get(id);
+      if (updated) {
         await this.getSyncQueue().enqueue({
           entityType: 'message_history',
           entityId: updated.id,
@@ -169,9 +163,7 @@ export class MessageHistoryRepository {
           payload: updated,
           userId: 'local-user',
         });
-      } catch (err) {
-        console.warn('Outbox enqueue failed for softDeleteMessage:', err);
       }
-    }
+    });
   }
 }

@@ -1,5 +1,12 @@
 # FINAL DATA RE-VERIFICATION REPORT
 
+> **SUPERSEDED (2026-08-23):** This is a historical snapshot. Two findings below are no longer
+> true: (1) test counts are now 119 unit tests across 31 suites and 32 Playwright E2E runs
+> (see [12 - Testing & Verification](./12_TESTING_VERIFICATION.md)); (2) Migration 6 IS applied
+> to cloud production — verified via read-only RPC probe on 2026-08-22
+> (see [Local vs Cloud Reverification](./LOCAL_VS_CLOUD_REVERIFICATION.md) and
+> `docs/FINAL_A_TO_Z_RELEASE_AUDIT.md`). No production rollout blocker remains.
+
 ## 1. Overall Result
 FULLY VERIFIED
 

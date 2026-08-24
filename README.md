@@ -5,7 +5,7 @@
 **Offline-first mobile CRM for field sales teams — single Android APK + web admin console**
 
 [![Release](https://img.shields.io/badge/release-v2.0.0-16a34a?style=flat-square)](./release/RELEASE_NOTES.md)
-[![Tests](https://img.shields.io/badge/tests-173%20pass-success?style=flat-square)](./docs/FINAL_A_TO_Z_RELEASE_AUDIT.md)
+[![Tests](https://img.shields.io/badge/tests-179%20pass-success?style=flat-square)](./docs/BUGFIX_RESULTS.md)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0-blue?style=flat-square&logo=typescript)](./tsconfig.json)
 [![React](https://img.shields.io/badge/React-19.2-61dafb?style=flat-square&logo=react)](./package.json)
 [![Capacitor](https://img.shields.io/badge/Capacitor-8.5-119EFF?style=flat-square&logo=capacitor)](./capacitor.config.ts)
@@ -53,8 +53,8 @@ Amaratv Krishi is a natural nutrition enterprise (*"From Our Fields to Your Home
 
 - **Client:** React + TypeScript + Vite + Tailwind, wrapped with Capacitor for Android.
 - **Local store:** Dexie repositories; every write creates an outbox record.
-- **Sync:** push→pull with cursor pagination, exponential backoff, idempotency keys, Last-Write-Wins merge and a VERIFIED-duration-wins rule for call records. Realtime channels hint; the authoritative pull decides.
-- **Security:** org isolation + agent lead isolation + immutability triggers, all enforced in PostgreSQL RLS across 6 migrations.
+- **Sync:** push→pull with cursor pagination, exponential backoff, idempotency keys, operation-aware push (CREATE/UPDATE upsert, DELETE deletes — never resurrects), Last-Write-Wins merge with a deterministic REMOTE-wins tie-break, and a VERIFIED-duration-wins rule for call records. Data writes and outbox enqueues are atomic. Realtime channels hint; the authoritative pull decides.
+- **Security:** org isolation + agent lead isolation + immutability triggers, all enforced in PostgreSQL RLS across 7 migrations (migration 7 local-only pending release).
 
 ## Getting started
 
@@ -72,21 +72,21 @@ npm run dev                    # dev server
 
 ## Testing
 
-All counts below were re-run and verified on 2026-08-22 (see the [final audit](./docs/FINAL_A_TO_Z_RELEASE_AUDIT.md)):
+All counts below were re-run and verified on 2026-08-23 after the final-audit bugfix remediation (see [BUGFIX_RESULTS.md](./docs/BUGFIX_RESULTS.md)):
 
 | Suite | Command | Result |
 |---|---|---|
-| Unit / integration (22 suites) | `npm run test` | 115 pass |
+| Unit / integration (31 suites) | `npm run test` | 119 pass |
 | Playwright E2E (desktop + mobile) | `npm run test:e2e` | 32 pass |
 | Real PostgreSQL + RLS (Docker) | `npx tsx --test tests/realSupabasePostgres.test.ts` | 15 pass |
-| 3-emulator multi-device acceptance | `npx tsx --test tests/multiDeviceSync.test.ts` | 13 pass |
+| 3-emulator multi-device acceptance | `npx tsx --test tests/multiDeviceSync.test.ts` | 13 pass (3 consecutive runs) |
 | Production build | `npm run build` | clean |
 
 Android testing uses dynamically detected Android Studio emulators (AVDs) — physical devices are not required.
 
 ## Database & migrations
 
-Six migrations in [`supabase/migrations/`](./supabase/migrations), applied to both the local Docker stack and production:
+Seven migrations in [`supabase/migrations/`](./supabase/migrations). Migrations 1–6 are applied to both the local Docker stack and production; migration 7 is applied to the local stack only (cloud application is a deliberate release step):
 
 1. Central schema (10 tables, FKs, base indexes)
 2. Org-level RLS + profile immutability trigger
@@ -94,6 +94,7 @@ Six migrations in [`supabase/migrations/`](./supabase/migrations), applied to bo
 4. Realtime publication
 5. Bulk-assignment audits
 6. Agent lead isolation + lead immutability trigger
+7. Call-record extended fields (dial attempt id, reported duration, call status) + child-FK CASCADE and leads DELETE policy for cloud hard-delete (local only)
 
 RLS guarantees: users only ever see their own organisation's data; agents only see leads they were assigned or created; audit tables are admin-only.
 
@@ -124,6 +125,7 @@ Key documents:
 
 | Document | Purpose |
 |---|---|
+| [BUGFIX_RESULTS.md](./docs/BUGFIX_RESULTS.md) | Final end-to-end audit bugfix results (2026-08-23) |
 | [FINAL_A_TO_Z_RELEASE_AUDIT.md](./docs/FINAL_A_TO_Z_RELEASE_AUDIT.md) | Final 30-section release audit + verdict |
 | [GATES.md](./GATES.md) | Master acceptance gates (current verified state) |
 | [project-knowledge/07_SUPABASE_SECURITY_MODEL.md](./docs/project-knowledge/07_SUPABASE_SECURITY_MODEL.md) | RLS & security model |

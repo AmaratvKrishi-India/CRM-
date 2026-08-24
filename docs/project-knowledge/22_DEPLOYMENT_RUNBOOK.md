@@ -3,7 +3,7 @@
 Step-by-step procedures for deploying the web app to Vercel, shipping database migrations to Supabase Cloud, deploying the edge function, and building the release APK.
 
 > [!CAUTION]
-> Production is LIVE with real data. Never run destructive migrations, never disable RLS, and never put service-role keys or keystore secrets into client env files or docs. The GitHub repo is PUBLIC.
+> Production is LIVE with real data. Never run destructive migrations, never disable RLS, and never put service-role keys or keystore secrets into client env files or docs. The GitHub repo is PRIVATE.
 
 ## Prerequisites (check first)
 
@@ -42,7 +42,7 @@ Notes:
 All 6 migrations are already applied to cloud (see [14 - Migration History](./14_MIGRATION_HISTORY.md)). For a NEW migration:
 
 ```powershell
-# 1. Link the repo to the cloud project (one-time; currently NOT linked)
+# 1. Link the repo to the cloud project (one-time; already linked as of 2026-08-23)
 npx supabase link --project-ref lahvcodvgubplzfshare
 
 # 2. Create the migration file

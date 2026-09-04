@@ -1,0 +1,65 @@
+# Dial Call Flow - Agent Makes Outbound Call
+# Tests the call dialing flow for AGENT role
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+    timeout: 15000
+
+- tapOn: "email-input"
+- inputText: "agent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 10000
+
+- tapOn:
+    id: "leads-tab"
+
+- waitFor:
+    id: "leads-list"
+
+- tapOn:
+    id: "lead-item-0"
+
+- waitFor:
+    id: "lead-detail"
+    timeout: 3000
+
+- tapOn:
+    id: "call-button"
+
+- waitFor:
+    id: "call-modal"
+    timeout: 3000
+
+- assertVisible:
+    id: "call-lead-name"
+
+- assertVisible:
+    id: "call-lead-phone"
+
+- tapOn:
+    id: "start-call-button"
+
+- waitFor:
+    id: "call-in-progress"
+    timeout: 5000
+
+- assertVisible:
+    id: "call-timer"
+
+- tapOn:
+    id: "end-call-button"
+
+- waitFor:
+    id: "call-outcome-modal"
+    timeout: 3000

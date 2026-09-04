@@ -9,14 +9,14 @@
  */
 
 import { crmData } from '../db';
-import { SalesCRMDatabase } from '../db/database';
+import type { SalesCRMDatabase } from '../db/database';
 import { CallRecordRepository } from '../db/repositories/callRecordRepository';
 import { LeadRepository } from '../db/repositories/leadRepository';
 import { ActivityRepository } from '../db/repositories/activityRepository';
 import { SyncQueue } from './sync/syncQueue';
 import { DeviceService } from './deviceService';
 import { NativePlatformService } from './nativePlatform';
-import {
+import type {
   User,
   Lead,
   CallOutcome,
@@ -61,6 +61,7 @@ const STORAGE_KEY = 'amaratv_pending_dial_attempt';
 
 let customDb: SalesCRMDatabase | null = null;
 let inMemoryAttempt: PendingDialAttempt | null = null;
+let inMemoryScopeKey: string | null = null;
 
 export class CallLifecycleService {
   /**
@@ -68,6 +69,25 @@ export class CallLifecycleService {
    */
   static setCustomDatabase(db: SalesCRMDatabase | null): void {
     customDb = db;
+  }
+
+  private static getDb(): SalesCRMDatabase {
+    return customDb || crmData.db;
+  }
+
+  private static getStorageKey(): string {
+    const scope = this.getDb().requireAccessScope();
+    return `${STORAGE_KEY}:${scope.organizationId}:${scope.userId}`;
+  }
+
+  private static assertActor(actor: User | null): asserts actor is User {
+    if (!actor || actor.status !== 'ACTIVE') {
+      throw new Error('Unauthorized: An active authenticated user session is required.');
+    }
+    const scope = this.getDb().requireAccessScope();
+    if (actor.id !== scope.userId || actor.organizationId !== scope.organizationId || actor.role !== scope.role) {
+      throw new Error('Unauthorized: User does not match the active data partition.');
+    }
   }
 
   private static getCallRecordRepo(): CallRecordRepository {
@@ -101,11 +121,13 @@ export class CallLifecycleService {
    * Loads current pending attempt from memory or storage.
    */
   static getPendingAttempt(): PendingDialAttempt | null {
-    if (inMemoryAttempt) return inMemoryAttempt;
-
     try {
+      const storageKey = this.getStorageKey();
+      if (inMemoryAttempt && inMemoryScopeKey === storageKey) return inMemoryAttempt;
+      inMemoryAttempt = null;
+      inMemoryScopeKey = storageKey;
       if (typeof localStorage !== 'undefined') {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(storageKey);
         if (raw) {
           inMemoryAttempt = JSON.parse(raw);
           return inMemoryAttempt;
@@ -118,13 +140,15 @@ export class CallLifecycleService {
   }
 
   private static savePendingAttempt(attempt: PendingDialAttempt | null): void {
+    const storageKey = this.getStorageKey();
     inMemoryAttempt = attempt;
+    inMemoryScopeKey = storageKey;
     try {
       if (typeof localStorage !== 'undefined') {
         if (attempt) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(attempt));
+          localStorage.setItem(storageKey, JSON.stringify(attempt));
         } else {
-          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(storageKey);
         }
       }
     } catch {
@@ -138,9 +162,7 @@ export class CallLifecycleService {
    * and transitions state to DIAL_INITIATED.
    */
   static initiateDial(actor: User | null, lead: Lead): PendingDialAttempt {
-    if (!actor) {
-      throw new Error('Unauthorized: An authenticated user session is required to place calls.');
-    }
+    this.assertActor(actor);
 
     if (!lead.phone) {
       throw new Error('Cannot dial lead: No phone number present.');
@@ -212,9 +234,7 @@ export class CallLifecycleService {
     actor: User | null,
     input: CompleteCallInput
   ): Promise<{ callRecord: CallRecord; auditActivity: Activity }> {
-    if (!actor) {
-      throw new Error('Unauthorized: An authenticated user session is required to log call outcomes.');
-    }
+    this.assertActor(actor);
 
     const attempt = this.getPendingAttempt();
     if (!attempt) {
@@ -224,7 +244,6 @@ export class CallLifecycleService {
     const callRepo = this.getCallRecordRepo();
     const leadRepo = this.getLeadRepo();
     const activityRepo = this.getActivityRepo();
-    const syncQueue = this.getSyncQueue();
 
     const now = new Date().toISOString();
     const isConnected = input.outcome === 'CONNECTED';
@@ -315,9 +334,10 @@ export class CallLifecycleService {
    */
   static resetForTesting(): void {
     inMemoryAttempt = null;
+    inMemoryScopeKey = null;
     try {
       if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(this.getStorageKey());
       }
     } catch {
       // Ignore

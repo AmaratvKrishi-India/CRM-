@@ -15,11 +15,12 @@ import {
   Send,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import { Lead, MessageTemplate } from '../../db/types';
+import type { Lead, MessageTemplate } from '../../db/types';
 import { renderMessageTemplate } from '../../services/templateRenderer';
+import type {
+  AttachmentMetadata} from '../../services/attachmentService';
 import {
-  AttachmentService,
-  AttachmentMetadata,
+  AttachmentService
 } from '../../services/attachmentService';
 import { AppSettingsService } from '../../services/appSettingsService';
 import { NativePlatformService } from '../../services/nativePlatform';

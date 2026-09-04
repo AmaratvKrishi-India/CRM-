@@ -1,6 +1,10 @@
 # 16 - CURRENT STATE & RELEASE STATUS
 
-## Release Status: FULLY_RELEASED
+## Current release decision (2026-09-01): DO NOT SHIP
+
+Phase 3 synchronization hardening and Phase 3.1 test-infrastructure recovery are complete. Clean install, TypeScript, production build, and the maintained aggregate Node suite pass (155 pass, 1 emulator-gated skip), including Phase 1–3, local PostgreSQL/RLS, offline/restart, conflict, backup/restore, retry, and mutex coverage. The complete evidence is in `PHASE_3_RECOVERY_VERIFICATION_2026-09-01.md`. The historical v2.0.0 details below describe an older release and are not approval to ship the current working tree.
+
+## Historical release status: v2.0.0 released
 - Version: 2.0.0
 - Release Commit: 759a81c
 - Release Date: 2026-08-22
@@ -14,7 +18,7 @@
 - Android: shipped APK at [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes)
 - Source: GitHub AmaratvKrishi-India/CRM- (PRIVATE — verified via `gh repo view` on 2026-08-22)
 
-## Verification Results (All PASS)
+## Historical verification results (2026-08-23; not current working-tree evidence)
 - Cloud Migration 6: PASS (production state; migration 7 intentionally NOT applied to cloud)
 - Cloud RLS / Agent Lead Isolation: PASS (read-only probe 2026-08-23: unauthenticated leads SELECT returns [])
 - Local/Cloud Parity: PASS for migrations 1–6; local-only migration 7 pending cloud application as a release step

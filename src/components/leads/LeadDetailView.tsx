@@ -16,7 +16,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import {
+import type {
   Lead,
   LeadStatus,
   CallOutcome,
@@ -25,7 +25,7 @@ import {
   MessageHistory,
   FollowUp,
 } from '../../db/types';
-import { LeadWithHistory } from '../../db/repositories/leadRepository';
+import type { LeadWithHistory } from '../../db/repositories/leadRepository';
 import { FollowUpModal } from '../followups/FollowUpModal';
 import { EditLeadModal } from './EditLeadModal';
 import { Modal } from '../common/Modal';

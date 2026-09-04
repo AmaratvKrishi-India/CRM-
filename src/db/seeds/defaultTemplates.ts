@@ -2,7 +2,7 @@
  * Default Message Templates & Predefined Sales Remarks for Amaratv Krishi
  */
 
-import { MessageTemplate } from '../types';
+import type { MessageTemplate } from '../types';
 
 export const DEFAULT_MESSAGE_TEMPLATES: Omit<MessageTemplate, 'createdAt' | 'updatedAt' | 'isSynced' | 'deletedAt'>[] = [
   {

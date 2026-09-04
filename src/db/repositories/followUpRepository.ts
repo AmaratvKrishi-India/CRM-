@@ -3,9 +3,9 @@
  * Manages follow-up reminders, status changes, rescheduling, and syncs nextFollowUpAt with Leads.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { FollowUp, FollowUpPriority, FollowUpStatus, Lead, PhoneType, LeadStatus } from '../types';
+import type { FollowUp, FollowUpPriority, Lead, PhoneType, LeadStatus } from '../types';
 
 export interface EnrichedFollowUp extends FollowUp {
   lead?: {
@@ -54,6 +54,8 @@ export class FollowUpRepository {
    * Recalculates and updates the lead's nextFollowUpAt timestamp based on its earliest pending follow-up.
    */
   private async recalculateLeadNextFollowUp(leadId: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    await this.db.requireAccessibleLead(leadId, scope);
     const earliestPending = await this.db.followUps
       .where('leadId')
       .equals(leadId)
@@ -78,7 +80,8 @@ export class FollowUpRepository {
         entityId: leadId,
         operation: 'UPDATE',
         payload: updatedLead,
-        userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     }
   }
@@ -94,18 +97,16 @@ export class FollowUpRepository {
     notes?: string | null;
     priority?: FollowUpPriority;
   }): Promise<FollowUp> {
-    const { leadId, userId = null, scheduledAt, title, notes = null, priority = 'MEDIUM' } = params;
+    const scope = this.db.requireAccessScope();
+    const { leadId, scheduledAt, title, notes = null, priority = 'MEDIUM' } = params;
 
-    const lead = await this.db.leads.get(leadId);
-    if (!lead) {
-      throw new Error(`Cannot schedule follow up: Lead ${leadId} does not exist.`);
-    }
+    await this.db.requireAccessibleLead(leadId, scope);
 
     const now = new Date().toISOString();
     const followUp: FollowUp = {
       id: this.generateId(),
       leadId,
-      userId,
+      userId: scope.userId,
       scheduledAt,
       title: title.trim(),
       notes: notes ? notes.trim() : null,
@@ -126,7 +127,8 @@ export class FollowUpRepository {
         entityId: followUp.id,
         operation: 'CREATE',
         payload: followUp,
-        userId: followUp.userId || 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
 
@@ -157,9 +159,11 @@ export class FollowUpRepository {
     newNotes?: string | null;
     newPriority?: FollowUpPriority;
   }): Promise<FollowUp> {
+    const scope = this.db.requireAccessScope();
     const { id, newScheduledAt, newTitle, newNotes, newPriority } = params;
     const existing = await this.db.followUps.get(id);
     if (!existing) throw new Error(`Follow up ${id} not found.`);
+    await this.db.requireAccessibleLead(existing.leadId, scope);
 
     const now = new Date().toISOString();
     const updates: Partial<FollowUp> = {
@@ -183,7 +187,8 @@ export class FollowUpRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.userId || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -195,8 +200,10 @@ export class FollowUpRepository {
    * Marks a follow-up as completed.
    */
   async completeFollowUp(id: string): Promise<FollowUp> {
+    const scope = this.db.requireAccessScope();
     const item = await this.db.followUps.get(id);
     if (!item) throw new Error(`Follow up ${id} not found.`);
+    await this.db.requireAccessibleLead(item.leadId, scope);
 
     const now = new Date().toISOString();
 
@@ -215,7 +222,8 @@ export class FollowUpRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.userId || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -227,8 +235,10 @@ export class FollowUpRepository {
    * Cancels a follow-up.
    */
   async cancelFollowUp(id: string): Promise<FollowUp> {
+    const scope = this.db.requireAccessScope();
     const item = await this.db.followUps.get(id);
     if (!item) throw new Error(`Follow up ${id} not found.`);
+    await this.db.requireAccessibleLead(item.leadId, scope);
 
     const now = new Date().toISOString();
 
@@ -246,7 +256,8 @@ export class FollowUpRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.userId || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -258,12 +269,18 @@ export class FollowUpRepository {
    * Retrieves all pending follow-ups categorized into OVERDUE, TODAY, and UPCOMING.
    */
   async getGroupedPendingFollowUps(): Promise<GroupedFollowUps> {
+    const scope = this.db.requireAccessScope();
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 
+    const accessibleLeadIds = new Set(
+      (await this.db.leads.toArray())
+        .filter((lead) => scope.role === 'ADMIN' || lead.assignedTo === scope.userId || lead.createdBy === scope.userId)
+        .map((lead) => lead.id)
+    );
     const pendingFollowUps = await this.db.followUps
-      .filter((f) => f.deletedAt === null && f.status === 'PENDING')
+      .filter((f) => accessibleLeadIds.has(f.leadId) && f.deletedAt === null && f.status === 'PENDING')
       .sortBy('scheduledAt');
 
     // Fetch associated leads for enriched cards
@@ -319,6 +336,7 @@ export class FollowUpRepository {
    * Retrieves all follow-ups for a lead.
    */
   async getFollowUpsByLead(leadId: string): Promise<FollowUp[]> {
+    await this.db.requireAccessibleLead(leadId);
     return await this.db.followUps
       .where('leadId')
       .equals(leadId)
@@ -331,8 +349,10 @@ export class FollowUpRepository {
    * Soft-deletes a follow-up.
    */
   async softDeleteFollowUp(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
     const item = await this.db.followUps.get(id);
     if (!item) return;
+    await this.db.requireAccessibleLead(item.leadId, scope);
 
     const now = new Date().toISOString();
     await this.db.transaction('rw', [this.db.followUps, this.db.leads, this.db.outbox], async () => {
@@ -349,7 +369,8 @@ export class FollowUpRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.userId || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });

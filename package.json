@@ -7,12 +7,21 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx scripts/run-tests.ts",
+    "test:node": "tsx scripts/run-tests.ts",
+    "test:vitest": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "test:type": "tsd",
+    "test:type:watch": "tsd --watch",
+    "test:bench": "vitest bench",
+    "test:perf:bundle": "tsx scripts/bundle-analysis.ts",
+    "verify": "tsx scripts/verify.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report",
-    "verify": "tsx scripts/verify.ts"
+    "test:e2e:chromium": "playwright test --project=chromium"
   },
   "keywords": [
     "crm",
@@ -35,25 +44,49 @@
     "clsx": "^2.1.1",
     "dexie": "^4.4.5",
     "lucide-react": "^1.33.0",
+    "papaparse": "^5.7.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.6.0",
-    "xlsx": "^0.18.5"
+    "read-excel-file": "^9.3.10",
+    "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/dom": "^10.0.0",
+    "@testing-library/react": "^16.0.0",
     "@types/node": "^26.2.0",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
     "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/ui": "^4.0.0",
     "autoprefixer": "^10.5.4",
+    "axe-playwright": "^2.2.2",
+    "eslint": "^10.9.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "exceljs": "^4.4.0",
+    "expect-type": "^1.0.0",
     "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.0.0",
     "postcss": "^8.5.26",
+    "rollup-plugin-visualizer": "^6.0.0",
+    "supabase": "^2.116.0",
     "tailwindcss": "^4.3.3",
+    "tsd": "^0.31.0",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2",
-    "vite": "^8.2.2"
+    "typescript": "^6.0.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.0.0"
+  },
+  "tsd": {
+    "spec": "tests/types/**/*.test-d.ts",
+    "compilerOptions": {
+      "strict": true,
+      "noEmit": true
+    }
   }
 }

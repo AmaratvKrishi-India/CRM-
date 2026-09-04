@@ -1,5 +1,7 @@
 # 07 - SUPABASE SECURITY MODEL
 
+> Phase 3 client defense in depth (2026-09-01): sync pull and realtime now apply explicit organization filters plus local access-scope validation even though RLS remains authoritative. Assignment revocation is reconciled through an authoritative visible-lead snapshot and local graph pruning. Push deletes filter both entity ID and organization ID. No production policy or migration was changed during Phase 3; migrations 1–7 and the RLS scope fixture were validated only on disposable local PostgreSQL.
+
 This document outlines the comprehensive security architecture and Row Level Security (RLS) model implemented in the Amaratv Krishi Field Sales CRM.
 
 ## Security Helper Functions (5 total)

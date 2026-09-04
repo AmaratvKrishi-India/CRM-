@@ -5,11 +5,18 @@ import { SalesCRMDatabase } from '../src/db/database.ts';
 import { createCRMDataLayer } from '../src/db/index.ts';
 import { LeadAssignmentService } from '../src/services/leadAssignmentService.ts';
 import type { User } from '../src/db/types.ts';
+import type { AccessScope } from '../src/db/accessScope.ts';
+
+const agentScope: AccessScope = {
+  organizationId: 'org-test-01',
+  userId: 'user-agent-01',
+  role: 'AGENT',
+};
 
 describe('Real Dexie, Repository & Outbox Integration Tests (Stage 1 & 2)', () => {
-  function getFreshTestDb(nameSuffix: string) {
+  function getFreshTestDb(nameSuffix: string, scope: AccessScope = agentScope) {
     const dbName = `RealDexieTest_${Date.now()}_${nameSuffix}`;
-    const testDb = new SalesCRMDatabase(dbName);
+    const testDb = new SalesCRMDatabase(dbName, scope);
     const dataLayer = createCRMDataLayer(testDb);
     return { db: testDb, dataLayer, dbName };
   }
@@ -160,7 +167,7 @@ describe('Real Dexie, Repository & Outbox Integration Tests (Stage 1 & 2)', () =
 
   it('5. Actual Persistence Across Application Restart (Dexie close & reopen)', async () => {
     const dbName = `PersistentDB_${Date.now()}`;
-    const initialDb = new SalesCRMDatabase(dbName);
+    const initialDb = new SalesCRMDatabase(dbName, agentScope);
     const initialDataLayer = createCRMDataLayer(initialDb);
 
     // Write initial lead & remark
@@ -187,7 +194,7 @@ describe('Real Dexie, Repository & Outbox Integration Tests (Stage 1 & 2)', () =
     await initialDb.close();
 
     // Reopen database with exact same name
-    const reopenedDb = new SalesCRMDatabase(dbName);
+    const reopenedDb = new SalesCRMDatabase(dbName, agentScope);
     const reopenedDataLayer = createCRMDataLayer(reopenedDb);
 
     // Assert records survived closure
@@ -206,7 +213,11 @@ describe('Real Dexie, Repository & Outbox Integration Tests (Stage 1 & 2)', () =
   });
 
   it('6. Bulk Lead Assignment Scaling at 1, 10, 50, and 100+ records in real Dexie', async () => {
-    const { db, dataLayer } = getFreshTestDb('bulk_assignment_scale');
+    const { db, dataLayer } = getFreshTestDb('bulk_assignment_scale', {
+      organizationId: 'org-01',
+      userId: 'admin-01',
+      role: 'ADMIN',
+    });
     LeadAssignmentService.setCustomDatabase(db);
 
     const adminUser: User = {

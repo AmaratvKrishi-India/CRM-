@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Copy, AlertTriangle, ListFilter } from 'lucide-react';
-import { RecordValidationStatus } from '../../services/excelParser';
+import type { RecordValidationStatus } from '../../services/excelParser';
 
 interface ImportStatsCardProps {
   total: number;

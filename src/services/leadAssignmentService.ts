@@ -5,14 +5,14 @@
  */
 
 import { crmData } from '../db';
-import { SalesCRMDatabase } from '../db/database';
+import type { SalesCRMDatabase } from '../db/database';
 import { LeadRepository } from '../db/repositories/leadRepository';
 import { UserRepository } from '../db/repositories/userRepository';
 import { ActivityRepository } from '../db/repositories/activityRepository';
 import { BulkAssignmentAuditRepository } from '../db/repositories/bulkAssignmentAuditRepository';
 import { SyncQueue } from './sync/syncQueue';
 import { DeviceService } from './deviceService';
-import { User, Lead, Activity } from '../db/types';
+import type { User, Lead, Activity } from '../db/types';
 
 export interface AssignmentStats {
   totalLeads: number;
@@ -64,6 +64,10 @@ export class LeadAssignmentService {
     if (actor.status !== 'ACTIVE') {
       throw new Error('Unauthorized: Inactive administrator account.');
     }
+    const scope = (customDb || crmData.db).requireAccessScope();
+    if (actor.id !== scope.userId || actor.organizationId !== scope.organizationId || scope.role !== 'ADMIN') {
+      throw new Error('Unauthorized: Administrator does not match the active data partition.');
+    }
   }
 
   /**
@@ -80,7 +84,6 @@ export class LeadAssignmentService {
     const leadRepo = this.getLeadRepo();
     const userRepo = this.getUserRepo();
     const activityRepo = this.getActivityRepo();
-    const syncQueue = this.getSyncQueue();
 
     // 1. Validate Lead exists
     const lead = await leadRepo.getLeadById(leadId);
@@ -160,7 +163,6 @@ export class LeadAssignmentService {
     const leadRepo = this.getLeadRepo();
     const userRepo = this.getUserRepo();
     const activityRepo = this.getActivityRepo();
-    const syncQueue = this.getSyncQueue();
 
     const lead = await leadRepo.getLeadById(leadId);
     if (!lead) {
@@ -256,7 +258,6 @@ export class LeadAssignmentService {
     const userRepo = this.getUserRepo();
     const leadRepo = this.getLeadRepo();
     const activityRepo = this.getActivityRepo();
-    const syncQueue = this.getSyncQueue();
     const bulkAuditRepo = this.getBulkAuditRepo();
 
     // 1. Validate Target Agent
@@ -304,7 +305,7 @@ export class LeadAssignmentService {
         }
 
         const now = new Date().toISOString();
-        const updatedLead = await leadRepo.updateLead(leadId, {
+        await leadRepo.updateLead(leadId, {
           assignedTo: targetAgentId,
           updatedBy: actor.id,
         });

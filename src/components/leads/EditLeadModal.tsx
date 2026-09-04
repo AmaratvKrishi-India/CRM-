@@ -9,7 +9,7 @@ import { PencilLine, CheckCircle2, Loader2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
-import { Lead, LeadStatus } from '../../db/types';
+import type { Lead, LeadStatus } from '../../db/types';
 import { labelFor } from '../../lib/labels';
 
 const STATUS_OPTIONS: LeadStatus[] = [

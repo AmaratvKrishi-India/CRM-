@@ -19,8 +19,11 @@ import { RealtimeService } from '../src/services/realtime/realtimeService.ts';
 import { setCustomSupabaseClient } from '../src/services/supabaseClient.ts';
 import type { Lead, User } from '../src/db/types.ts';
 
-function freshDb(name: string) {
-  const db = new SalesCRMDatabase(`BugfixRegression_${Date.now()}_${name}`);
+function freshDb(
+  name: string,
+  scope = { organizationId: 'org-bugfix-01', userId: 'admin-bugfix-01', role: 'ADMIN' as const }
+) {
+  const db = new SalesCRMDatabase(`BugfixRegression_${Date.now()}_${name}`, scope);
   const dataLayer = createCRMDataLayer(db);
   return { db, dataLayer };
 }
@@ -40,7 +43,11 @@ const adminUser: User = {
 
 describe('BUG-1: call extended fields persist end-to-end', () => {
   async function runCall(input: Record<string, any>) {
-    const { db, dataLayer } = freshDb('bug1');
+    const { db, dataLayer } = freshDb('bug1', {
+      organizationId: 'org-bugfix-01',
+      userId: 'agent-bug1',
+      role: 'AGENT',
+    });
     CallLifecycleService.setCustomDatabase(db);
     const lead: Lead = {
       id: 'lead-bug1',
@@ -50,6 +57,9 @@ describe('BUG-1: call extended fields persist end-to-end', () => {
       locality: 'Hazratganj',
       isSynced: 1,
       deletedAt: null,
+      assignedTo: 'agent-bug1',
+      createdBy: 'agent-bug1',
+      updatedBy: 'agent-bug1',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -143,12 +153,21 @@ describe('BUG-8: DELETE outbox operations are pushed as DELETE, never upsert', (
             ops.push({ op: 'upsert', table, ids: (Array.isArray(records) ? records : [records]).map((r: any) => r.id) });
             return { error: null };
           },
-          delete: () => ({
-            eq: async (_col: string, val: string) => {
-              ops.push({ op: 'delete', table, id: val });
-              return { error: opts.deleteError ? { message: opts.deleteError } : null };
-            },
-          }),
+          delete: () => {
+            let recorded = false;
+            const query: any = {
+              eq: (col: string, val: string) => {
+                if (col === 'id' && !recorded) {
+                  ops.push({ op: 'delete', table, id: val });
+                  recorded = true;
+                }
+                return query;
+              },
+              then: (resolve: (value: unknown) => void) =>
+                resolve({ error: opts.deleteError ? { message: opts.deleteError } : null }),
+            };
+            return query;
+          },
         };
       },
     };
@@ -212,6 +231,7 @@ describe('BUG-8: DELETE outbox operations are pushed as DELETE, never upsert', (
     assert.strictEqual(failed.status, 'FAILED');
 
     // Retry succeeds (delete of missing row is a no-op success on the server)
+    await db.outbox.update(failed.id, { nextAttemptAt: new Date(0).toISOString() });
     const res2 = await push.pushPending(makeFakeClient([]) as any);
     assert.strictEqual(res2.failedCount, 0);
     const synced = await db.outbox.where('operation').equals('DELETE').first();
@@ -355,17 +375,24 @@ describe('BUG-9: createAgent propagates server errors instead of creating orphan
     await db.close();
   });
 
-  it('genuine network-unreachable error falls back to local creation', async () => {
+  it('genuine network-unreachable error does not create an orphan local agent', async () => {
     const db = await setup();
     const fetchError = Object.assign(new Error('fetch failed'), { name: 'FunctionsFetchError' });
     setCustomSupabaseClient({ functions: { invoke: async () => ({ data: null, error: fetchError }) } } as any);
 
-    const { agent } = await AgentManagementService.createAgent(adminUser, {
-      name: 'Offline Agent',
-      email: 'offline@bugfix.com',
-      password: 'secret123',
-    });
-    assert.ok(await db.users.get(agent.id), 'local agent created when offline');
+    await assert.rejects(
+      () => AgentManagementService.createAgent(adminUser, {
+        name: 'Offline Agent',
+        email: 'offline@bugfix.com',
+        password: 'secret123',
+      }),
+      /server connection|failed on the server/i
+    );
+    assert.strictEqual(
+      await db.users.where('email').equals('offline@bugfix.com').count(),
+      0,
+      'no local-only agent is created when offline'
+    );
 
     setCustomSupabaseClient(null);
     AgentManagementService.setCustomDatabase(null);

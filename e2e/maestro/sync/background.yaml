@@ -1,0 +1,80 @@
+# Background Sync Flow
+# Tests automatic background sync when app is in background
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+
+- tapOn: "email-input"
+- inputText: "agent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "agent-dashboard"
+
+- tapOn:
+    id: "leads-tab"
+
+- waitFor:
+    id: "leads-list"
+
+- # Create multiple leads while online
+- repeat:
+    count: 5
+- tapOn:
+    id: "add-lead-button"
+- waitFor:
+    id: "create-lead-form"
+- tapOn: "lead-name-input"
+- inputText: "Background Sync Lead ${index}"
+- tapOn: "lead-phone-input"
+- inputText: "98765432${index}0"
+- tapOn: "submit-lead-button"
+- waitFor:
+    id: "leads-list"
+
+- # Verify sync indicator shows synced
+- assertVisible:
+    id: "online-indicator"
+
+- # Put app in background
+- runCommand: "adb shell am send-broadcast android.intent.action.SCREEN_OFF"
+- runCommand: "adb shell input keyevent KEYCODE_HOME"
+
+- wait: 2000
+
+- # Bring app to foreground
+- runCommand: "adb shell am start -n com.amaratvkrishi.salescrm/.MainActivity"
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 5000
+
+- # Background sync should have run
+- assertVisible:
+    id: "online-indicator"
+
+- # Verify all leads still present
+- tapOn:
+    id: "leads-tab"
+- waitFor:
+    id: "leads-list"
+- assertVisible:
+    text: "Background Sync Lead 0"
+- assertVisible:
+    text: "Background Sync Lead 4"
+
+- # Check last sync time updated
+- tapOn:
+    id: "settings-tab"
+- waitFor:
+    id: "sync-settings"
+- assertVisible:
+    id: "last-sync-time"

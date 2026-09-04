@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \".opencode/skills/ck/hooks/session-start.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}

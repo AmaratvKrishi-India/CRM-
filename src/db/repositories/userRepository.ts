@@ -4,9 +4,9 @@
  * Strictly avoids storing passwords or sensitive authentication secrets.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { User, UserRole, UserStatus } from '../types';
+import type { User, UserRole, UserStatus } from '../types';
 
 export class UserRepository {
   private syncQueue?: SyncQueue;
@@ -46,6 +46,10 @@ export class UserRepository {
     status?: UserStatus;
     createdBy?: string | null;
   }): Promise<User> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') {
+      throw new Error('Only administrators can create user profiles.');
+    }
     const cleanEmail = input.email.trim().toLowerCase();
     const cleanPhone = input.phone.trim();
     const cleanName = input.name.trim();
@@ -72,7 +76,7 @@ export class UserRepository {
 
     const newUser: User = {
       id: userId,
-      organizationId: input.organizationId || null,
+      organizationId: scope.organizationId,
       name: cleanName,
       email: cleanEmail,
       phone: cleanPhone,
@@ -94,7 +98,8 @@ export class UserRepository {
         entityId: newUser.id,
         operation: 'CREATE',
         payload: newUser,
-        userId: newUser.createdBy || newUser.id,
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
 
@@ -105,6 +110,13 @@ export class UserRepository {
    * Directly saves or replaces a User record (used during sync / bootstrapping).
    */
   async putUser(user: User): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    if (user.organizationId !== scope.organizationId) {
+      throw new Error('Cannot cache a profile from another organization.');
+    }
+    if (scope.role === 'AGENT' && user.id !== scope.userId) {
+      throw new Error('Agents may cache only their own profile.');
+    }
     await this.db.users.put(user);
   }
 
@@ -112,6 +124,7 @@ export class UserRepository {
    * Returns database reference.
    */
   getDatabase(): SalesCRMDatabase {
+    this.db.requireAccessScope();
     return this.db;
   }
 
@@ -119,8 +132,11 @@ export class UserRepository {
    * Retrieves user by UUID.
    */
   async getUserById(id: string, includeDeleted = false): Promise<User | undefined> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role === 'AGENT' && id !== scope.userId) return undefined;
     const user = await this.db.users.get(id);
     if (!user) return undefined;
+    if (user.organizationId !== scope.organizationId) return undefined;
     if (!includeDeleted && user.deletedAt !== null) return undefined;
     return user;
   }
@@ -129,11 +145,17 @@ export class UserRepository {
    * Retrieves user by email.
    */
   async getUserByEmail(email: string, includeDeleted = false): Promise<User | undefined> {
+    const scope = this.db.requireAccessScope();
     const cleanEmail = email.trim().toLowerCase();
     return await this.db.users
       .where('email')
       .equals(cleanEmail)
-      .and((u) => (includeDeleted ? true : u.deletedAt === null))
+      .and(
+        (u) =>
+          u.organizationId === scope.organizationId &&
+          (scope.role === 'ADMIN' || u.id === scope.userId) &&
+          (includeDeleted || u.deletedAt === null)
+      )
       .first();
   }
 
@@ -145,9 +167,13 @@ export class UserRepository {
     role?: UserRole;
     status?: UserStatus;
   } = {}): Promise<User[]> {
+    const scope = this.db.requireAccessScope();
     const { includeDeleted = false, role, status } = options;
 
     let collection = this.db.users.toCollection();
+    collection = collection.filter(
+      (user) => user.organizationId === scope.organizationId && (scope.role === 'ADMIN' || user.id === scope.userId)
+    );
 
     if (!includeDeleted) {
       collection = collection.filter((u) => u.deletedAt === null);
@@ -166,6 +192,10 @@ export class UserRepository {
    * Updates user metadata (name, phone, role, status).
    */
   async updateUser(id: string, updates: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') {
+      throw new Error('Only administrators can update user profiles.');
+    }
     const existing = await this.getUserById(id, true);
     if (!existing) throw new Error(`User with id ${id} not found.`);
 
@@ -194,7 +224,8 @@ export class UserRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: id,
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -213,6 +244,8 @@ export class UserRepository {
    * Updates last login timestamp.
    */
   async recordLogin(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    if (id !== scope.userId) throw new Error('Cannot record a login for another user.');
     const now = new Date().toISOString();
     await this.db.users.update(id, {
       lastLoginAt: now,
@@ -225,6 +258,8 @@ export class UserRepository {
    * Soft-deletes a user (sets deletedAt only — legacy compat).
    */
   async softDeleteUser(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') throw new Error('Only administrators can delete users.');
     const user = await this.getUserById(id);
     if (!user) throw new Error(`User with id ${id} not found.`);
     const now = new Date().toISOString();
@@ -242,7 +277,8 @@ export class UserRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: id,
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -253,6 +289,8 @@ export class UserRepository {
    * All historical CRM records are preserved. Login is immediately blocked.
    */
   async deleteUser(id: string): Promise<User> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') throw new Error('Only administrators can delete users.');
     const user = await this.getUserById(id, true);
     if (!user) throw new Error(`User with id ${id} not found.`);
     const now = new Date().toISOString();
@@ -272,7 +310,8 @@ export class UserRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: id,
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -284,9 +323,11 @@ export class UserRepository {
    * Returns only ACTIVE, non-deleted agents suitable for lead assignment.
    */
   async getActiveAgentsForAssignment(): Promise<User[]> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') return [];
     return await this.db.users
       .toCollection()
-      .filter((u) => u.role === 'AGENT' && u.status === 'ACTIVE' && u.deletedAt === null)
+      .filter((u) => u.organizationId === scope.organizationId && u.role === 'AGENT' && u.status === 'ACTIVE' && u.deletedAt === null)
       .sortBy('name');
   }
 }

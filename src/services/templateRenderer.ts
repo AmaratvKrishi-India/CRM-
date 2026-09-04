@@ -4,7 +4,7 @@
  * Guarantees zero raw unresolved {{tags}} in output.
  */
 
-import { Lead } from '../db/types';
+import type { Lead } from '../db/types';
 
 export interface RenderContext {
   lead: Lead;

@@ -1,0 +1,37 @@
+# Login Flow - Agent Authentication
+# Uses local Supabase seed-account credentials supplied by the test environment.
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+
+- assertVisible: "Email / Login ID"
+- assertVisible:
+    id: "login-password"
+- assertVisible: "Sign In"
+
+- tapOn:
+    id: "login-email"
+
+- inputText: ${MAESTRO_AGENT_EMAIL}
+
+- tapOn:
+    id: "login-password"
+
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+
+- tapOn: "Sign In"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "login-email"
+    timeout: 30000
+
+- assertNotVisible: "Email / Login ID"

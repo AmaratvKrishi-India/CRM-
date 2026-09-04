@@ -23,12 +23,12 @@
   --bg-inset-strong: #475569;
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
+  --text-muted: #cbd5e1;
   --border: #334155;
   --border-strong: #475569;
   --focus-ring: #60a5fa;
   /* Semantic states (night: lighter tints for dark surfaces) */
-  --success: #34d399;
+  --success: #047857;
   --success-text: #6ee7b7;
   --warning: #fbbf24;
   --warning-text: #fcd34d;
@@ -37,9 +37,9 @@
   --info: #60a5fa;
   --info-text: #93c5fd;
   /* Default role accent = agent emerald (overridden by [data-role="admin"]) */
-  --accent: #10b981;
-  --accent-hover: #34d399;
-  --accent-text: #34d399;
+  --accent: #047857;
+  --accent-hover: #065f46;
+  --accent-text: #6ee7b7;
   --on-accent: #ffffff;
   color-scheme: dark;
 }
@@ -59,7 +59,7 @@
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
   --focus-ring: #2563eb;
-  --success: #059669;
+  --success: #047857;
   --success-text: #047857;
   --warning: #d97706;
   --warning-text: #b45309;
@@ -67,8 +67,8 @@
   --danger-text: #be123c;
   --info: #2563eb;
   --info-text: #1d4ed8;
-  --accent: #059669;
-  --accent-hover: #047857;
+  --accent: #047857;
+  --accent-hover: #065f46;
   --accent-text: #047857;
   --on-accent: #ffffff;
   color-scheme: light;
@@ -84,9 +84,9 @@
 }
 
 [data-theme="night"] [data-role="admin"] {
-  --accent: #8b5cf6;
-  --accent-hover: #a78bfa;
-  --accent-text: #a78bfa;
+  --accent: #7c3aed;
+  --accent-hover: #6d28d9;
+  --accent-text: #ddd6fe;
 }
 
 /* ============================================================

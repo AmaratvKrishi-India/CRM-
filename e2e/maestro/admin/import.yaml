@@ -1,0 +1,96 @@
+# Admin Excel Import Flow
+# Tests bulk lead import via Excel file
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+
+- tapOn: "email-input"
+- inputText: "admin@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "admin-dashboard"
+
+- tapOn:
+    id: "import-tab"
+
+- waitFor:
+    id: "import-screen"
+
+- # Upload Excel file
+- tapOn:
+    id: "file-picker-button"
+- runCommand: "adb push test-data/leads-import.xlsx /sdcard/Download/leads-import.xlsx"
+- runCommand: "adb shell am start -a android.intent.action.PICK -d file:///sdcard/Download/leads-import.xlsx -t application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+- waitFor:
+    id: "column-mapping-screen"
+    timeout: 10000
+
+- # Map columns
+- tapOn:
+    id: "name-column-dropdown"
+- tapOn:
+    text: "Name"
+
+- tapOn:
+    id: "phone-column-dropdown"
+- tapOn:
+    text: "Phone"
+
+- tapOn:
+    id: "email-column-dropdown"
+- tapOn:
+    text: "Email"
+
+- tapOn:
+    id: "source-column-dropdown"
+- tapOn:
+    text: "Source"
+
+- tapOn:
+    id: "next-button"
+
+- waitFor:
+    id: "preview-screen"
+
+- # Review preview
+- assertVisible:
+    text: "Row 1"
+- assertVisible:
+    text: "Row 2"
+
+- tapOn:
+    id: "import-button"
+
+- waitFor:
+    id: "import-progress"
+    timeout: 10000
+
+- waitFor:
+    id: "import-complete"
+    timeout: 30000
+
+- # Verify import results
+- assertVisible:
+    text: "Imported"
+- assertVisible:
+    text: "Skipped"
+- assertVisible:
+    text: "Errors"
+
+- # Navigate to leads to verify
+- tapOn:
+    id: "leads-tab"
+- waitFor:
+    id: "admin-leads-list"
+- assertVisible:
+    text: "Imported Lead"

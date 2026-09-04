@@ -3,9 +3,10 @@
  * Computes live sales KPI metrics, pipeline counts, locality distribution, and unified recent activity.
  */
 
-import { SalesCRMDatabase } from '../db/database';
-import { LeadStatus } from '../db/types';
-import { EnrichedFollowUp } from '../db/repositories/followUpRepository';
+import type { SalesCRMDatabase } from '../db/database';
+import type { LeadStatus } from '../db/types';
+import type { EnrichedFollowUp } from '../db/repositories/followUpRepository';
+import { canAccessLead } from '../db/accessScope';
 
 export interface DashboardMetrics {
   totalLeads: number;
@@ -56,6 +57,7 @@ export class DashboardService {
   constructor(private db: SalesCRMDatabase) {}
 
   async getDashboardData(): Promise<FullDashboardData> {
+    const scope = this.db.requireAccessScope();
     const now = new Date();
     // Compute "today" in local time (IST on device). Using toISOString() would
     // bucket early-morning activity into the previous UTC day.
@@ -64,7 +66,7 @@ export class DashboardService {
 
     // 1. Fetch active leads
     const allLeads = await this.db.leads
-      .filter((l) => l.deletedAt === null)
+      .filter((l) => l.deletedAt === null && canAccessLead(scope, l))
       .toArray();
 
     const leadMap = new Map<string, (typeof allLeads)[0]>();
@@ -74,7 +76,7 @@ export class DashboardService {
 
     // 2. Fetch pending follow-ups
     const pendingFollowUps = await this.db.followUps
-      .filter((f) => f.deletedAt === null && f.status === 'PENDING')
+      .filter((f) => leadMap.has(f.leadId) && f.deletedAt === null && f.status === 'PENDING')
       .sortBy('scheduledAt');
 
     let overdueCount = 0;
@@ -106,11 +108,11 @@ export class DashboardService {
 
     // 3. Fetch Calls & Messages logged today
     const callsTodayList = await this.db.callRecords
-      .filter((c) => c.deletedAt === null && Boolean(c.startedAt && c.startedAt >= todayStart && c.startedAt <= todayEnd))
+      .filter((c) => leadMap.has(c.leadId) && c.deletedAt === null && Boolean(c.startedAt && c.startedAt >= todayStart && c.startedAt <= todayEnd))
       .toArray();
 
     const messagesTodayList = await this.db.messageHistory
-      .filter((m) => m.deletedAt === null && Boolean(m.sentAt && m.sentAt >= todayStart && m.sentAt <= todayEnd))
+      .filter((m) => leadMap.has(m.leadId) && m.deletedAt === null && Boolean(m.sentAt && m.sentAt >= todayStart && m.sentAt <= todayEnd))
       .toArray();
 
     // 4. Compute pipeline stage distribution
@@ -183,22 +185,22 @@ export class DashboardService {
     // 5. Derive Recent Activity Feed
     const [recentCalls, recentRemarks, recentMessages, recentFollowUps] = await Promise.all([
       this.db.callRecords
-        .filter((c) => c.deletedAt === null)
+        .filter((c) => leadMap.has(c.leadId) && c.deletedAt === null)
         .reverse()
         .sortBy('startedAt')
         .then((res) => res.slice(0, 10)),
       this.db.remarks
-        .filter((r) => r.deletedAt === null)
+        .filter((r) => leadMap.has(r.leadId) && r.deletedAt === null)
         .reverse()
         .sortBy('createdAt')
         .then((res) => res.slice(0, 10)),
       this.db.messageHistory
-        .filter((m) => m.deletedAt === null)
+        .filter((m) => leadMap.has(m.leadId) && m.deletedAt === null)
         .reverse()
         .sortBy('sentAt')
         .then((res) => res.slice(0, 10)),
       this.db.followUps
-        .filter((f) => f.deletedAt === null && f.status === 'COMPLETED')
+        .filter((f) => leadMap.has(f.leadId) && f.deletedAt === null && f.status === 'COMPLETED')
         .reverse()
         .sortBy('completedAt')
         .then((res) => res.slice(0, 10)),

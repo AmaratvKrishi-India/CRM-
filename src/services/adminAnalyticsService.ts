@@ -5,8 +5,9 @@
  * Strictly verifies ADMIN role authorization and enforces the zero-fabricated talk time invariant.
  */
 
-import { SalesCRMDatabase, getDatabase } from '../db/database';
-import { User, Lead, CallRecord, FollowUp, MessageHistory, ImportAudit, LeadStatus } from '../db/types';
+import type { SalesCRMDatabase} from '../db/database';
+import { getDatabase } from '../db/database';
+import type { User, Lead, CallRecord, LeadStatus } from '../db/types';
 
 export type DashboardDateRange =
   | 'TODAY'
@@ -161,6 +162,10 @@ export class AdminAnalyticsService {
     if (!actor || actor.role !== 'ADMIN' || actor.status !== 'ACTIVE') {
       throw new Error('Unauthorized: Only active administrators can access organization analytics.');
     }
+    const scope = this.getDb().requireAccessScope();
+    if (actor.id !== scope.userId || actor.organizationId !== scope.organizationId || scope.role !== 'ADMIN') {
+      throw new Error('Unauthorized: Administrator does not match the active data partition.');
+    }
   }
 
   /**
@@ -197,7 +202,6 @@ export class AdminAnalyticsService {
     }
 
     // Filter by date range for leads, calls, messages
-    const filteredLeads = allLeads.filter((l) => this.isWithinDate(l.createdAt, start, end));
     const filteredCalls = allCalls.filter((c) => this.isWithinDate(c.startedAt || c.createdAt, start, end));
     const filteredMessages = allMessages.filter((m) => this.isWithinDate(m.sentAt || m.createdAt, start, end));
 

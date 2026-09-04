@@ -6,19 +6,18 @@ import {
   CheckCircle2,
   PhoneCall,
   MessageSquare,
-  Loader2,
   ChevronRight,
   MapPin,
   Tag,
   RefreshCw,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import {
+import type {
   EnrichedFollowUp,
   GroupedFollowUps,
 } from '../../db/repositories/followUpRepository';
 import { FollowUpModal } from './FollowUpModal';
-import { Lead } from '../../db/types';
+import type { Lead } from '../../db/types';
 import { SyncStatusBadge } from '../sync/SyncStatusBadge';
 import { useToast } from '../common/Toast';
 import { labelFor } from '../../lib/labels';
@@ -347,7 +346,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
         ) : loadError ? (
           <div className="bg-surface rounded-2xl border border-danger/40 p-8 text-center my-auto space-y-3" role="alert">
             <AlertTriangle className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
-            <h3 className="text-base font-bold text-ink">{loadError}</h3>
+            <h2 className="text-base font-bold text-ink">{loadError}</h2>
             <p className="text-sm text-soft max-w-xs mx-auto">
               Check your connection and try again. Your scheduled follow-ups are still saved on this device.
             </p>
@@ -363,7 +362,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
         ) : totalAll === 0 ? (
           <div className="bg-surface rounded-2xl border border-line p-8 text-center my-auto space-y-3">
             <CheckCircle2 className="w-10 h-10 text-success mx-auto" aria-hidden="true" />
-            <h3 className="text-base font-bold text-ink">All caught up!</h3>
+            <h2 className="text-base font-bold text-ink">All caught up!</h2>
             <p className="text-sm text-soft max-w-xs mx-auto">
               No pending follow-ups right now. Open any lead to schedule calls, sample drop-offs, or pricing negotiations.
             </p>

@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'Amaratv Krishi Sales CRM',
   webDir: 'dist',
   server: {
-    androidScheme: 'https',
+    // Production remains HTTPS. The local Android harness opts into HTTP only
+    // when it builds against the disposable loopback Supabase stack.
+    androidScheme: process.env.CAPACITOR_ANDROID_SCHEME === 'http' ? 'http' : 'https',
   },
   plugins: {
     LocalNotifications: {

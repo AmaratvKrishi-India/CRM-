@@ -1,0 +1,82 @@
+# Unverified Call Flow - Agent Dials But No Answer
+# Tests the UNVERIFIED call recording when call isn't answered
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+    timeout: 15000
+
+- tapOn: "email-input"
+- inputText: "agent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 10000
+
+- tapOn:
+    id: "leads-tab"
+
+- waitFor:
+    id: "leads-list"
+
+- tapOn:
+    id: "lead-item-0"
+
+- waitFor:
+    id: "lead-detail"
+
+- tapOn:
+    id: "call-button"
+
+- waitFor:
+    id: "call-modal"
+    timeout: 5000
+
+- tapOn:
+    id: "dial-button"
+
+- waitFor:
+    id: "call-active"
+    timeout: 10000
+
+- # End call without answer (simulate no answer)
+- tapOn:
+    id: "end-call-button"
+
+- waitFor:
+    id: "call-outcome-modal"
+    timeout: 3000
+
+- tapOn:
+    id: "outcome-no-answer"
+
+- tapOn:
+    id: "save-outcome-button"
+
+- waitFor:
+    id: "lead-detail"
+    timeout: 3000
+
+- assertVisible:
+    text: "UNVERIFIED"
+
+- assertVisible:
+    text: "0s"
+
+- # Verify call record shows UNVERIFIED with zero verified duration
+- tapOn:
+    id: "calls-tab"
+
+- waitFor:
+    id: "calls-list"
+
+- assertVisible:
+    text: "UNVERIFIED"

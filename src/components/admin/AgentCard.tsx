@@ -15,7 +15,7 @@ import {
   UserCheck,
   Trash2,
 } from 'lucide-react';
-import { User } from '../../db/types';
+import type { User } from '../../db/types';
 
 interface AgentCardProps {
   agent: User;

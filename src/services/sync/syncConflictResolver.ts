@@ -25,6 +25,12 @@ export class SyncConflictResolver {
     if (!local) {
       return { winner: 'REMOTE', data: remote };
     }
+    // A server tombstone is authoritative for append-only records; retaining
+    // the local copy would resurrect it on a later replay.
+    if ((remote as { deletedAt?: string | null; deleted_at?: string | null }).deletedAt ||
+        (remote as { deletedAt?: string | null; deleted_at?: string | null }).deleted_at) {
+      return { winner: 'REMOTE', data: remote };
+    }
     // Record already exists locally with same UUID; keep local to preserve device-local metadata
     return { winner: 'LOCAL', data: local };
   }
@@ -76,6 +82,16 @@ export class SyncConflictResolver {
   ): ResolutionResult<T> {
     if (!local) {
       return { winner: 'REMOTE', data: remote };
+    }
+
+    // Deletion/update conflicts use the existing timestamp LWW rule. Duration
+    // verification only decides between two live call records.
+    const localDeleted = (local as { deletedAt?: string | null; deleted_at?: string | null }).deletedAt ||
+      (local as { deletedAt?: string | null; deleted_at?: string | null }).deleted_at;
+    const remoteDeleted = (remote as { deletedAt?: string | null; deleted_at?: string | null }).deletedAt ||
+      (remote as { deletedAt?: string | null; deleted_at?: string | null }).deleted_at;
+    if (localDeleted || remoteDeleted) {
+      return this.resolveMutable('call_records', local, remote);
     }
 
     const localVerified = (local.verificationStatus || (local as any).verification_status) === 'VERIFIED';

@@ -3,8 +3,8 @@
  * Manages message templates, default template assignments, and variable rendering with dynamic lead data.
  */
 
-import { SalesCRMDatabase } from '../database';
-import { MessageTemplate, TemplateCategory, Lead } from '../types';
+import type { SalesCRMDatabase } from '../database';
+import type { MessageTemplate, TemplateCategory, Lead } from '../types';
 
 export class MessageTemplateRepository {
   constructor(private db: SalesCRMDatabase) {}
@@ -24,6 +24,7 @@ export class MessageTemplateRepository {
    * Retrieves all active templates.
    */
   async getAllTemplates(): Promise<MessageTemplate[]> {
+    this.db.requireAccessScope();
     return await this.db.messageTemplates
       .filter((t) => t.deletedAt === null)
       .toArray();
@@ -33,6 +34,7 @@ export class MessageTemplateRepository {
    * Retrieves a single template by ID.
    */
   async getTemplateById(id: string): Promise<MessageTemplate | undefined> {
+    this.db.requireAccessScope();
     const tpl = await this.db.messageTemplates.get(id);
     if (tpl && tpl.deletedAt === null) return tpl;
     return undefined;
@@ -54,6 +56,7 @@ export class MessageTemplateRepository {
    * Ensures all other active templates have isDefault: false.
    */
   async setDefaultTemplate(templateId: string): Promise<MessageTemplate> {
+    this.db.requireAccessScope();
     const now = new Date().toISOString();
     await this.db.transaction('rw', this.db.messageTemplates, async () => {
       const all = await this.db.messageTemplates
@@ -84,6 +87,7 @@ export class MessageTemplateRepository {
    * Retrieves templates filtered by category.
    */
   async getTemplatesByCategory(category: TemplateCategory): Promise<MessageTemplate[]> {
+    this.db.requireAccessScope();
     return await this.db.messageTemplates
       .filter((t) => t.deletedAt === null && t.category === category)
       .toArray();
@@ -98,6 +102,7 @@ export class MessageTemplateRepository {
     body: string;
     isDefault?: boolean;
   }): Promise<MessageTemplate> {
+    this.db.requireAccessScope();
     const now = new Date().toISOString();
     const isDefault = params.isDefault || false;
 
@@ -170,6 +175,7 @@ export class MessageTemplateRepository {
    * Renders template text by substituting dynamic lead placeholders.
    */
   renderTemplate(templateBody: string, lead: Lead, repName = 'Amaratv Krishi Team'): string {
+    this.db.requireAccessScope();
     let text = templateBody;
     const contactOrSir = lead.contactPerson || 'Gym Manager / Owner';
 
@@ -192,6 +198,7 @@ export class MessageTemplateRepository {
    * Soft-deletes a template.
    */
   async softDeleteTemplate(id: string): Promise<void> {
+    this.db.requireAccessScope();
     const now = new Date().toISOString();
     await this.db.messageTemplates.update(id, {
       deletedAt: now,

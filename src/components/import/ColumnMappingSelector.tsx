@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
-import { ColumnMapping } from '../../services/excelParser';
+import type { ColumnMapping } from '../../services/excelParser';
 
 interface ColumnMappingSelectorProps {
   availableColumns: string[];

@@ -9,6 +9,22 @@ export interface MockUserConfig {
   organizationId?: string;
 }
 
+export interface AuthMockOptions {
+  /**
+   * Freeze the browser's connectivity state before the application reloads.
+   * This keeps visual tests on the normal local-first offline path instead of
+   * racing the background sync retry scheduler.
+   */
+  forceOffline?: boolean;
+
+  /**
+   * Visual tests exercise a static application state. Realtime connection
+   * progress is covered separately and must not make a screenshot depend on
+   * an external WebSocket handshake.
+   */
+  forceRealtimeOffline?: boolean;
+}
+
 export const MOCK_AGENT: MockUserConfig = {
   id: 'usr-agent-001',
   email: 'rahul@amaratvkrishi.com',
@@ -30,7 +46,20 @@ export const MOCK_ADMIN: MockUserConfig = {
 /**
  * Sets up Supabase Auth and Profiles network route mocking for Playwright tests
  */
-export async function setupAuthMocks(page: Page, user: MockUserConfig = MOCK_AGENT) {
+export async function setupAuthMocks(
+  page: Page,
+  user: MockUserConfig = MOCK_AGENT,
+  options: AuthMockOptions = {}
+) {
+  if (options.forceOffline) {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: () => false,
+      });
+    });
+  }
+
   // Mock Supabase signInWithPassword endpoint
   await page.route('**/auth/v1/token*', async (route) => {
     const postData = route.request().postDataJSON() || {};
@@ -114,6 +143,12 @@ export async function setupAuthMocks(page: Page, user: MockUserConfig = MOCK_AGE
       body: JSON.stringify({}),
     });
   });
+
+  if (options.forceRealtimeOffline || options.forceOffline) {
+    await page.routeWebSocket('**/realtime/v1/websocket*', async (webSocket) => {
+      await webSocket.close({ code: 1000, reason: 'Visual test uses a fixed offline realtime state.' });
+    });
+  }
 }
 
 /**

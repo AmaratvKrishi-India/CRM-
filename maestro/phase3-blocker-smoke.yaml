@@ -1,0 +1,11 @@
+appId: com.amaratvkrishi.salescrm
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 30000
+- assertVisible: "Email / Login ID"
+- assertVisible: "Password"
+- assertVisible: "Sign In"

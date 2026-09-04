@@ -2,7 +2,16 @@
  * Amaratv Krishi CRM Data Layer - Public Entry Point
  */
 
-import { db, SalesCRMDatabase } from './database';
+import type {
+  SalesCRMDatabase} from './database';
+import {
+  db,
+  activateDatabaseScope,
+  lockDatabaseScope,
+} from './database';
+import type { AccessScope} from './accessScope';
+import { canAccessLead, sameAccessScope } from './accessScope';
+import { pruneLeadData } from './pruning';
 import { LeadRepository } from './repositories/leadRepository';
 import { RemarkRepository } from './repositories/remarkRepository';
 import { CallHistoryRepository } from './repositories/callHistoryRepository';
@@ -21,12 +30,13 @@ import { DeviceService } from '../services/deviceService';
 import { SyncQueue } from '../services/sync/syncQueue';
 import { SyncPush } from '../services/sync/syncPush';
 import { SyncPull } from '../services/sync/syncPull';
-import { SyncConflictResolver } from '../services/sync/syncConflictResolver';
 import { SyncStateRepository } from '../services/sync/syncStateRepository';
 import { SyncEngine } from '../services/sync/syncEngine';
 
 export * from './types';
 export * from './database';
+export * from './accessScope';
+export * from './pruning';
 export * from './services/leadNormalizer';
 export * from './seeds/defaultTemplates';
 export * from './repositories/leadRepository';
@@ -85,7 +95,72 @@ export function createCRMDataLayer(customDb: SalesCRMDatabase = db) {
   };
 }
 
-export const crmData = createCRMDataLayer(db);
+export let crmData = createCRMDataLayer(db);
+
+/** Rebuild every repository/service against the verified account partition. */
+export async function activateCRMDataScope(scope: AccessScope) {
+  if (db.accessScope && sameAccessScope(db.accessScope, scope)) {
+    if (!db.isOpen()) await db.open();
+    await db.seedDefaults();
+    await pruneInaccessibleLocalData(db, scope);
+    return crmData;
+  }
+
+  crmData.syncEngine.dispose();
+  const lockedDb = await lockDatabaseScope();
+  crmData = createCRMDataLayer(lockedDb);
+  const scopedDb = await activateDatabaseScope(scope);
+  crmData.syncEngine.dispose();
+  crmData = createCRMDataLayer(scopedDb);
+  await scopedDb.seedDefaults();
+  await pruneInaccessibleLocalData(scopedDb, scope);
+  if (typeof window !== 'undefined' && typeof import.meta.env !== 'undefined' && import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__crmData = crmData;
+  }
+  return crmData;
+}
+
+/** Removes cached rows that the currently verified role can no longer read. */
+export async function pruneInaccessibleLocalData(scopedDb: SalesCRMDatabase, scope: AccessScope): Promise<void> {
+  scopedDb.requireAccessScope(scope);
+  if (scope.role === 'ADMIN') return;
+
+  const leads = await scopedDb.leads.toArray();
+  const visibleLeadIds = new Set(leads.filter((lead) => canAccessLead(scope, lead)).map((lead) => lead.id));
+  const hiddenLeadIds = leads.filter((lead) => !visibleLeadIds.has(lead.id)).map((lead) => lead.id);
+
+  if (hiddenLeadIds.length > 0) {
+    await pruneLeadData(scopedDb, hiddenLeadIds, scope);
+  }
+
+  await scopedDb.transaction('rw', scopedDb.tables, async () => {
+    await Promise.all([
+      scopedDb.activities
+        .filter((row) => !row.leadId || !visibleLeadIds.has(row.leadId) || row.userId !== scope.userId)
+        .delete(),
+      scopedDb.users.filter((row) => row.id !== scope.userId || row.organizationId !== scope.organizationId).delete(),
+      scopedDb.importAudits.filter((row) => row.uploadedBy !== scope.userId).delete(),
+      scopedDb.bulkAssignmentAudits.clear(),
+    ]);
+
+    await scopedDb.outbox.filter((item) => {
+      if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) return true;
+      if (item.entityType === 'profiles') return item.entityId !== scope.userId;
+      return item.entityType === 'bulk_assignment_audits';
+    }).delete();
+  });
+}
+
+/** Remove all application references to the previous account's local cache. */
+export async function lockCRMData() {
+  crmData.syncEngine.dispose();
+  const lockedDb = await lockDatabaseScope();
+  crmData = createCRMDataLayer(lockedDb);
+  if (typeof window !== 'undefined' && typeof import.meta.env !== 'undefined' && import.meta.env.DEV) {
+    (window as unknown as Record<string, unknown>).__crmData = crmData;
+  }
+  return crmData;
+}
 
 // Dev-only test seam: lets Playwright specs drive the data layer deterministically
 // (e.g. gating in-flight queries to reproduce list races). Vite strips

@@ -1,0 +1,68 @@
+# Online Sync Flow - Agent Syncs When Online
+# Tests the sync flow when network is available
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+    timeout: 15000
+
+- tapOn: "email-input"
+- inputText: "agent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 10000
+
+- # Verify online indicator
+- assertVisible:
+    id: "online-indicator"
+
+- # Create some data locally
+- tapOn:
+    id: "leads-tab"
+
+- tapOn:
+    id: "add-lead-button"
+
+- waitFor:
+    id: "create-lead-form"
+
+- tapOn:
+    id: "lead-name-input"
+- inputText: "Sync Test Lead"
+
+- tapOn:
+    id: "lead-phone-input"
+- inputText: "9876543210"
+
+- tapOn:
+    id: "submit-lead-button"
+
+- waitFor:
+    id: "leads-list"
+
+- # Tap sync button
+- tapOn:
+    id: "sync-button"
+
+- waitFor:
+    id: "sync-progress"
+    timeout: 10000
+
+- waitFor:
+    id: "sync-complete"
+    timeout: 15000
+
+- assertVisible:
+    id: "sync-complete"
+
+- assertVisible:
+    id: "last-sync-time"

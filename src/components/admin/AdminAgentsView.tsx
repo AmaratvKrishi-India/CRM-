@@ -18,7 +18,7 @@ import { CreateAgentModal } from './CreateAgentModal';
 import { EditAgentModal } from './EditAgentModal';
 import { ConfirmStatusModal } from './ConfirmStatusModal';
 import { DeleteAgentModal } from './DeleteAgentModal';
-import { User, UserStatus } from '../../db/types';
+import type { User, UserStatus } from '../../db/types';
 
 export const AdminAgentsView: React.FC = () => {
   const { currentUser } = useAuth();

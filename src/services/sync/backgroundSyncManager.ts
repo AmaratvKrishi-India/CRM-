@@ -12,8 +12,9 @@
  */
 
 import { App as CapacitorApp } from '@capacitor/app';
-import { syncEngine } from './syncEngine';
-import { User } from '../../db/types';
+import { crmData } from '../../db';
+import type { SyncEngine } from './syncEngine';
+import type { User } from '../../db/types';
 
 // Exponential backoff config
 const BACKOFF_BASE_MS = 1000;
@@ -27,6 +28,8 @@ class BackgroundSyncManagerClass {
   private backoffRetryId: ReturnType<typeof setTimeout> | null = null;
   private retryCount = 0;
   private isInitialized = false;
+  private currentEngine: SyncEngine | null = null;
+  private generation = 0;
 
   // Capacitor listener handle
   private appStateListener: (() => void) | null = null;
@@ -36,11 +39,19 @@ class BackgroundSyncManagerClass {
    * Starts auto-sync, registers all lifecycle listeners.
    */
   async init(user: User): Promise<void> {
-    if (this.isInitialized && this.currentUser?.id === user.id) return;
+    if (
+      this.isInitialized &&
+      this.currentUser?.id === user.id &&
+      this.currentUser.organizationId === user.organizationId &&
+      this.currentUser.role === user.role
+    ) return;
+    if (this.isInitialized) this.stop();
 
     this.currentUser = user;
+    this.currentEngine = crmData.syncEngine;
     this.isInitialized = true;
     this.retryCount = 0;
+    this.generation++;
 
     // Immediate initial sync on login
     this.triggerSilentSync();
@@ -76,6 +87,7 @@ class BackgroundSyncManagerClass {
    * Call this on logout. Stops all listeners and sync intervals.
    */
   stop(): void {
+    this.generation++;
     this.currentUser = null;
     this.isInitialized = false;
     this.retryCount = 0;
@@ -94,17 +106,21 @@ class BackgroundSyncManagerClass {
     this.appStateListener?.();
     this.appStateListener = null;
 
-    syncEngine.stopAutoSync();
+    this.currentEngine?.dispose();
+    this.currentEngine = null;
   }
 
   /**
    * Triggers a silent background sync. If sync fails, schedules exponential backoff retry.
    */
   async triggerSilentSync(): Promise<void> {
-    if (!this.currentUser) return;
+    if (!this.currentUser || !this.currentEngine) return;
+    const generation = this.generation;
+    const engine = this.currentEngine;
 
     try {
-      const result = await syncEngine.triggerSync();
+      const result = await engine.triggerSync();
+      if (generation !== this.generation || engine !== this.currentEngine) return;
 
       if (result && result.error) {
         this.scheduleBackoffRetry();
@@ -114,6 +130,7 @@ class BackgroundSyncManagerClass {
         this.cancelBackoffRetry();
       }
     } catch {
+      if (generation !== this.generation || engine !== this.currentEngine) return;
       this.scheduleBackoffRetry();
     }
   }
@@ -134,7 +151,7 @@ class BackgroundSyncManagerClass {
       this.autoIntervalId = null;
     }
     // Defensive: ensure no engine-owned interval is left running.
-    syncEngine.stopAutoSync();
+    this.currentEngine?.stopAutoSync();
   }
 
   private scheduleBackoffRetry(): void {

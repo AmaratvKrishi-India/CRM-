@@ -260,7 +260,7 @@ this.version(5).stores({
   callRecords: 'id, leadId, userId, outcome, startedAt, isSynced, deletedAt, [leadId+deletedAt], [userId+startedAt]',
   importAudits: 'id, uploadedBy, createdAt, isSynced, [uploadedBy+createdAt]',
   outbox: 'id, entityType, entityId, operation, status, retryCount, createdAt, updatedAt, [status+createdAt]',
-  syncState: 'id',
+  syncState: 'id', // row also stores and validates organizationId + userId inside the account-partitioned database
   bulkAssignmentAudits: 'id, organizationId, performedBy, targetAgentId, status, startedAt, isSynced, deletedAt, [targetAgentId+startedAt], [performedBy+startedAt]',
 });
 ```

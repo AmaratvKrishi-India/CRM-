@@ -15,12 +15,13 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import {
-  AdminAnalyticsService,
+import type {
   DashboardDateRange,
-  CallRecordFilterParams,
+  CallRecordFilterParams} from '../../services/adminAnalyticsService';
+import {
+  AdminAnalyticsService
 } from '../../services/adminAnalyticsService';
-import { CallRecord, User } from '../../db/types';
+import type { CallRecord, User } from '../../db/types';
 import { getDatabase } from '../../db/database';
 import { Modal } from '../common/Modal';
 import { labelFor } from '../../lib/labels';

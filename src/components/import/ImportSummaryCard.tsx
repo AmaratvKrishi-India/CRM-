@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, ArrowRight, RefreshCw, FileSpreadsheet } from 'lucide-react';
-import { ImportExecutionSummary } from '../../services/excelParser';
+import type { ImportExecutionSummary } from '../../services/excelParser';
 
 interface ImportSummaryCardProps {
   summary: ImportExecutionSummary;

@@ -20,12 +20,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { NativePlatformService } from '../../services/nativePlatform';
-import {
-  AdminAnalyticsService,
+import type {
   AgentPerformanceSummary,
-  DashboardDateRange,
+  DashboardDateRange} from '../../services/adminAnalyticsService';
+import {
+  AdminAnalyticsService
 } from '../../services/adminAnalyticsService';
-import { Lead } from '../../db/types';
+import type { Lead } from '../../db/types';
 import { Modal } from '../common/Modal';
 
 interface AgentPerformanceDetailProps {

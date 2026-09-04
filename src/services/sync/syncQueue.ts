@@ -4,15 +4,16 @@
  * Guarantees zero mutation loss during offline periods and handles retries.
  */
 
-import { db as defaultDb, SalesCRMDatabase } from '../../db/database';
+import type { SalesCRMDatabase } from '../../db/database';
+import { db as defaultDb } from '../../db/database';
 import { DeviceService } from '../deviceService';
-import { OutboxItem, SyncEntityType, SyncOperation } from './syncTypes';
+import type { OutboxItem, SyncEntityType, SyncOperation } from './syncTypes';
 
 export class SyncQueue {
   /** Items that fail this many times are parked as DEAD_LETTER instead of retrying forever. */
   static readonly MAX_RETRY_COUNT = 10;
-  /** SYNCING items older than this are considered orphaned by a killed app and reset to PENDING. */
-  static readonly STUCK_SYNCING_TIMEOUT_MS = 5 * 60 * 1000;
+  static readonly RETRY_BASE_MS = 1000;
+  static readonly RETRY_MAX_MS = 32_000;
 
   private database?: SalesCRMDatabase;
 
@@ -48,13 +49,20 @@ export class SyncQueue {
     deviceId?: string | null;
   }): Promise<OutboxItem> {
     const database = this.getDatabase();
+    const scope = database.requireAccessScope();
+    if (input.userId !== scope.userId) {
+      throw new Error('Outbox mutation user does not match the active access scope.');
+    }
+    if (input.organizationId !== undefined && input.organizationId !== scope.organizationId) {
+      throw new Error('Outbox mutation organization does not match the active access scope.');
+    }
     const now = new Date().toISOString();
     const deviceId = input.deviceId || DeviceService.getDeviceId();
 
     const item: OutboxItem = {
       id: this.generateId(),
-      organizationId: input.organizationId || null,
-      userId: input.userId,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
       deviceId,
       entityType: input.entityType,
       entityId: input.entityId,
@@ -64,6 +72,7 @@ export class SyncQueue {
       updatedAt: now,
       retryCount: 0,
       lastAttemptAt: null,
+      nextAttemptAt: null,
       lastError: null,
       status: 'PENDING',
     };
@@ -78,13 +87,16 @@ export class SyncQueue {
    */
   async getPendingItems(limit = 50): Promise<OutboxItem[]> {
     const database = this.getDatabase();
+    const scope = database.requireAccessScope();
     const items = await database.outbox
       .where('status')
       .anyOf('PENDING', 'FAILED')
       .sortBy('createdAt');
 
     const retryable: OutboxItem[] = [];
+    const nowMs = Date.now();
     for (const item of items) {
+      if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) continue;
       if (item.retryCount >= SyncQueue.MAX_RETRY_COUNT) {
         // Park permanently failing items so they stop blocking the queue.
         await database.outbox.update(item.id, {
@@ -93,6 +105,7 @@ export class SyncQueue {
         });
         continue;
       }
+      if (item.nextAttemptAt && new Date(item.nextAttemptAt).getTime() > nowMs) continue;
       retryable.push(item);
       if (retryable.length >= limit) break;
     }
@@ -101,17 +114,22 @@ export class SyncQueue {
   }
 
   /**
-   * Resets SYNCING items that were orphaned (app killed mid-push) back to PENDING.
-   * Should be called on startup / before each sync run.
+   * Resets account-scoped SYNCING items orphaned by a killed/cancelled run.
+   * This is called only after the engine single-flight lock is acquired, so any
+   * existing SYNCING row belongs to an earlier process or account generation.
    */
   async recoverStuckItems(): Promise<number> {
     const database = this.getDatabase();
-    const cutoff = new Date(Date.now() - SyncQueue.STUCK_SYNCING_TIMEOUT_MS).toISOString();
+    const scope = database.requireAccessScope();
     const now = new Date().toISOString();
 
     const syncingItems = await database.outbox.where('status').equals('SYNCING').toArray();
     const stuckIds = syncingItems
-      .filter((item) => !item.lastAttemptAt || item.lastAttemptAt < cutoff)
+      .filter(
+        (item) =>
+          item.organizationId === scope.organizationId &&
+          item.userId === scope.userId
+      )
       .map((item) => item.id);
 
     if (stuckIds.length === 0) return 0;
@@ -120,6 +138,7 @@ export class SyncQueue {
       for (const id of stuckIds) {
         await database.outbox.update(id, {
           status: 'PENDING',
+          nextAttemptAt: null,
           updatedAt: now,
         });
       }
@@ -134,13 +153,17 @@ export class SyncQueue {
   async markSyncing(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     const database = this.getDatabase();
+    const scope = database.requireAccessScope();
     const now = new Date().toISOString();
 
     await database.transaction('rw', database.outbox, async () => {
       for (const id of ids) {
+        const item = await database.outbox.get(id);
+        if (!item || item.organizationId !== scope.organizationId || item.userId !== scope.userId) continue;
         await database.outbox.update(id, {
           status: 'SYNCING',
           lastAttemptAt: now,
+          nextAttemptAt: null,
           updatedAt: now,
         });
       }
@@ -153,12 +176,17 @@ export class SyncQueue {
   async markSynced(ids: string[]): Promise<void> {
     if (ids.length === 0) return;
     const database = this.getDatabase();
+    const scope = database.requireAccessScope();
     const now = new Date().toISOString();
 
     await database.transaction('rw', database.outbox, async () => {
       for (const id of ids) {
+        const item = await database.outbox.get(id);
+        if (!item || item.organizationId !== scope.organizationId || item.userId !== scope.userId) continue;
         await database.outbox.update(id, {
           status: 'SYNCED',
+          nextAttemptAt: null,
+          lastError: null,
           updatedAt: now,
         });
       }
@@ -170,15 +198,44 @@ export class SyncQueue {
    */
   async markFailed(id: string, error: string): Promise<void> {
     const database = this.getDatabase();
+    const scope = database.requireAccessScope();
     const now = new Date().toISOString();
     const item = await database.outbox.get(id);
-    if (!item) return;
+    if (!item || item.organizationId !== scope.organizationId || item.userId !== scope.userId) return;
 
+    const retryCount = item.retryCount + 1;
+    const deadLetter = retryCount >= SyncQueue.MAX_RETRY_COUNT;
+    const retryDelay = Math.min(
+      SyncQueue.RETRY_BASE_MS * Math.pow(2, Math.max(0, retryCount - 1)),
+      SyncQueue.RETRY_MAX_MS
+    );
     await database.outbox.update(id, {
-      status: 'FAILED',
-      retryCount: item.retryCount + 1,
+      status: deadLetter ? 'DEAD_LETTER' : 'FAILED',
+      retryCount,
+      nextAttemptAt: deadLetter ? null : new Date(Date.now() + retryDelay).toISOString(),
       lastError: error,
       updatedAt: now,
+    });
+  }
+
+  /** Explicit recovery path for an inspected dead-letter item. */
+  async retryDeadLetter(id: string): Promise<void> {
+    const database = this.getDatabase();
+    const scope = database.requireAccessScope();
+    const item = await database.outbox.get(id);
+    if (!item || item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
+      throw new Error('Dead-letter mutation was not found in the active account context.');
+    }
+    if (item.status !== 'DEAD_LETTER') {
+      throw new Error('Only dead-letter mutations can be manually retried.');
+    }
+    await database.outbox.update(id, {
+      status: 'PENDING',
+      retryCount: 0,
+      lastAttemptAt: null,
+      nextAttemptAt: null,
+      lastError: null,
+      updatedAt: new Date().toISOString(),
     });
   }
 
@@ -194,7 +251,10 @@ export class SyncQueue {
     total: number;
   }> {
     const database = this.getDatabase();
-    const all = await database.outbox.toArray();
+    const scope = database.requireAccessScope();
+    const all = (await database.outbox.toArray()).filter(
+      (item) => item.organizationId === scope.organizationId && item.userId === scope.userId
+    );
     let pending = 0;
     let syncing = 0;
     let synced = 0;
@@ -217,10 +277,14 @@ export class SyncQueue {
    */
   async purgeSyncedItems(): Promise<number> {
     const database = this.getDatabase();
-    const syncedIds = await database.outbox
+    const scope = database.requireAccessScope();
+    const syncedItems = await database.outbox
       .where('status')
       .equals('SYNCED')
-      .primaryKeys();
+      .toArray();
+    const syncedIds = syncedItems
+      .filter((item) => item.organizationId === scope.organizationId && item.userId === scope.userId)
+      .map((item) => item.id);
 
     await database.outbox.bulkDelete(syncedIds);
     return syncedIds.length;

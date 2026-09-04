@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Phone, MapPin, Tag, AlertCircle, CheckCircle2, Copy, AlertTriangle } from 'lucide-react';
-import { ParsedLeadRecord, RecordValidationStatus } from '../../services/excelParser';
+import type { ParsedLeadRecord, RecordValidationStatus } from '../../services/excelParser';
 
 interface ImportPreviewListProps {
   records: ParsedLeadRecord[];

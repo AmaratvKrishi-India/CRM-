@@ -16,8 +16,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/xlsx')) {
-            return 'vendor-xlsx';
+          if (id.includes('node_modules/read-excel-file') || id.includes('node_modules/papaparse')) {
+            return 'vendor-spreadsheet';
           }
           if (id.includes('node_modules/@supabase')) {
             return 'vendor-supabase';

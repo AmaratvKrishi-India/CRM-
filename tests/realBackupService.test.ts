@@ -7,7 +7,11 @@ import { createCRMDataLayer } from '../src/db/index.ts';
 
 describe('Real Backup & Restore Service Integration Tests (Stage 8)', () => {
   function getTestDb(suffix: string) {
-    const db = new SalesCRMDatabase(`BackupTest_${Date.now()}_${suffix}`);
+    const db = new SalesCRMDatabase(`BackupTest_${Date.now()}_${suffix}`, {
+      organizationId: 'org-01',
+      userId: 'admin-01',
+      role: 'ADMIN',
+    });
     const dataLayer = createCRMDataLayer(db);
     const backupService = new BackupService(db);
     return { db, dataLayer, backupService };
@@ -33,9 +37,11 @@ describe('Real Backup & Restore Service Integration Tests (Stage 8)', () => {
     });
 
     const payload = await backupService.generateBackupPayload();
-    // Header must reflect the real DB schema (v5) and app version (2.0.0)
-    assert.strictEqual(payload.schemaVersion, 5);
+    // Header must bind the backup to the scoped DB schema and account.
+    assert.strictEqual(payload.schemaVersion, 6);
     assert.strictEqual(payload.appVersion, '2.0.0');
+    assert.strictEqual(payload.organizationId, 'org-01');
+    assert.strictEqual(payload.userId, 'admin-01');
     assert.ok(payload.data.leads.length >= 1);
     assert.ok(payload.data.remarks.length >= 1);
 
@@ -61,9 +67,9 @@ describe('Real Backup & Restore Service Integration Tests (Stage 8)', () => {
 
     // Create backup with a newer update to that same lead
     const newerUpdatedAt = new Date(Date.now() + 50000).toISOString();
+    const basePayload = await backupService.generateBackupPayload();
     const backupPayload = {
-      schemaVersion: 2,
-      appVersion: '2.0.0',
+      ...basePayload,
       exportedAt: newerUpdatedAt,
       databaseName: 'RemoteExport',
       data: {
@@ -106,9 +112,9 @@ describe('Real Backup & Restore Service Integration Tests (Stage 8)', () => {
     });
 
     const newLeadId = 'new-lead-from-backup-001';
+    const basePayload = await backupService.generateBackupPayload();
     const replacePayload = {
-      schemaVersion: 2,
-      appVersion: '2.0.0',
+      ...basePayload,
       exportedAt: new Date().toISOString(),
       databaseName: 'CleanState',
       data: {

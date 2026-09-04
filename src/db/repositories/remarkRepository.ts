@@ -3,9 +3,9 @@
  * Manages sales notes and observations attached to leads.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { Remark, RemarkType } from '../types';
+import type { Remark, RemarkType } from '../types';
 
 export class RemarkRepository {
   private syncQueue?: SyncQueue;
@@ -41,17 +41,16 @@ export class RemarkRepository {
     type?: RemarkType;
     author?: string;
   }): Promise<Remark> {
+    const scope = this.db.requireAccessScope();
     const { leadId, content, type = 'CUSTOM', author = 'Sales Rep' } = params;
 
-    const lead = await this.db.leads.get(leadId);
-    if (!lead) {
-      throw new Error(`Cannot add remark: Lead ${leadId} does not exist.`);
-    }
+    await this.db.requireAccessibleLead(leadId, scope);
 
     const now = new Date().toISOString();
     const remark: Remark = {
       id: this.generateId(),
       leadId,
+      userId: scope.userId,
       type,
       content: content.trim(),
       author: author.trim(),
@@ -74,7 +73,8 @@ export class RemarkRepository {
         entityId: remark.id,
         operation: 'CREATE',
         payload: remark,
-        userId: 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
 
       const updatedLead = await this.db.leads.get(leadId);
@@ -84,7 +84,8 @@ export class RemarkRepository {
           entityId: leadId,
           operation: 'UPDATE',
           payload: updatedLead,
-          userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -96,6 +97,7 @@ export class RemarkRepository {
    * Retrieves all active remarks for a lead, sorted newest first.
    */
   async getRemarksByLead(leadId: string): Promise<Remark[]> {
+    await this.db.requireAccessibleLead(leadId);
     return await this.db.remarks
       .where('leadId')
       .equals(leadId)
@@ -108,6 +110,10 @@ export class RemarkRepository {
    * Soft-deletes a remark.
    */
   async softDeleteRemark(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    const existing = await this.db.remarks.get(id);
+    if (!existing) return;
+    await this.db.requireAccessibleLead(existing.leadId, scope);
     const now = new Date().toISOString();
     // Data write + outbox enqueue are atomic: either both persist or neither.
     await this.db.transaction('rw', [this.db.remarks, this.db.outbox], async () => {
@@ -123,7 +129,8 @@ export class RemarkRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -133,6 +140,9 @@ export class RemarkRepository {
    * Hard-deletes a remark.
    */
   async hardDeleteRemark(id: string): Promise<void> {
+    const existing = await this.db.remarks.get(id);
+    if (!existing) return;
+    await this.db.requireAccessibleLead(existing.leadId);
     await this.db.remarks.delete(id);
   }
 }

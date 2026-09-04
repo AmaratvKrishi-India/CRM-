@@ -21,19 +21,20 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import {
-  AdminAnalyticsService,
+import type {
   DashboardDateRange,
   OrganisationKPIs,
   PipelineStageMetric,
-  AgentPerformanceSummary,
+  AgentPerformanceSummary} from '../../services/adminAnalyticsService';
+import {
+  AdminAnalyticsService
 } from '../../services/adminAnalyticsService';
 import { AgentPerformanceTable } from './AgentPerformanceTable';
 import { AgentPerformanceDetail } from './AgentPerformanceDetail';
 import { AdminCallHistoryModal } from './AdminCallHistoryModal';
 import { LiveActivityFeed } from './LiveActivityFeed';
 import { RealtimeService } from '../../services/realtime/realtimeService';
-import { User, LeadStatus } from '../../db/types';
+import type { User, LeadStatus } from '../../db/types';
 import { getDatabase } from '../../db/database';
 
 interface AdminDashboardViewProps {
@@ -59,6 +60,16 @@ const stageBarColor = (status: LeadStatus) => {
     return 'bg-accent';
   if (status === 'FOLLOW_UP') return 'bg-warning';
   return 'bg-info';
+};
+
+const stageBarFillColor = (status: LeadStatus) => {
+  if (status === 'CUSTOMER') return 'fill-success';
+  if (status === 'NOT_INTERESTED' || status === 'DO_NOT_CONTACT' || status === 'WRONG_NUMBER')
+    return 'fill-danger';
+  if (status === 'INTERESTED' || status === 'SAMPLE_REQUESTED' || status === 'NEGOTIATION')
+    return 'fill-accent';
+  if (status === 'FOLLOW_UP') return 'fill-warning';
+  return 'fill-info';
 };
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
@@ -356,10 +367,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
               {/* Progress Bar */}
               <div className="w-full h-2 bg-inset-strong rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${stageBarColor(stage.status)}`}
-                  style={{ width: `${Math.max(4, stage.percentage)}%` }}
-                />
+                <svg
+                  aria-hidden="true"
+                  className="block w-full h-full transition-all duration-500"
+                  viewBox="0 0 100 1"
+                  preserveAspectRatio="none"
+                >
+                  <rect
+                    width={Math.max(4, Math.min(100, stage.percentage))}
+                    height="1"
+                    rx="0.5"
+                    className={stageBarFillColor(stage.status)}
+                  />
+                </svg>
               </div>
             </button>
           ))}

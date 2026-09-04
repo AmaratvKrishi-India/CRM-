@@ -1,0 +1,82 @@
+{
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "tabs": {
+    "Overview": {
+      "clicked": true,
+      "mainTextLength": 801,
+      "bodyTextLength": 908,
+      "firstChars": "EXECUTIVE OVERVIEW Amaratv Krishi Field CRM Welcome, Admin Vikram. Real-time territory sales command. Sales Mode Call ",
+      "hasErrorText": false
+    },
+    "Leads": {
+      "clicked": true,
+      "mainTextLength": 149,
+      "bodyTextLength": 271,
+      "firstChars": "TOTAL LEADS 0 ASSIGNED 0 UNASSIGNED 0 All Leads (0) Unassigned (0) Select All Filtered No Leads Matched Try adju",
+      "hasErrorText": false
+    },
+    "Agents": {
+      "clicked": true,
+      "mainTextLength": 232,
+      "bodyTextLength": 352,
+      "firstChars": "Sales Representatives Manage operational sales accounts and field permissions Provision New Agent TOTAL 0 ACTIVE 0",
+      "hasErrorText": false
+    },
+    "Data": {
+      "clicked": true,
+      "mainTextLength": 246,
+      "bodyTextLength": 367,
+      "firstChars": "Lead Explorer Import Center Data Cleanup Database Health All Statuses NEW CONTACTED INTERESTED SAMPLE_REQUESTED CUSTOMER",
+      "hasErrorText": false
+    },
+    "Reports": {
+      "clicked": true,
+      "mainTextLength": 712,
+      "bodyTextLength": 832,
+      "firstChars": "TERRITORY REPORTS Analytics & Reporting Organization intelligence, verified talk times, and sales conversion ratios. D",
+      "hasErrorText": false
+    },
+    "Settings": {
+      "clicked": true,
+      "mainTextLength": 171,
+      "bodyTextLength": 291,
+      "firstChars": "Administrator Account Name: Admin Vikram Email: admin@amaratvkrishi.com Phone: 9876543211 Role: ADMIN Status: ACTIVE Swi",
+      "hasErrorText": false
+    }
+  },
+  "a11y": {
+    "totalButtons": 10,
+    "unnamedButtons": 0,
+    "totalInputs": 0,
+    "unlabeledInputs": 0,
+    "dialogs": 0,
+    "modalsMissingLabel": 0,
+    "positiveTabindex": 0,
+    "totalImages": 0,
+    "imagesNoAlt": 0,
+    "htmlLang": "en"
+  },
+  "navLabels": [
+    "Overview",
+    "Leads",
+    "Agents",
+    "Data",
+    "Reports",
+    "Settings"
+  ],
+  "focusOrder": [
+    "body",
+    "button",
+    "button(Sign Out)",
+    "button(Switch to Field Sale)",
+    "button(Sign Out from Admin )",
+    "button(OVERVIEW)",
+    "button(LEADS)",
+    "button(AGENTS)"
+  ]
+}

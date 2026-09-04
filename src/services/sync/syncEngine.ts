@@ -4,13 +4,16 @@
  * Manages triggers (app startup, online event, interval, manual sync) and state subscriptions.
  */
 
-import { getSupabaseClient, getSupabaseConfig } from '../supabaseClient';
-import { AuthService } from '../authService';
+import { getSupabaseClient } from '../supabaseClient';
 import { SyncQueue } from './syncQueue';
 import { SyncPush } from './syncPush';
 import { SyncPull } from './syncPull';
 import { SyncStateRepository } from './syncStateRepository';
-import { SyncState, SyncResult, SyncEngineStatus } from './syncTypes';
+import type { SyncState, SyncResult} from './syncTypes';
+import { SyncCancelledError } from './syncTypes';
+import { accessScopeFromUser, type AccessScope, sameAccessScope } from '../../db/accessScope';
+
+type SyncAuthorizer = () => Promise<AccessScope | null>;
 
 export class SyncEngine {
   private queue: SyncQueue;
@@ -23,17 +26,35 @@ export class SyncEngine {
   private listeners: Array<(state: SyncState) => void> = [];
   private onlineHandler: (() => void) | null = null;
   private offlineHandler: (() => void) | null = null;
+  private generation = 0;
+  private disposed = false;
+  private readonly expectedScope: AccessScope | null;
+  private readonly authorize: SyncAuthorizer;
 
   constructor(
     queue?: SyncQueue,
     pushEngine?: SyncPush,
     pullEngine?: SyncPull,
-    stateRepo?: SyncStateRepository
+    stateRepo?: SyncStateRepository,
+    authorize?: SyncAuthorizer
   ) {
     this.queue = queue || new SyncQueue();
     this.pushEngine = pushEngine || new SyncPush(this.queue);
     this.pullEngine = pullEngine || new SyncPull();
     this.stateRepo = stateRepo || new SyncStateRepository();
+    try {
+      this.expectedScope = this.stateRepo.getAccessScope();
+    } catch {
+      this.expectedScope = null;
+    }
+    this.authorize = authorize || (async () => {
+      // Avoid an eager SyncEngine -> AuthService -> db/index -> SyncEngine
+      // cycle during application bootstrap. Authentication is needed only
+      // when a real sync begins.
+      const { AuthService } = await import('../authService');
+      const { user } = await AuthService.validateAndLoadCurrentProfile();
+      return user ? accessScopeFromUser(user) : null;
+    });
 
     this.setupNetworkListeners();
   }
@@ -41,16 +62,11 @@ export class SyncEngine {
   private setupNetworkListeners(): void {
     if (typeof window !== 'undefined') {
       this.onlineHandler = () => {
-        // Guard against firing after logout: only sync when a session exists.
-        AuthService.getCurrentSession()
-          .then((session) => {
-            if (session) this.triggerSync();
-          })
-          .catch(() => {});
+        if (!this.disposed) void this.triggerSync();
       };
       this.offlineHandler = () => {
-        this.stateRepo.setStatus('OFFLINE');
-        this.notifyListeners();
+        if (this.disposed) return;
+        void this.stateRepo.setStatus('OFFLINE').then(() => this.notifyListeners()).catch(() => {});
       };
       window.addEventListener('online', this.onlineHandler);
       window.addEventListener('offline', this.offlineHandler);
@@ -69,7 +85,28 @@ export class SyncEngine {
     this.offlineHandler = null;
   }
 
+  /** Invalidates in-flight work and permanently retires this account-bound engine. */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.generation++;
+    this.stopAutoSync();
+    this.disposeNetworkListeners();
+    this.listeners = [];
+  }
+
+  private assertRunActive(runGeneration: number): void {
+    if (this.disposed || runGeneration !== this.generation || !this.expectedScope) {
+      throw new SyncCancelledError();
+    }
+    const current = this.stateRepo.getAccessScope();
+    if (!sameAccessScope(current, this.expectedScope)) {
+      throw new SyncCancelledError('Synchronization account context changed during the run.');
+    }
+  }
+
   private async notifyListeners(): Promise<void> {
+    if (this.disposed) return;
     const state = await this.stateRepo.getSyncState();
     this.listeners.forEach((cb) => {
       try {
@@ -84,6 +121,7 @@ export class SyncEngine {
    * Subscribes to sync state updates.
    */
   subscribe(callback: (state: SyncState) => void): () => void {
+    if (this.disposed) return () => {};
     this.listeners.push(callback);
     this.stateRepo.getSyncState().then(callback).catch(() => {});
 
@@ -110,7 +148,7 @@ export class SyncEngine {
    * Triggers a sync cycle if not already syncing.
    */
   async triggerSync(): Promise<SyncResult | null> {
-    if (this.isSyncing) {
+    if (this.disposed || this.isSyncing) {
       return null;
     }
     return await this.synchronizeNow();
@@ -120,34 +158,44 @@ export class SyncEngine {
    * Executes a full bidirectional sync cycle: Push -> Pull -> Update State.
    */
   async synchronizeNow(): Promise<SyncResult> {
+    if (this.disposed || !this.expectedScope) {
+      return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Synchronization context is inactive' };
+    }
     if (this.isSyncing) {
       return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Sync already in progress' };
     }
 
     const startTime = Date.now();
+    const runGeneration = this.generation;
+    const guard = () => this.assertRunActive(runGeneration);
     this.isSyncing = true;
+    let pushedCount = 0;
+    let failedCount = 0;
+    let pulledCount = 0;
+    let conflictsCount = 0;
+    let syncError: string | null = null;
+
+    try {
 
     // 1. Check Offline / Network Connectivity
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      guard();
       await this.stateRepo.setStatus('OFFLINE');
-      this.isSyncing = false;
-      await this.notifyListeners();
       return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Device is offline' };
     }
 
     // 2. Check Supabase Client
     const client = getSupabaseClient();
     if (!client) {
-      this.isSyncing = false;
       return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Supabase unconfigured' };
     }
 
-    // 3. Check Auth Session
-    const session = await AuthService.getCurrentSession();
-    if (!session) {
+    // 3. Revalidate the server-authoritative identity and role for this exact
+    // account context. A cached session alone cannot authorize synchronization.
+    const verifiedScope = await this.authorize();
+    guard();
+    if (!verifiedScope || !sameAccessScope(verifiedScope, this.expectedScope)) {
       await this.stateRepo.setStatus('AUTH_REQUIRED');
-      this.isSyncing = false;
-      await this.notifyListeners();
       return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Authentication required' };
     }
 
@@ -156,41 +204,42 @@ export class SyncEngine {
 
     // Recover outbox items orphaned in SYNCING by a previously killed app run.
     try {
+      guard();
       await this.queue.recoverStuckItems();
     } catch (err) {
+      if (err instanceof SyncCancelledError) throw err;
       console.warn('recoverStuckItems failed:', err);
     }
 
-    let pushedCount = 0;
-    let failedCount = 0;
-    let pulledCount = 0;
-    let conflictsCount = 0;
-    let syncError: string | null = null;
-
-    try {
       // 4. PUSH SYNC: Send local outbox mutations to Supabase
-      const pushRes = await this.pushEngine.pushPending(client);
+      guard();
+      const pushRes = await this.pushEngine.pushPending(client, guard);
+      guard();
       pushedCount = pushRes.pushedCount;
       failedCount = pushRes.failedCount;
 
       // Purge successfully-synced outbox rows so the queue does not grow unbounded.
       try {
+        guard();
         await this.queue.purgeSyncedItems();
       } catch (err) {
         console.warn('purgeSyncedItems failed:', err);
       }
 
       const pushTimestamp = new Date().toISOString();
+      guard();
       await this.stateRepo.updateSyncState({ lastPushAt: pushTimestamp });
 
       // 5. PULL SYNC: Pull remote incremental changes from Supabase
       const currentState = await this.stateRepo.getSyncState();
-      const pullRes = await this.pullEngine.pullAllChanges(currentState.lastPullCursor, client);
+      guard();
+      const pullRes = await this.pullEngine.pullAllChanges(currentState.lastPullCursor, client, guard);
+      guard();
       pulledCount = pullRes.pulledCount;
       conflictsCount = pullRes.conflicts.length;
 
       const pullTimestamp = new Date().toISOString();
-      const updates: Partial<SyncState> = {
+      const updates: Partial<Omit<SyncState, 'id' | 'organizationId' | 'userId' | 'deviceId'>> = {
         lastPullAt: pullTimestamp,
         lastSuccessfulSyncAt: pullTimestamp,
         lastSyncError: null,
@@ -202,12 +251,19 @@ export class SyncEngine {
       }
 
       await this.stateRepo.updateSyncState(updates);
-    } catch (err: any) {
-      syncError = err.message || 'Sync failed';
-      await this.stateRepo.setStatus('ERROR', syncError);
+    } catch (err: unknown) {
+      syncError = err instanceof Error ? err.message : 'Sync failed';
+      if (!(err instanceof SyncCancelledError)) {
+        try {
+          guard();
+          await this.stateRepo.setStatus('ERROR', syncError);
+        } catch (stateError) {
+          if (!(stateError instanceof SyncCancelledError)) throw stateError;
+        }
+      }
     } finally {
       this.isSyncing = false;
-      await this.notifyListeners();
+      if (!this.disposed && runGeneration === this.generation) await this.notifyListeners();
     }
 
     const durationMs = Date.now() - startTime;
@@ -225,10 +281,11 @@ export class SyncEngine {
    * Starts periodic background synchronization.
    */
   startAutoSync(intervalMs = 60000): void {
+    if (this.disposed) return;
     this.stopAutoSync();
     this.triggerSync();
     this.autoSyncInterval = setInterval(() => {
-      this.triggerSync();
+      void this.triggerSync();
     }, intervalMs);
   }
 
@@ -242,6 +299,3 @@ export class SyncEngine {
     }
   }
 }
-
-// Global Singleton Instance
-export const syncEngine = new SyncEngine();

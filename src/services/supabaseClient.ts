@@ -5,7 +5,8 @@
  * The service-role key is NEVER bundled into the client application.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 export interface SupabaseConfigStatus {
   isConfigured: boolean;

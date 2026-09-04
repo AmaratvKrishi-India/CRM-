@@ -3,8 +3,9 @@
  * Offline-first IndexedDB database with schema versioning, indexing, and migration support.
  */
 
-import Dexie, { Table } from 'dexie';
-import {
+import type { Table } from 'dexie';
+import Dexie from 'dexie';
+import type {
   Lead,
   Remark,
   CallHistory,
@@ -20,6 +21,15 @@ import {
   BulkAssignmentAudit,
 } from './types';
 import { DEFAULT_MESSAGE_TEMPLATES } from './seeds/defaultTemplates';
+import type {
+  AccessScope} from './accessScope';
+import {
+  LOCKED_DATABASE_NAME,
+  canAccessLead,
+  normalizeAccessScope,
+  sameAccessScope,
+  scopedDatabaseName,
+} from './accessScope';
 
 export class SalesCRMDatabase extends Dexie {
   leads!: Table<Lead, string>;
@@ -36,8 +46,11 @@ export class SalesCRMDatabase extends Dexie {
   syncState!: Table<SyncState, string>;
   bulkAssignmentAudits!: Table<BulkAssignmentAudit, string>;
 
-  constructor(dbName: string = 'AmaratvSalesCRM') {
+  readonly accessScope: AccessScope | null;
+
+  constructor(dbName: string = LOCKED_DATABASE_NAME, accessScope: AccessScope | null = null) {
     super(dbName);
+    this.accessScope = accessScope ? normalizeAccessScope(accessScope) : null;
 
     // Version 1: Initial Core Schema
     this.version(1).stores({
@@ -126,8 +139,50 @@ export class SalesCRMDatabase extends Dexie {
       bulkAssignmentAudits: 'id, organizationId, performedBy, targetAgentId, status, startedAt, isSynced, deletedAt, [targetAgentId+startedAt], [performedBy+startedAt]',
     });
 
+    // Version 6: account-scoped cache and per-user/per-organization sync indexes.
+    // Existing unscoped databases are intentionally not migrated into an
+    // authenticated user's partition because their ownership cannot be proven.
+    this.version(6).stores({
+      leads: 'id, phone, businessName, category, locality, pincode, status, createdBy, assignedTo, isSynced, deletedAt, nextFollowUpAt, lastContactedAt, createdAt, updatedAt, [status+deletedAt], [assignedTo+deletedAt], [createdBy+deletedAt], [locality+deletedAt], [isSynced+deletedAt]',
+      remarks: 'id, leadId, type, createdAt, isSynced, deletedAt, [leadId+deletedAt]',
+      callHistory: 'id, leadId, outcome, startedAt, isSynced, deletedAt, [leadId+deletedAt]',
+      followUps: 'id, leadId, userId, scheduledAt, status, priority, isSynced, deletedAt, [status+scheduledAt], [leadId+deletedAt], [userId+status]',
+      messageHistory: 'id, leadId, userId, channel, sentStatus, sentAt, isSynced, deletedAt, [leadId+deletedAt], [userId+sentAt]',
+      messageTemplates: 'id, category, isDefault, isSynced, deletedAt, [category+deletedAt]',
+      users: 'id, organizationId, email, role, status, isSynced, deletedAt, [organizationId+role+status], [role+deletedAt]',
+      activities: 'id, leadId, userId, activityType, createdAt, isSynced, deletedAt, [leadId+deletedAt], [userId+createdAt]',
+      callRecords: 'id, leadId, userId, outcome, startedAt, isSynced, deletedAt, [leadId+deletedAt], [userId+startedAt]',
+      importAudits: 'id, uploadedBy, createdAt, isSynced, [uploadedBy+createdAt]',
+      outbox: 'id, organizationId, userId, entityType, entityId, operation, status, retryCount, createdAt, updatedAt, [organizationId+userId+status], [status+createdAt]',
+      syncState: 'id, organizationId, userId',
+      bulkAssignmentAudits: 'id, organizationId, performedBy, targetAgentId, status, startedAt, isSynced, deletedAt, [targetAgentId+startedAt], [performedBy+startedAt]',
+    });
+
     // Setup Hooks for Automatic Timestamp and Sync Dirty-Flag Management
     this.setupHooks();
+  }
+
+  /** Rejects repository work when the database is locked or the caller scope differs. */
+  requireAccessScope(requested?: AccessScope): AccessScope {
+    if (!this.accessScope) {
+      throw new Error('Local CRM data is locked until an active server profile is verified.');
+    }
+    const normalized = requested ? normalizeAccessScope(requested) : this.accessScope;
+    if (!sameAccessScope(this.accessScope, normalized)) {
+      throw new Error('Access scope does not match the active local data partition.');
+    }
+    return this.accessScope;
+  }
+
+  /** Returns a lead only when it belongs to the current role/user boundary. */
+  async requireAccessibleLead(leadId: string, requested?: AccessScope): Promise<Lead> {
+    const scope = this.requireAccessScope(requested);
+    const lead = await this.leads.get(leadId);
+    if (!lead || !canAccessLead(scope, lead)) {
+      // Deliberately avoid revealing whether a forbidden record exists.
+      throw new Error(`Lead ${leadId} not found.`);
+    }
+    return lead;
   }
 
   private setupHooks(): void {
@@ -173,6 +228,7 @@ export class SalesCRMDatabase extends Dexie {
    * Seeds default templates into the database if not already present.
    */
   async seedDefaults(): Promise<void> {
+    this.requireAccessScope();
     const count = await this.messageTemplates.count();
     if (count === 0) {
       const now = new Date().toISOString();
@@ -183,7 +239,9 @@ export class SalesCRMDatabase extends Dexie {
         isSynced: 0,
         deletedAt: null,
       }));
-      await this.messageTemplates.bulkAdd(templatesToInsert);
+      // bulkPut keeps repeated login/activation flows idempotent. Multiple
+      // callers can observe an empty store before either write completes.
+      await this.messageTemplates.bulkPut(templatesToInsert);
     }
   }
 
@@ -191,6 +249,7 @@ export class SalesCRMDatabase extends Dexie {
    * Safely clears all data (used for testing or total data reset).
    */
   async clearAllData(): Promise<void> {
+    this.requireAccessScope();
     await this.transaction('rw', this.tables, async () => {
       await Promise.all(this.tables.map((table) => table.clear()));
     });
@@ -198,7 +257,34 @@ export class SalesCRMDatabase extends Dexie {
 }
 
 // Export singleton database instance
-export const db = new SalesCRMDatabase();
+export let db = new SalesCRMDatabase();
+
+/** Open the cache that belongs exclusively to the verified account. */
+export async function activateDatabaseScope(scope: AccessScope): Promise<SalesCRMDatabase> {
+  const normalized = normalizeAccessScope(scope);
+  const nextName = scopedDatabaseName(normalized);
+  if (db.name === nextName && db.accessScope && sameAccessScope(db.accessScope, normalized)) {
+    if (!db.isOpen()) await db.open();
+    return db;
+  }
+
+  db.close();
+  // Replace the exported binding immediately. If opening the requested
+  // partition fails, callers cannot accidentally reopen the previous cache.
+  db = new SalesCRMDatabase();
+  const next = new SalesCRMDatabase(nextName, normalized);
+  await next.open();
+  db = next;
+  return db;
+}
+
+/** Close all sensitive tables and expose only an empty, unscoped database handle. */
+export async function lockDatabaseScope(): Promise<SalesCRMDatabase> {
+  db.close();
+  db = new SalesCRMDatabase();
+  return db;
+}
+
 export function getDatabase(): SalesCRMDatabase {
   return db;
 }

@@ -24,8 +24,7 @@ import {
   Flame,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import {
-  AdminReportsService,
+import type {
   ReportFilterOptions,
   LeadReportData,
   CallReportData,
@@ -33,12 +32,14 @@ import {
   FollowUpReportData,
   WhatsAppReportData,
   ImportReportData,
-  ActivityReportItem,
+  ActivityReportItem} from '../../services/adminReportsService';
+import {
+  AdminReportsService
 } from '../../services/adminReportsService';
 import { ReportKpiCard } from './reports/ReportKpiCard';
 import { ReportFilterBar } from './reports/ReportFilterBar';
 import { RealtimeService } from '../../services/realtime/realtimeService';
-import { User } from '../../db/types';
+import type { User } from '../../db/types';
 import { getDatabase } from '../../db/database';
 import { labelFor } from '../../lib/labels';
 

@@ -4,7 +4,8 @@
  * Stored 100% offline in browser localStorage with in-memory fallback.
  */
 
-import { AttachmentMetadata, AttachmentService } from './attachmentService';
+import type { AttachmentMetadata} from './attachmentService';
+import { AttachmentService } from './attachmentService';
 
 export interface StoredCatalogueMeta {
   name: string;

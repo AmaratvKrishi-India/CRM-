@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { Building2, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
-import { Lead, LeadStatus } from '../../db/types';
+import type { Lead, LeadStatus } from '../../db/types';
 import { Modal } from '../common/Modal';
 import { labelFor } from '../../lib/labels';
 
@@ -65,7 +65,10 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
     setLoading(true);
 
     try {
-      const userId = currentUser?.id || 'local-user';
+      if (!currentUser) {
+        throw new Error('Your session is no longer active. Please sign in again.');
+      }
+      const userId = currentUser.id;
 
       const newLead = await crmData.leads.createLead({
         businessName: cleanName,

@@ -3,9 +3,9 @@
  * Tracks lead batch import runs, attributing them to the active user and recording row counts.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { ImportAudit } from '../types';
+import type { ImportAudit } from '../types';
 
 export class ImportAuditRepository {
   private syncQueue?: SyncQueue;
@@ -49,6 +49,10 @@ export class ImportAuditRepository {
     invalid: number;
     deviceId?: string | null;
   }): Promise<ImportAudit> {
+    const scope = this.db.requireAccessScope();
+    if (input.uploadedBy !== scope.userId) {
+      throw new Error('Import audits must be attributed to the signed-in user.');
+    }
     const now = new Date().toISOString();
     const audit: ImportAudit = {
       id: input.id || this.generateId(),
@@ -76,7 +80,8 @@ export class ImportAuditRepository {
         entityId: audit.id,
         operation: 'CREATE',
         payload: audit,
-        userId: audit.uploadedBy || 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
 
@@ -87,7 +92,11 @@ export class ImportAuditRepository {
    * Retrieves import audit history, sorted newest to oldest.
    */
   async getAuditHistory(limit = 50): Promise<ImportAudit[]> {
-    const audits = await this.db.importAudits.reverse().sortBy('createdAt');
+    const scope = this.db.requireAccessScope();
+    const audits = await this.db.importAudits
+      .filter((audit) => scope.role === 'ADMIN' || audit.uploadedBy === scope.userId)
+      .reverse()
+      .sortBy('createdAt');
     return audits.slice(0, limit);
   }
 
@@ -95,6 +104,8 @@ export class ImportAuditRepository {
    * Retrieves an audit log entry by ID.
    */
   async getAuditById(id: string): Promise<ImportAudit | undefined> {
-    return await this.db.importAudits.get(id);
+    const scope = this.db.requireAccessScope();
+    const audit = await this.db.importAudits.get(id);
+    return audit && (scope.role === 'ADMIN' || audit.uploadedBy === scope.userId) ? audit : undefined;
   }
 }

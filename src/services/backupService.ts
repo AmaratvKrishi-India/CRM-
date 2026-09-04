@@ -6,8 +6,8 @@
  * Supports Schema Version 2 (Legacy Phase 1) and Schema Version 3 (Phase 2B Multi-User).
  */
 
-import { SalesCRMDatabase } from '../db/database';
-import {
+import type { SalesCRMDatabase } from '../db/database';
+import type {
   Lead,
   Remark,
   CallHistory,
@@ -22,6 +22,7 @@ import {
   BulkAssignmentAudit,
 } from '../db/types';
 import type { SyncState } from './sync/syncTypes';
+import { canAccessLead } from '../db/accessScope';
 
 export interface CRMBackupData {
   leads: Lead[];
@@ -44,6 +45,8 @@ export interface CRMBackupPayload {
   appVersion: string;
   exportedAt: string;
   databaseName: string;
+  organizationId: string;
+  userId: string;
   data: CRMBackupData;
 }
 
@@ -119,6 +122,7 @@ export class BackupService {
    * Collects all active & soft-deleted records from the database and returns a validated CRMBackupPayload.
    */
   async generateBackupPayload(): Promise<CRMBackupPayload> {
+    const scope = this.db.requireAccessScope();
     const [
       leads,
       remarks,
@@ -149,25 +153,41 @@ export class BackupService {
       this.db.syncState.toArray(),
     ]);
 
+    const visibleLeads = leads.filter((lead) => canAccessLead(scope, lead));
+    const visibleLeadIds = new Set(visibleLeads.map((lead) => lead.id));
+    const visibleUsers = users.filter(
+      (user) => user.organizationId === scope.organizationId && (scope.role === 'ADMIN' || user.id === scope.userId)
+    );
+
     const payload: CRMBackupPayload = {
-      schemaVersion: 5,
+      schemaVersion: 6,
       appVersion: '2.0.0',
       exportedAt: new Date().toISOString(),
       databaseName: this.db.name,
+      organizationId: scope.organizationId,
+      userId: scope.userId,
       data: {
-        leads,
-        remarks,
-        callHistory,
-        followUps,
-        messageHistory,
+        leads: visibleLeads,
+        remarks: remarks.filter((row) => visibleLeadIds.has(row.leadId)),
+        callHistory: callHistory.filter((row) => visibleLeadIds.has(row.leadId)),
+        followUps: followUps.filter((row) => visibleLeadIds.has(row.leadId)),
+        messageHistory: messageHistory.filter((row) => visibleLeadIds.has(row.leadId)),
         messageTemplates,
-        users,
-        activities,
-        callRecords,
-        importAudits,
-        outbox,
-        bulkAssignmentAudits,
-        syncState,
+        users: visibleUsers,
+        activities: activities.filter(
+          (row) => scope.role === 'ADMIN' || (row.userId === scope.userId && !!row.leadId && visibleLeadIds.has(row.leadId))
+        ),
+        callRecords: callRecords.filter((row) => visibleLeadIds.has(row.leadId)),
+        importAudits: importAudits.filter((row) => scope.role === 'ADMIN' || row.uploadedBy === scope.userId),
+        outbox: outbox.filter(
+          (row) => row.organizationId === scope.organizationId && row.userId === scope.userId
+        ),
+        bulkAssignmentAudits: scope.role === 'ADMIN'
+          ? bulkAssignmentAudits.filter((row) => row.organizationId === scope.organizationId)
+          : [],
+        syncState: syncState.filter(
+          (row) => row.organizationId === scope.organizationId && row.userId === scope.userId
+        ),
       },
     };
 
@@ -186,6 +206,7 @@ export class BackupService {
    */
   validateBackupPayload(payload: any): BackupValidationResult {
     const errors: string[] = [];
+    const scope = this.db.requireAccessScope();
 
     if (!payload || typeof payload !== 'object') {
       return {
@@ -206,6 +227,12 @@ export class BackupService {
 
     if (!payload.schemaVersion || typeof payload.schemaVersion !== 'number' || payload.schemaVersion < 1) {
       errors.push('Missing or invalid schemaVersion in backup header.');
+    }
+    if (payload.schemaVersion < 6) {
+      errors.push('Legacy unscoped backups cannot be restored automatically; use the audited recovery process.');
+    }
+    if (payload.organizationId !== scope.organizationId || payload.userId !== scope.userId) {
+      errors.push('Backup belongs to a different organization or signed-in user.');
     }
 
     if (!payload.data || typeof payload.data !== 'object') {
@@ -237,6 +264,9 @@ export class BackupService {
       activities = [],
       callRecords = [],
       importAudits = [],
+      outbox = [],
+      syncState = [],
+      bulkAssignmentAudits = [],
     } = payload.data;
 
     const tables: Array<{ name: string; list: any[] }> = [
@@ -252,6 +282,9 @@ export class BackupService {
     if (Array.isArray(activities)) tables.push({ name: 'activities', list: activities });
     if (Array.isArray(callRecords)) tables.push({ name: 'callRecords', list: callRecords });
     if (Array.isArray(importAudits)) tables.push({ name: 'importAudits', list: importAudits });
+    if (Array.isArray(outbox)) tables.push({ name: 'outbox', list: outbox });
+    if (Array.isArray(syncState)) tables.push({ name: 'syncState', list: syncState });
+    if (Array.isArray(bulkAssignmentAudits)) tables.push({ name: 'bulkAssignmentAudits', list: bulkAssignmentAudits });
 
     const leadIds = new Set<string>();
 
@@ -280,6 +313,30 @@ export class BackupService {
 
         if (name === 'leads') {
           leadIds.add(item.id);
+          if ((item.organizationId && item.organizationId !== scope.organizationId) || !canAccessLead(scope, item)) {
+            errors.push(`Lead "${item.id}" is outside the active backup access scope.`);
+          }
+        } else if (name === 'users' && item.organizationId !== scope.organizationId) {
+          errors.push(`Profile "${item.id}" belongs to another organization.`);
+        } else if (name === 'bulkAssignmentAudits' && item.organizationId !== scope.organizationId) {
+          errors.push(`Bulk-assignment audit "${item.id}" belongs to another organization.`);
+        } else if (name === 'outbox') {
+          if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
+            errors.push(`Outbox mutation "${item.id}" belongs to another synchronization context.`);
+          }
+          const payloadOrg = item.payload?.organizationId || item.payload?.organization_id;
+          if (payloadOrg && payloadOrg !== scope.organizationId) {
+            errors.push(`Outbox mutation "${item.id}" contains a cross-organization payload.`);
+          }
+        } else if (name === 'syncState') {
+          const expectedId = `${scope.organizationId}:${scope.userId}`;
+          if (
+            item.id !== expectedId ||
+            item.organizationId !== scope.organizationId ||
+            item.userId !== scope.userId
+          ) {
+            errors.push(`Sync state "${item.id}" does not match the active synchronization context.`);
+          }
         }
       }
     }
@@ -317,6 +374,8 @@ export class BackupService {
       activities.length +
       callRecords.length +
       importAudits.length;
+    // Outbox and sync metadata are intentionally excluded from business
+    // record totals but are still structurally and context validated above.
 
     const approxSizeBytes = JSON.stringify(payload).length;
 
@@ -654,8 +713,8 @@ export class BackupService {
       };
       logs.unshift(newLog);
       const trimmed = logs.slice(0, 20); // Keep last 20 entries
-      localStorage.setItem(BACKUP_HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
-    } catch (e) {
+      localStorage.setItem(this.getAuditStorageKey(), JSON.stringify(trimmed));
+    } catch {
       // Ignore storage errors in restricted contexts
     }
   }
@@ -665,12 +724,17 @@ export class BackupService {
    */
   getAuditLogs(): BackupAuditLog[] {
     try {
-      const raw = localStorage.getItem(BACKUP_HISTORY_STORAGE_KEY);
+      const raw = localStorage.getItem(this.getAuditStorageKey());
       if (!raw) return [];
       return JSON.parse(raw);
-    } catch (e) {
+    } catch {
       return [];
     }
+  }
+
+  private getAuditStorageKey(): string {
+    const scope = this.db.requireAccessScope();
+    return `${BACKUP_HISTORY_STORAGE_KEY}:${scope.organizationId}:${scope.userId}`;
   }
 
   /**

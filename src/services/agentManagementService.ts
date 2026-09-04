@@ -6,12 +6,13 @@
  */
 
 import { crmData } from '../db';
-import { SalesCRMDatabase } from '../db/database';
+import type { SalesCRMDatabase } from '../db/database';
 import { UserRepository } from '../db/repositories/userRepository';
 import { ActivityRepository } from '../db/repositories/activityRepository';
 import { DeviceService } from './deviceService';
 import { getSupabaseClient } from './supabaseClient';
-import { User, UserStatus, Activity } from '../db/types';
+import type { User, UserStatus, Activity } from '../db/types';
+import { validateEmail, validateMinLength, validateRequired } from '../utils/validation';
 
 export interface CreateAgentInput {
   name: string;
@@ -58,6 +59,10 @@ export class AgentManagementService {
     if (actor.status !== 'ACTIVE') {
       throw new Error('Unauthorized: Inactive administrator account.');
     }
+    const scope = (customDb || crmData.db).requireAccessScope();
+    if (actor.id !== scope.userId || actor.organizationId !== scope.organizationId || scope.role !== 'ADMIN') {
+      throw new Error('Unauthorized: Administrator does not match the active data partition.');
+    }
   }
 
   /**
@@ -102,25 +107,20 @@ export class AgentManagementService {
     const cleanName = (input.name || '').trim();
     const cleanEmail = (input.email || '').trim().toLowerCase();
     const cleanPhone = (input.phone || '').trim();
-    const rawPassword = input.password;
+    const password = input.password || '';
 
-    if (!cleanName) {
-      throw new Error('Agent full name is required.');
-    }
+    const nameValidation = validateRequired(cleanName, 'Agent full name is required.');
+    if (!nameValidation.valid) throw new Error(nameValidation.error);
 
-    if (!cleanEmail) {
-      throw new Error('Agent email is required.');
-    }
+    const emailRequired = validateRequired(cleanEmail, 'Agent email is required.');
+    if (!emailRequired.valid) throw new Error(emailRequired.error);
+    const emailValidation = validateEmail(cleanEmail, 'Please enter a valid email address.');
+    if (!emailValidation.valid) throw new Error(emailValidation.error);
 
-    // Email validation regex
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
-      throw new Error('Please enter a valid email address.');
-    }
-
-    if (rawPassword && rawPassword.length < 6) {
-      throw new Error('Password must be at least 6 characters in length.');
-    }
+    const passwordRequired = validateRequired(password, 'A temporary password is required to provision an agent account.');
+    if (!passwordRequired.valid) throw new Error(passwordRequired.error);
+    const passwordLength = validateMinLength(password, 6, 'Password must be at least 6 characters in length.');
+    if (!passwordLength.valid) throw new Error(passwordLength.error);
 
     const userRepo = this.getUserRepo();
     const existing = await userRepo.getUserByEmail(cleanEmail);
@@ -128,82 +128,83 @@ export class AgentManagementService {
       throw new Error(`An account with email "${cleanEmail}" already exists.`);
     }
 
-    let cloudAgentId: string | undefined;
-
-    // 1. If Supabase client is configured and password was provided, invoke the Edge Function
+    // Agent creation is an online-only server operation. A local profile is
+    // cached only after the Auth account and remote profile both exist.
     const supabase = getSupabaseClient();
-    if (supabase && rawPassword) {
-      try {
-        const { data: edgeData, error: edgeError } = await supabase.functions.invoke('create-agent', {
-          body: {
-            name: cleanName,
-            email: cleanEmail,
-            phone: cleanPhone,
-            password: rawPassword,
-          },
-        });
-
-        if (edgeError) {
-          // Classify the failure. Only a genuine network-unreachable error
-          // (device offline) may fall back to local-only creation. Server-side
-          // failures (5xx, relay errors, timeouts, non-2xx responses) must
-          // propagate so we never create an orphan local agent whose cloud
-          // account may or may not exist.
-          const name = (edgeError as { name?: string }).name || '';
-          const status = (edgeError as { context?: { status?: number } }).context?.status;
-          if (name === 'FunctionsFetchError') {
-            // Network unreachable / DNS / connection refused: offline fallback.
-            console.warn('Edge function unreachable (offline), creating local agent:', edgeError.message);
-          } else {
-            const detail = status ? ` (HTTP ${status})` : '';
-            throw new Error(
-              `Agent provisioning failed on the server${detail}: ${edgeError.message || 'unknown error'}. No local account was created. Please retry.`
-            );
-          }
-        }
-
-        if (edgeData && edgeData.error) {
-          throw new Error(edgeData.error);
-        }
-
-        if (edgeData && edgeData.agent && edgeData.agent.id) {
-          cloudAgentId = edgeData.agent.id;
-        }
-      } catch (err: any) {
-        // Duplicate-account and authorization errors must always propagate.
-        if (
-          err.message &&
-          (err.message.includes('already exists') ||
-            err.message.includes('Unauthorized') ||
-            err.message.includes('Forbidden') ||
-            err.message.includes('Agent provisioning failed'))
-        ) {
-          throw err;
-        }
-        // Only a raw network-level fetch failure (thrown, not returned) may
-        // fall back to local creation; everything else propagates.
-        if (err?.name === 'FunctionsFetchError' || err?.name === 'AbortError' || err instanceof TypeError) {
-          console.warn('Edge function unreachable (offline), creating local agent:', err.message);
-        } else {
-          throw new Error(
-            `Agent provisioning failed: ${err.message || 'unknown error'}. No local account was created. Please retry.`
-          );
-        }
-      }
+    if (!supabase) {
+      throw new Error('Agent provisioning requires a configured authentication server and an internet connection.');
     }
 
-    // 2. Create local Agent profile in Dexie (NEVER storing password)
-    const agent = await userRepo.createUser({
-      id: cloudAgentId,
-      name: cleanName,
-      email: cleanEmail,
-      phone: cleanPhone,
-      role: 'AGENT', // Strictly forced to AGENT
-      status: input.status || 'ACTIVE',
-      createdBy: actor.id,
-    });
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      throw new Error('Agent provisioning requires an internet connection. No local account was created.');
+    }
 
-    // 3. Append immutable audit activity (NEVER storing password)
+    let edgeData: any;
+    try {
+      const result = await supabase.functions.invoke('create-agent', {
+        body: {
+          name: cleanName,
+          email: cleanEmail,
+          phone: cleanPhone,
+          password,
+        },
+      });
+      edgeData = result.data;
+      if (result.error) {
+        const status = (result.error as { context?: { status?: number } }).context?.status;
+        const detail = status ? ` (HTTP ${status})` : '';
+        throw new Error(
+          `Agent provisioning failed on the server${detail}: ${result.error.message || 'unknown error'}. No local account was created. Please retry.`
+        );
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'unknown error';
+      if (message.includes('Agent provisioning failed')) throw err;
+      throw new Error(
+        `Agent provisioning requires a working server connection: ${message}. No local account was created. Please retry.`
+      );
+    }
+
+    if (edgeData?.error) {
+      throw new Error(`Agent provisioning failed on the server: ${edgeData.error}. No local account was created.`);
+    }
+
+    const remoteAgent = edgeData?.agent;
+    if (!remoteAgent?.id || !remoteAgent.organizationId) {
+      throw new Error('Agent provisioning returned an incomplete server profile. No local account was created.');
+    }
+    if (remoteAgent.organizationId !== actor.organizationId) {
+      throw new Error('Agent provisioning returned a profile from another organization. No local account was created.');
+    }
+    if (remoteAgent.role !== 'AGENT') {
+      throw new Error('Agent provisioning returned an invalid account role. No local account was created.');
+    }
+    if ((remoteAgent.email || '').trim().toLowerCase() !== cleanEmail) {
+      throw new Error('Agent provisioning returned a mismatched account email. No local account was created.');
+    }
+    if (remoteAgent.status !== 'ACTIVE' && remoteAgent.status !== 'INACTIVE') {
+      throw new Error('Agent provisioning returned an invalid account status. No local account was created.');
+    }
+
+    const createdAt = remoteAgent.createdAt || new Date().toISOString();
+    const agent: User = {
+      id: remoteAgent.id,
+      organizationId: remoteAgent.organizationId,
+      name: (remoteAgent.name || cleanName).trim(),
+      email: cleanEmail,
+      phone: (remoteAgent.phone || cleanPhone).trim(),
+      role: 'AGENT',
+      status: remoteAgent.status,
+      createdAt,
+      createdBy: remoteAgent.createdBy || actor.id,
+      updatedAt: remoteAgent.updatedAt || createdAt,
+      lastLoginAt: null,
+      isSynced: 1,
+      deletedAt: null,
+    };
+    await userRepo.putUser(agent);
+
+    // Append immutable local audit activity (NEVER storing password).
     const activityRepo = this.getActivityRepo();
     const deviceId = DeviceService.getDeviceId();
     const auditActivity = await activityRepo.logActivity({

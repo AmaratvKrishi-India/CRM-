@@ -4,11 +4,13 @@
  * Uses UUID idempotency via upsert and handles partial batch failures with exponential retries.
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../supabaseClient';
 import { SyncQueue } from './syncQueue';
-import { OutboxItem, SyncEntityType } from './syncTypes';
-import { db as defaultDb, SalesCRMDatabase } from '../../db/database';
+import type { OutboxItem, SyncEntityType} from './syncTypes';
+import { SyncCancelledError, type SyncRunGuard } from './syncTypes';
+import type { SalesCRMDatabase } from '../../db/database';
+import { db as defaultDb } from '../../db/database';
 
 export class SyncPush {
   constructor(
@@ -61,8 +63,15 @@ export class SyncPush {
   /**
    * Transforms local camelCase payload into Supabase PostgreSQL snake_case columns.
    */
-  static transformToPgRecord(entityType: SyncEntityType, payload: Record<string, any>, defaultOrgId: string | null = null): Record<string, any> {
-    const orgId = payload.organizationId || payload.organization_id || defaultOrgId || '00000000-0000-0000-0000-000000000001';
+  static transformToPgRecord(entityType: SyncEntityType, payload: Record<string, any>, expectedOrgId: string | null = null): Record<string, any> {
+    const payloadOrgId = payload.organizationId || payload.organization_id || null;
+    if (payloadOrgId && expectedOrgId && payloadOrgId !== expectedOrgId) {
+      throw new Error('Mutation payload organization does not match its outbox context.');
+    }
+    const orgId = payloadOrgId || expectedOrgId;
+    if (!orgId) {
+      throw new Error('Mutation is missing an organization context.');
+    }
 
     const base = {
       id: payload.id,
@@ -226,7 +235,7 @@ export class SyncPush {
   /**
    * Pushes all pending outbox mutations to Supabase.
    */
-  async pushPending(client: SupabaseClient | null = getSupabaseClient()): Promise<{
+  async pushPending(client: SupabaseClient | null = getSupabaseClient(), guard?: SyncRunGuard): Promise<{
     pushedCount: number;
     failedCount: number;
     errors: string[];
@@ -234,6 +243,9 @@ export class SyncPush {
     if (!client) {
       throw new Error('Supabase client is not initialized or configured.');
     }
+
+    const scope = this.getDatabase().requireAccessScope();
+    guard?.();
 
     const items = await this.queue.getPendingItems(50);
     if (items.length === 0) {
@@ -243,6 +255,10 @@ export class SyncPush {
     // Drop stale payloads before marking anything SYNCING.
     const freshItems: OutboxItem[] = [];
     for (const item of items) {
+      guard?.();
+      if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
+        throw new Error('Outbox item escaped its account synchronization context.');
+      }
       if (await this.isStalePayload(item)) {
         await this.queue.markSynced([item.id]);
         continue;
@@ -255,6 +271,7 @@ export class SyncPush {
     }
 
     const itemIds = freshItems.map((i) => i.id);
+    guard?.();
     await this.queue.markSyncing(itemIds);
 
     let pushedCount = 0;
@@ -285,9 +302,11 @@ export class SyncPush {
         const records = batch.map((i) => SyncPush.transformToPgRecord(entityType, i.payload, i.organizationId));
 
         try {
+          guard?.();
           const { error } = await client
             .from(entityType)
             .upsert(records, { onConflict: 'id' });
+          guard?.();
 
           if (error) {
             // If batch failed, fallback to item-by-item to isolate the failing record
@@ -295,9 +314,11 @@ export class SyncPush {
               const item = batch[idx];
               const record = records[idx];
               try {
+                guard?.();
                 const { error: singleError } = await client
                   .from(entityType)
                   .upsert(record, { onConflict: 'id' });
+                guard?.();
 
                 if (singleError) {
                   await this.queue.markFailed(item.id, singleError.message);
@@ -307,10 +328,12 @@ export class SyncPush {
                   await this.queue.markSynced([item.id]);
                   pushedCount++;
                 }
-              } catch (err: any) {
-                await this.queue.markFailed(item.id, err.message || 'Push error');
+              } catch (err: unknown) {
+                if (err instanceof SyncCancelledError) throw err;
+                const message = err instanceof Error ? err.message : 'Push error';
+                await this.queue.markFailed(item.id, message);
                 failedCount++;
-                errors.push(`${entityType} item ${item.entityId}: ${err.message}`);
+                errors.push(`${entityType} item ${item.entityId}: ${message}`);
               }
             }
           } else {
@@ -318,13 +341,15 @@ export class SyncPush {
             await this.queue.markSynced(batch.map((i) => i.id));
             pushedCount += batch.length;
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
+          if (err instanceof SyncCancelledError) throw err;
+          const message = err instanceof Error ? err.message : 'Push exception';
           // Network or client exception
           for (const item of batch) {
-            await this.queue.markFailed(item.id, err.message || 'Push exception');
+            await this.queue.markFailed(item.id, message);
           }
           failedCount += batch.length;
-          errors.push(`${entityType} batch: ${err.message}`);
+          errors.push(`${entityType} batch: ${message}`);
         }
       };
 
@@ -332,12 +357,15 @@ export class SyncPush {
         if (item.operation === 'DELETE') {
           await flushUpserts();
           try {
+            guard?.();
             // DELETE is idempotent: deleting a row that no longer exists
             // succeeds (0 rows affected), so retries are safe.
             const { error } = await client
               .from(entityType)
               .delete()
-              .eq('id', item.entityId);
+              .eq('id', item.entityId)
+              .eq('organization_id', item.organizationId);
+            guard?.();
 
             if (error) {
               await this.queue.markFailed(item.id, error.message);
@@ -347,10 +375,12 @@ export class SyncPush {
               await this.queue.markSynced([item.id]);
               pushedCount++;
             }
-          } catch (err: any) {
-            await this.queue.markFailed(item.id, err.message || 'Delete push exception');
+          } catch (err: unknown) {
+            if (err instanceof SyncCancelledError) throw err;
+            const message = err instanceof Error ? err.message : 'Delete push exception';
+            await this.queue.markFailed(item.id, message);
             failedCount++;
-            errors.push(`${entityType} DELETE ${item.entityId}: ${err.message}`);
+            errors.push(`${entityType} DELETE ${item.entityId}: ${message}`);
           }
         } else {
           upsertBatch.push(item);

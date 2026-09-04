@@ -3,9 +3,9 @@
  * Logs outbound messaging interactions (WhatsApp / SMS).
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { MessageHistory, MessageChannel, MessageStatus } from '../types';
+import type { MessageHistory, MessageChannel, MessageStatus } from '../types';
 
 export class MessageHistoryRepository {
   private syncQueue?: SyncQueue;
@@ -43,6 +43,7 @@ export class MessageHistoryRepository {
     templateId?: string | null;
     sentStatus?: MessageStatus;
   }): Promise<MessageHistory> {
+    const scope = this.db.requireAccessScope();
     const {
       leadId,
       channel,
@@ -52,15 +53,13 @@ export class MessageHistoryRepository {
       sentStatus = 'INITIATED',
     } = params;
 
-    const lead = await this.db.leads.get(leadId);
-    if (!lead) {
-      throw new Error(`Cannot log message: Lead ${leadId} does not exist.`);
-    }
+    await this.db.requireAccessibleLead(leadId, scope);
 
     const now = new Date().toISOString();
     const msgRecord: MessageHistory = {
       id: this.generateId(),
       leadId,
+      userId: scope.userId,
       channel,
       templateId,
       recipientPhone,
@@ -87,7 +86,8 @@ export class MessageHistoryRepository {
         entityId: msgRecord.id,
         operation: 'CREATE',
         payload: msgRecord,
-        userId: 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
 
       const updatedLead = await this.db.leads.get(leadId);
@@ -97,7 +97,8 @@ export class MessageHistoryRepository {
           entityId: leadId,
           operation: 'UPDATE',
           payload: updatedLead,
-          userId: updatedLead.updatedBy || updatedLead.createdBy || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -109,6 +110,7 @@ export class MessageHistoryRepository {
    * Retrieves messages for a specific lead, newest first.
    */
   async getMessageHistoryByLead(leadId: string): Promise<MessageHistory[]> {
+    await this.db.requireAccessibleLead(leadId);
     return await this.db.messageHistory
       .where('leadId')
       .equals(leadId)
@@ -121,6 +123,10 @@ export class MessageHistoryRepository {
    * Updates the delivery/sending status of an existing message log (e.g. INITIATED -> FAILED).
    */
   async updateMessageStatus(id: string, sentStatus: MessageStatus): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    const existing = await this.db.messageHistory.get(id);
+    if (!existing) return;
+    await this.db.requireAccessibleLead(existing.leadId, scope);
     const now = new Date().toISOString();
     // Data write + outbox enqueue are atomic: either both persist or neither.
     await this.db.transaction('rw', [this.db.messageHistory, this.db.outbox], async () => {
@@ -136,7 +142,8 @@ export class MessageHistoryRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -146,6 +153,10 @@ export class MessageHistoryRepository {
    * Soft-deletes a message history record.
    */
   async softDeleteMessage(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
+    const existing = await this.db.messageHistory.get(id);
+    if (!existing) return;
+    await this.db.requireAccessibleLead(existing.leadId, scope);
     const now = new Date().toISOString();
     // Data write + outbox enqueue are atomic: either both persist or neither.
     await this.db.transaction('rw', [this.db.messageHistory, this.db.outbox], async () => {
@@ -161,7 +172,8 @@ export class MessageHistoryRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });

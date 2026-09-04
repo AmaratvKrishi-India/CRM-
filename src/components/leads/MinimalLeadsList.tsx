@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
-import { Lead, LeadStatus } from '../../db/types';
+import type { Lead, LeadStatus } from '../../db/types';
 import { CreateLeadModal } from './CreateLeadModal';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { labelFor } from '../../lib/labels';
@@ -304,7 +304,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
         {loadError && !loading && (
           <div className="bg-surface rounded-2xl border border-line p-8 text-center my-auto space-y-3">
             <CloudOff className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
-            <h3 className="text-base font-bold text-ink">{loadError}</h3>
+            <h2 className="text-base font-bold text-ink">{loadError}</h2>
             <button
               type="button"
               onClick={() => void loadLeads()}
@@ -322,9 +322,9 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
             <div className="w-14 h-14 bg-accent-soft text-accent-text rounded-full flex items-center justify-center mx-auto">
               <Building2 className="w-7 h-7" aria-hidden="true" />
             </div>
-            <h3 className="text-base font-bold text-ink">
+            <h2 className="text-base font-bold text-ink">
               {currentUser?.role === 'AGENT' ? 'No Leads Assigned Yet' : 'No Leads in Database Yet'}
-            </h3>
+            </h2>
             <p className="text-sm text-soft max-w-xs mx-auto">
               {currentUser?.role === 'AGENT'
                 ? 'Your administrator has not assigned leads to you yet, or add a field lead with the button below.'
@@ -360,9 +360,9 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
-                        <h3 className="text-sm font-bold text-ink group-hover:text-accent-text truncate transition-colors">
+                        <h2 className="text-sm font-bold text-ink group-hover:text-accent-text truncate transition-colors">
                           {lead.businessName}
-                        </h3>
+                        </h2>
                         <ChevronRight className="w-4 h-4 text-faint group-hover:text-accent-text transition-transform group-hover:translate-x-0.5 flex-shrink-0" aria-hidden="true" />
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-soft mt-0.5">

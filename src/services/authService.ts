@@ -5,12 +5,13 @@
  * Passwords are NEVER stored locally.
  */
 
-import { Session, User as SupabaseAuthUser } from '@supabase/supabase-js';
+import type { Session, User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { getSupabaseClient, getSupabaseConfig } from './supabaseClient';
-import { crmData } from '../db';
+import { activateCRMDataScope, crmData, lockCRMData } from '../db';
+import { accessScopeFromUser, sameAccessScope } from '../db/accessScope';
 import { UserRepository } from '../db/repositories/userRepository';
-import { SalesCRMDatabase } from '../db/database';
-import { User } from '../db/types';
+import type { SalesCRMDatabase } from '../db/database';
+import type { User } from '../db/types';
 
 export interface AuthResult {
   user: User;
@@ -18,6 +19,11 @@ export interface AuthResult {
 }
 
 let customUserRepository: UserRepository | null = null;
+
+interface RemoteProfileResult {
+  user: User | null;
+  error?: string;
+}
 
 export class AuthService {
   /**
@@ -52,6 +58,10 @@ export class AuthService {
       throw new Error('Please enter both email and password.');
     }
 
+    // Never leave the previous account's business data unlocked while a new
+    // authentication attempt is in progress.
+    if (!customUserRepository) await lockCRMData();
+
     // 1. Authenticate with Supabase
     const { data, error } = await client.auth.signInWithPassword({
       email: cleanEmail,
@@ -72,25 +82,37 @@ export class AuthService {
       throw new Error('Authentication failed: No active session received.');
     }
 
-    // 2. Look up application User profile
-    const profile = await this.resolveUserProfile(data.user);
+    // 2. Re-read authorization from the server. Cached role/status is never
+    // trusted to unlock business data.
+    const remote = await this.fetchRemoteProfile(data.user);
+    const profile = remote.user;
 
     // 3. Check if user is provisioned
     if (!profile) {
-      await client.auth.signOut();
-      throw new Error('Your account has not been provisioned by an administrator.');
+      await this.signOut();
+      throw new Error(remote.error || 'Your account has not been provisioned by an administrator.');
     }
 
     // 4. Check if account is active
     if (profile.status !== 'ACTIVE') {
-      await client.auth.signOut();
+      await this.signOut();
       throw new Error('Your account is inactive. Please contact your administrator.');
     }
 
-    // 5. Record login timestamp
-    const repo = this.getUserRepo();
-    await repo.recordLogin(profile.id);
+    const scope = accessScopeFromUser(profile);
+    if (customUserRepository) {
+      const testScope = customUserRepository.getDatabase().requireAccessScope();
+      if (!sameAccessScope(scope, testScope)) {
+        await this.signOut();
+        throw new Error('Verified profile does not match this local data partition.');
+      }
+    } else {
+      await activateCRMDataScope(scope);
+    }
+
     profile.lastLoginAt = new Date().toISOString();
+    profile.isSynced = 1;
+    await this.getUserRepo().putUser(profile);
 
     return {
       user: profile,
@@ -104,12 +126,12 @@ export class AuthService {
    */
   static async signOut(): Promise<void> {
     const client = getSupabaseClient();
-    if (client) {
-      try {
-        await client.auth.signOut();
-      } catch (err) {
-        console.warn('Supabase sign out warning:', err);
-      }
+    try {
+      if (client) await client.auth.signOut();
+    } catch (err) {
+      console.warn('Supabase sign out warning:', err);
+    } finally {
+      await lockCRMData();
     }
   }
 
@@ -144,36 +166,37 @@ export class AuthService {
   }
 
   /**
-   * Resolves the corresponding local User profile for a Supabase Auth user.
-   * If no local profile exists, attempts to fetch from remote Supabase `profiles` table
-   * and bootstrap it into the local Dexie database (first-login on a fresh device).
+   * Resolves the profile authoritatively from Supabase and only then unlocks
+   * the matching local account partition.
    */
   static async resolveUserProfile(authUser: SupabaseAuthUser): Promise<User | null> {
-    const repo = this.getUserRepo();
-
-    // 1. Try matching by Supabase Auth UID
-    let profile = await repo.getUserById(authUser.id);
-
-    // 2. Fallback to matching by normalized email
-    if (!profile && authUser.email) {
-      profile = await repo.getUserByEmail(authUser.email);
+    const remote = await this.fetchRemoteProfile(authUser);
+    if (!remote.user) {
+      if (!customUserRepository) await lockCRMData();
+      return null;
     }
 
-    // 3. If still not found locally, try fetching from remote Supabase `profiles` table
-    if (!profile) {
-      profile = (await this.fetchAndBootstrapRemoteProfile(authUser)) ?? undefined;
+    const scope = accessScopeFromUser(remote.user);
+    if (customUserRepository) {
+      const testScope = customUserRepository.getDatabase().requireAccessScope();
+      if (!sameAccessScope(scope, testScope)) {
+        throw new Error('Verified profile does not match the configured test data partition.');
+      }
+    } else {
+      await activateCRMDataScope(scope);
     }
 
-    return profile || null;
+    await this.getUserRepo().putUser(remote.user);
+    return remote.user;
   }
 
   /**
    * Fetches a user profile from the remote Supabase `profiles` table by auth_user_id,
-   * then creates a corresponding local Dexie record so subsequent logins work offline.
+   * then caches the verified profile in the matching local data partition.
    */
-  private static async fetchAndBootstrapRemoteProfile(authUser: SupabaseAuthUser): Promise<User | null> {
+  private static async fetchRemoteProfile(authUser: SupabaseAuthUser): Promise<RemoteProfileResult> {
     const client = getSupabaseClient();
-    if (!client) return null;
+    if (!client) return { user: null, error: 'Authentication server is not configured.' };
 
     try {
       // Query remote profiles table by auth_user_id
@@ -183,20 +206,36 @@ export class AuthService {
         .eq('auth_user_id', authUser.id)
         .maybeSingle();
 
-      if (error || !remoteProfile) {
-        console.warn('Remote profile lookup failed or not found:', error?.message);
-        return null;
+      if (error) {
+        console.warn('Remote profile revalidation failed:', error.message);
+        return { user: null, error: 'Unable to verify account access with the server.' };
+      }
+      if (!remoteProfile) {
+        return { user: null, error: 'Account access has been revoked or is not provisioned.' };
       }
 
-      // Map remote snake_case columns to local camelCase User entity
+      if (
+        !remoteProfile.id ||
+        !remoteProfile.organization_id ||
+        remoteProfile.deleted_at ||
+        remoteProfile.status !== 'ACTIVE'
+      ) {
+        return { user: null, error: 'Account access has been revoked.' };
+      }
+      if (remoteProfile.role !== 'ADMIN' && remoteProfile.role !== 'AGENT') {
+        return { user: null, error: 'Account role is invalid or has been revoked.' };
+      }
+
+      // Map remote snake_case columns to local camelCase User entity.
+      // Role, status, organization and identity are never inferred locally.
       const localUser: User = {
         id: remoteProfile.id,
-        organizationId: remoteProfile.organization_id || null,
+        organizationId: remoteProfile.organization_id,
         name: remoteProfile.name || authUser.email || 'Unknown',
         email: (remoteProfile.email || authUser.email || '').trim().toLowerCase(),
         phone: remoteProfile.phone || '',
-        role: remoteProfile.role || 'AGENT',
-        status: remoteProfile.status || 'ACTIVE',
+        role: remoteProfile.role,
+        status: remoteProfile.status,
         createdAt: remoteProfile.created_at || new Date().toISOString(),
         createdBy: remoteProfile.created_by || null,
         updatedAt: remoteProfile.updated_at || new Date().toISOString(),
@@ -205,17 +244,10 @@ export class AuthService {
         deletedAt: remoteProfile.deleted_at || null,
       };
 
-      // Save into local Dexie database
-      const repo = this.getUserRepo();
-      // Use putUser directly: this profile already exists server-side, so
-      // createUser() would enqueue a redundant profiles CREATE outbox item.
-      await repo.putUser(localUser);
-
-      console.log(`Bootstrapped remote profile into local Dexie: ${localUser.email} (${localUser.role})`);
-      return localUser;
+      return { user: localUser };
     } catch (err: unknown) {
-      console.warn('Failed to bootstrap remote profile:', err instanceof Error ? err.message : err);
-      return null;
+      console.warn('Failed to revalidate remote profile:', err instanceof Error ? err.message : err);
+      return { user: null, error: 'Unable to verify account access with the server.' };
     }
   }
 
@@ -225,17 +257,27 @@ export class AuthService {
    * If inactive or unprovisioned, signs out and returns null.
    */
   static async validateAndLoadCurrentProfile(): Promise<{ user: User | null; error?: string }> {
-    const session = await this.getCurrentSession();
-    if (!session || !session.user) {
+    const client = getSupabaseClient();
+    if (!client) {
+      await lockCRMData();
+      return { user: null, error: 'Authentication server is not configured.' };
+    }
+
+    // getUser() validates the token with the Auth server; getSession() alone
+    // only reads locally cached credentials and is not sufficient for access.
+    const { data, error: authError } = await client.auth.getUser();
+    if (authError || !data.user) {
+      await lockCRMData();
       return { user: null };
     }
 
-    const profile = await this.resolveUserProfile(session.user);
+    const remote = await this.fetchRemoteProfile(data.user);
+    const profile = remote.user;
     if (!profile) {
       await this.signOut();
       return {
         user: null,
-        error: 'Your account has not been provisioned by an administrator.',
+        error: remote.error || 'Your account has not been provisioned by an administrator.',
       };
     }
 
@@ -246,6 +288,18 @@ export class AuthService {
         error: 'Your account is inactive. Please contact your administrator.',
       };
     }
+
+    const scope = accessScopeFromUser(profile);
+    if (customUserRepository) {
+      const testScope = customUserRepository.getDatabase().requireAccessScope();
+      if (!sameAccessScope(scope, testScope)) {
+        await this.signOut();
+        return { user: null, error: 'Verified profile does not match this local data partition.' };
+      }
+    } else {
+      await activateCRMDataScope(scope);
+    }
+    await this.getUserRepo().putUser(profile);
 
     return { user: profile };
   }
@@ -276,7 +330,7 @@ export class AuthService {
    * Returns true if there is an active valid session.
    */
   static async isAuthenticated(): Promise<boolean> {
-    const session = await this.getCurrentSession();
-    return session !== null;
+    const { user } = await this.validateAndLoadCurrentProfile();
+    return user !== null;
   }
 }

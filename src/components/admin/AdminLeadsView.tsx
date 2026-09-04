@@ -24,11 +24,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
-import { LeadAssignmentService, AssignmentStats } from '../../services/leadAssignmentService';
+import type { AssignmentStats } from '../../services/leadAssignmentService';
+import { LeadAssignmentService } from '../../services/leadAssignmentService';
 import { AgentManagementService } from '../../services/agentManagementService';
 import { LeadAssignmentModal } from '../leads/LeadAssignmentModal';
 import { BulkLeadAssignmentModal } from './BulkLeadAssignmentModal';
-import { Lead, User } from '../../db/types';
+import type { Lead, User } from '../../db/types';
 import { labelFor } from '../../lib/labels';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
@@ -49,7 +50,7 @@ export const AdminLeadsView: React.FC = () => {
   // keystroke (each keystroke previously triggered agents + stats + leads queries).
   const debouncedSearch = useDebouncedValue(searchTerm, 250);
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string>('ALL'); // 'ALL' | 'UNASSIGNED' | 'ASSIGNED' | agentId
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [selectedStatus] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
 
   // NEW-BUG-004 — request-sequence guard: a slow earlier loadData must not

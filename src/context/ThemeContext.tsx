@@ -6,7 +6,8 @@
  * Default: NIGHT (preserves existing dark CRM design).
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type ThemeMode = 'DAY' | 'NIGHT';
 

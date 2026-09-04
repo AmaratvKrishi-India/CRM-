@@ -9,7 +9,11 @@ import { SyncPush } from '../src/services/sync/syncPush.ts';
 import type { SyncState } from '../src/services/sync/syncTypes.ts';
 
 function freshDb(name: string) {
-  const db = new SalesCRMDatabase(`NewBug002_${Date.now()}_${name}`);
+  const db = new SalesCRMDatabase(`NewBug002_${Date.now()}_${name}`, {
+    organizationId: 'org-nb2',
+    userId: 'admin-nb2',
+    role: 'ADMIN',
+  });
   const dataLayer = createCRMDataLayer(db);
   const backupService = new BackupService(db);
   return { db, dataLayer, backupService };
@@ -88,9 +92,10 @@ describe('NEW-BUG-002: merge restore must not drop outbox / syncState / bulk-ass
   it('pull cursor (syncState) survives merge restore so incremental pull continues', async () => {
     const a = freshDb('nb2_cursor_a');
     const cursorState: SyncState = {
-      id: 'current',
+      id: 'org-nb2:admin-nb2',
       deviceId: 'device-A',
       organizationId: 'org-nb2',
+      userId: 'admin-nb2',
       lastSuccessfulSyncAt: '2026-08-20T10:00:00.000Z',
       lastPullCursor: '2026-08-20T10:00:00.000Z',
       lastPushAt: '2026-08-20T10:00:00.000Z',
@@ -106,7 +111,7 @@ describe('NEW-BUG-002: merge restore must not drop outbox / syncState / bulk-ass
     const b = freshDb('nb2_cursor_b');
     await b.backupService.mergeRestore(payload);
 
-    const state = await b.db.syncState.get('current');
+    const state = await b.db.syncState.get('org-nb2:admin-nb2');
     assert.ok(state, 'syncState row restored on device B');
     assert.strictEqual(state!.lastPullCursor, '2026-08-20T10:00:00.000Z', 'pull cursor preserved');
 

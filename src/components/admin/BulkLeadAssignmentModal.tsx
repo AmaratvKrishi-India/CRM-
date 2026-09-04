@@ -16,7 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
 import { LeadAssignmentService } from '../../services/leadAssignmentService';
 import { AgentManagementService } from '../../services/agentManagementService';
-import { Lead, User } from '../../db/types';
+import type { Lead, User } from '../../db/types';
 import { Modal } from '../common/Modal';
 import { labelFor } from '../../lib/labels';
 
@@ -37,7 +37,7 @@ export const BulkLeadAssignmentModal: React.FC<BulkLeadAssignmentModalProps> = (
 
   const [agents, setAgents] = useState<User[]>([]);
   const [targetAgentId, setTargetAgentId] = useState<string>('');
-  const [selectedLeads, setSelectedLeads] = useState<Lead[]>([]);
+  const [, setSelectedLeads] = useState<Lead[]>([]);
   const [unassignedCount, setUnassignedCount] = useState<number>(0);
   const [reassignedCount, setReassignedCount] = useState<number>(0);
 

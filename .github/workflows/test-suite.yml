@@ -1,0 +1,97 @@
+name: Release readiness
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '26'
+  JAVA_VERSION: '21'
+
+jobs:
+  web-quality:
+    name: Web quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Clean install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test -- --runInBand
+
+      - name: Dependency security gate
+        run: npm audit --audit-level=high
+
+      - name: Secret scan
+        run: npx tsx scripts/secret-scanner-test.ts --fail-on-found
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm run test:e2e:chromium
+
+  android-toolchain:
+    name: Android build validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: web-quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Clean install
+        run: npm ci
+
+      - name: Sync web assets into Capacitor
+        run: |
+          npm run build
+          npx cap sync android
+
+      - name: Assemble debug and unsigned release configuration
+        working-directory: android
+        run: ./gradlew assembleDebug assembleRelease --no-daemon

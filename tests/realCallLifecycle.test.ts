@@ -43,7 +43,11 @@ describe('Real Telephony Lifecycle & Outcome Mapping Tests (Stage 7)', () => {
 
   describe('CallLifecycleService Telephony Invariants', () => {
     it('1. Enforces UNVERIFIED status under ACTION_DIAL to prevent fabricated talk time', async () => {
-      const db = new SalesCRMDatabase(`CallLifeTest_${Date.now()}`);
+      const db = new SalesCRMDatabase(`CallLifeTest_${Date.now()}`, {
+        organizationId: 'org-01',
+        userId: 'user-01',
+        role: 'AGENT',
+      });
       const dataLayer = createCRMDataLayer(db);
       CallLifecycleService.setCustomDatabase(db);
 
@@ -55,6 +59,9 @@ describe('Real Telephony Lifecycle & Outcome Mapping Tests (Stage 7)', () => {
         locality: 'Alambagh',
         isSynced: 1,
         deletedAt: null,
+        assignedTo: 'user-01',
+        createdBy: 'user-01',
+        updatedBy: 'user-01',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

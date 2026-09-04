@@ -1,7 +1,9 @@
 apply plugin: 'com.android.application'
 
-// Load signing properties from secure external location (NOT in Git)
-def keystorePropertiesFile = file("C:\\Users\\PC\\Documents\\AmaratvKrishi-Keys\\keystore.properties")
+// Load signing properties only when explicitly supplied. The file is ignored
+// by Git; builds without release credentials remain reproducible and unsigned.
+def keystorePropertiesPath = System.getenv('ANDROID_KEYSTORE_PROPERTIES')
+def keystorePropertiesFile = keystorePropertiesPath ? file(keystorePropertiesPath) : file("${rootDir}/keystore.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
@@ -37,7 +39,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

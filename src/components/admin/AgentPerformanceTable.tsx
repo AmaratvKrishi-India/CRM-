@@ -14,7 +14,7 @@ import {
   ChevronRight,
   Award,
 } from 'lucide-react';
-import { AgentPerformanceSummary } from '../../services/adminAnalyticsService';
+import type { AgentPerformanceSummary } from '../../services/adminAnalyticsService';
 
 interface AgentPerformanceTableProps {
   agents: AgentPerformanceSummary[];

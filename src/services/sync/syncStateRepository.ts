@@ -3,9 +3,11 @@
  * Persists and retrieves local synchronization cursor, timestamps, and engine status.
  */
 
-import { db as defaultDb, SalesCRMDatabase } from '../../db/database';
+import type { SalesCRMDatabase } from '../../db/database';
+import { db as defaultDb } from '../../db/database';
 import { DeviceService } from '../deviceService';
-import { SyncState, SyncEngineStatus } from './syncTypes';
+import type { SyncState, SyncEngineStatus } from './syncTypes';
+import type { AccessScope } from '../../db/accessScope';
 
 export class SyncStateRepository {
   private database?: SalesCRMDatabase;
@@ -18,18 +20,31 @@ export class SyncStateRepository {
     return this.database || defaultDb;
   }
 
+  getAccessScope(): AccessScope {
+    return this.getDatabase().requireAccessScope();
+  }
+
   /**
    * Retrieves the current sync state from Dexie or initializes default.
    */
   async getSyncState(): Promise<SyncState> {
     const db = this.getDatabase();
-    let state = await db.syncState.get('current');
+    const scope = db.requireAccessScope();
+    const stateId = `${scope.organizationId}:${scope.userId}`;
+    let state = await db.syncState.get(stateId);
+    if (
+      state &&
+      (state.organizationId !== scope.organizationId || state.userId !== scope.userId)
+    ) {
+      throw new Error('Stored synchronization state does not match the active account context.');
+    }
     if (!state) {
       const deviceId = DeviceService.getDeviceId();
       state = {
-        id: 'current',
+        id: stateId,
         deviceId,
-        organizationId: null,
+        organizationId: scope.organizationId,
+        userId: scope.userId,
         lastSuccessfulSyncAt: null,
         lastPullCursor: null,
         lastPushAt: null,
@@ -45,7 +60,9 @@ export class SyncStateRepository {
   /**
    * Updates partial sync state fields.
    */
-  async updateSyncState(updates: Partial<Omit<SyncState, 'id'>>): Promise<SyncState> {
+  async updateSyncState(
+    updates: Partial<Omit<SyncState, 'id' | 'organizationId' | 'userId' | 'deviceId'>>
+  ): Promise<SyncState> {
     const db = this.getDatabase();
     const current = await this.getSyncState();
     const updated: SyncState = {

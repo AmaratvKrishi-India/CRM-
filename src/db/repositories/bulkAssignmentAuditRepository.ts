@@ -3,9 +3,9 @@
  * Manages local persistence and queries for batch lead assignment audits.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { BulkAssignmentAudit } from '../types';
+import type { BulkAssignmentAudit } from '../types';
 
 export class BulkAssignmentAuditRepository {
   private syncQueue?: SyncQueue;
@@ -49,12 +49,17 @@ export class BulkAssignmentAuditRepository {
     status: 'PENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
     errorSummary?: string | null;
   }): Promise<BulkAssignmentAudit> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') throw new Error('Only administrators can create assignment audits.');
+    if (input.performedBy !== scope.userId) {
+      throw new Error('Assignment audits must be attributed to the signed-in administrator.');
+    }
     const now = new Date().toISOString();
     const id = input.id || this.generateId();
 
     const auditRecord: BulkAssignmentAudit = {
       id,
-      organizationId: input.organizationId || null,
+      organizationId: scope.organizationId,
       performedBy: input.performedBy,
       targetAgentId: input.targetAgentId,
       selectedLeadCount: input.selectedLeadCount,
@@ -80,7 +85,8 @@ export class BulkAssignmentAuditRepository {
         entityId: auditRecord.id,
         operation: 'CREATE',
         payload: auditRecord,
-        userId: auditRecord.performedBy,
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
 
@@ -91,6 +97,8 @@ export class BulkAssignmentAuditRepository {
    * Retrieves all bulk assignment audits sorted by creation date descending.
    */
   async getAllAudits(limit = 100): Promise<BulkAssignmentAudit[]> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') return [];
     return await this.db.bulkAssignmentAudits
       .orderBy('startedAt')
       .reverse()
@@ -102,6 +110,9 @@ export class BulkAssignmentAuditRepository {
    * Retrieves a single bulk assignment audit by ID.
    */
   async getAuditById(id: string): Promise<BulkAssignmentAudit | undefined> {
-    return await this.db.bulkAssignmentAudits.get(id);
+    const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') return undefined;
+    const audit = await this.db.bulkAssignmentAudits.get(id);
+    return audit?.organizationId === scope.organizationId ? audit : undefined;
   }
 }

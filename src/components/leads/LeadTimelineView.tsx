@@ -19,7 +19,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { LeadAssignmentService } from '../../services/leadAssignmentService';
-import { Activity } from '../../db/types';
+import type { Activity } from '../../db/types';
 
 interface LeadTimelineViewProps {
   leadId: string;

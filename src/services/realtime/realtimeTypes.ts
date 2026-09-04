@@ -3,7 +3,7 @@
  * Realtime channel state, events, payload wrappers, and listeners.
  */
 
-import { Activity, CallRecord, FollowUp, Lead, Remark, User } from '../../db/types';
+import type { Activity} from '../../db/types';
 
 export type RealtimeConnectionStatus =
   | 'SUBSCRIBING'

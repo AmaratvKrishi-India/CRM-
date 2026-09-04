@@ -8,19 +8,79 @@
  * DEVICE 3 = AGENT B (e.g. emulator-5560)
  */
 
-import { test, describe } from 'node:test';
+import { test, describe, after } from 'node:test';
 import assert from 'node:assert';
 import { execSync } from 'child_process';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { chromium, Page, Browser } from '@playwright/test';
 
 const ADB = path.join(process.env.LOCALAPPDATA || '', 'Android', 'Sdk', 'platform-tools', 'adb.exe');
 const APP_PACKAGE = 'com.amaratvkrishi.salescrm';
-const RELEASE_APK = fileURLToPath(new URL('../release/AmaratvKrishi-SalesCRM-v2.0.0.apk', import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
+const LOCAL_TEST_APK = path.join(REPO_ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
 const SUPABASE_LOCAL_URL = 'http://127.0.0.1:15432';
 const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+const LOGIN_READY_TIMEOUT_MS = 60_000;
+const AUTH_RESPONSE_TIMEOUT_MS = 60_000;
+let localTestApkReady = false;
+
+function localBuildEnvironment(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    VITE_SUPABASE_URL: SUPABASE_LOCAL_URL,
+    VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+    CAPACITOR_ANDROID_SCHEME: 'http',
+    VITE_APP_ENV: 'local-test',
+  };
+}
+
+function directoryContains(root: string, needle: string): boolean {
+  if (!existsSync(root)) return false;
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(fullPath);
+      } else if (/\.(?:html?|js|json)$/i.test(entry.name) && readFileSync(fullPath, 'utf-8').includes(needle)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function buildLocalTestApk(): void {
+  if (localTestApkReady) return;
+
+  const env = localBuildEnvironment();
+  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  const gradleCommand = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+
+  console.log('Building the Android test artifact against disposable local Supabase.');
+  execSync(`${npmCommand} run build`, { cwd: REPO_ROOT, env, stdio: 'inherit' });
+  execSync(`${npxCommand} cap sync android`, { cwd: REPO_ROOT, env, stdio: 'inherit' });
+
+  const syncedAssets = path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'assets', 'public');
+  assert.ok(
+    directoryContains(syncedAssets, SUPABASE_LOCAL_URL),
+    'Synced Android web assets must contain the disposable local Supabase URL.'
+  );
+  assert.ok(existsSync(path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'assets', 'capacitor.config.json')));
+
+  execSync(`${gradleCommand} assembleDebug --no-daemon`, {
+    cwd: path.join(REPO_ROOT, 'android'),
+    env,
+    stdio: 'inherit',
+  });
+  assert.ok(existsSync(LOCAL_TEST_APK), `Expected local Android test APK at ${LOCAL_TEST_APK}`);
+  localTestApkReady = true;
+}
 
 interface DeviceRoleConfig {
   serial: string;
@@ -65,10 +125,13 @@ async function waitForCdpReady(port: number, maxAttempts = 45): Promise<boolean>
 }
 
 function ensureAppInstalled(serial: string): void {
+  buildLocalTestApk();
   const listed = execSync(`"${ADB}" -s ${serial} shell pm list packages ${APP_PACKAGE}`, { encoding: 'utf-8' });
-  if (listed.includes(`package:${APP_PACKAGE}`)) return;
-  console.log(`App missing on ${serial}; installing release APK ${RELEASE_APK}`);
-  execSync(`"${ADB}" -s ${serial} install -r "${RELEASE_APK}"`, { encoding: 'utf-8', timeout: 180_000 });
+  if (listed.includes(`package:${APP_PACKAGE}`)) {
+    execSync(`"${ADB}" -s ${serial} uninstall ${APP_PACKAGE}`, { stdio: 'ignore' });
+  }
+  console.log(`Installing verified local-Supabase debug APK on ${serial}`);
+  execSync(`"${ADB}" -s ${serial} install "${LOCAL_TEST_APK}"`, { encoding: 'utf-8', timeout: 180_000 });
 }
 
 async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser: Browser; page: Page }> {
@@ -86,7 +149,7 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
 
   // 4. Poll for PID
   let pid = '';
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
       pid = execSync(`"${ADB}" -s ${serial} shell pidof com.amaratvkrishi.salescrm`, { encoding: 'utf-8' }).trim();
@@ -98,8 +161,29 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
     throw new Error(`Failed to find running process for com.amaratvkrishi.salescrm on ${serial}`);
   }
 
-  // 5. Forward CDP port
-  execSync(`"${ADB}" -s ${serial} forward tcp:${cdpPort} localabstract:webview_devtools_remote_${pid}`);
+  // 5. Forward CDP port. WebView creates its devtools socket shortly after the
+  // app process appears, so retry the bind instead of treating that startup
+  // window as a device failure.
+  let cdpForwarded = false;
+  for (let attempt = 0; attempt < 15; attempt++) {
+    try {
+      execSync(`"${ADB}" -s ${serial} forward --remove tcp:${cdpPort}`, { stdio: 'ignore' });
+    } catch {}
+
+    try {
+      execSync(`"${ADB}" -s ${serial} forward tcp:${cdpPort} localabstract:webview_devtools_remote_${pid}`, {
+        stdio: 'ignore',
+      });
+      cdpForwarded = true;
+      break;
+    } catch {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+
+  if (!cdpForwarded) {
+    throw new Error(`Failed to forward WebView CDP port ${cdpPort} for ${serial}`);
+  }
 
   // 6. Wait for DevTools endpoint inside WebView to become ready
   const isCdpReady = await waitForCdpReady(cdpPort);
@@ -114,6 +198,89 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
   await page.waitForLoadState('domcontentloaded');
 
   return { browser, page };
+}
+
+/**
+ * A freshly-cleared Android WebView can expose the login form before React has
+ * finished attaching the form handlers. Prove the form is interactive with a
+ * reversible UI state change before entering credentials or submitting it.
+ */
+async function waitForInteractiveLoginForm(page: Page): Promise<void> {
+  const emailInput = page.locator('#login-email');
+  const passwordInput = page.locator('#login-password');
+  await emailInput.waitFor({ state: 'visible', timeout: LOGIN_READY_TIMEOUT_MS });
+  await passwordInput.waitFor({ state: 'visible', timeout: LOGIN_READY_TIMEOUT_MS });
+
+  const deadline = Date.now() + LOGIN_READY_TIMEOUT_MS;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      if ((await passwordInput.getAttribute('type')) !== 'text') {
+        await page.getByRole('button', { name: 'Show password', exact: true }).click({ timeout: 5_000 });
+      }
+      await page.locator('#login-password[type="text"]').waitFor({ state: 'visible', timeout: 1_000 });
+
+      await page.getByRole('button', { name: 'Hide password', exact: true }).click({ timeout: 5_000 });
+      await page.locator('#login-password[type="password"]').waitFor({ state: 'visible', timeout: 1_000 });
+      return;
+    } catch (error) {
+      lastError = error;
+      await page.waitForTimeout(250);
+    }
+  }
+
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`Login form never became interactive after WebView startup: ${detail}`);
+}
+
+async function signInFromInteractiveLoginForm(page: Page, email: string, password: string): Promise<void> {
+  await waitForInteractiveLoginForm(page);
+  await page.locator('#login-email').fill(email);
+  await page.locator('#login-password').fill(password);
+
+  const signInResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      response.url().includes('/auth/v1/token?grant_type=password'),
+    { timeout: AUTH_RESPONSE_TIMEOUT_MS }
+  );
+  await page.getByRole('button', { name: 'Sign In', exact: true }).click({
+    timeout: LOGIN_READY_TIMEOUT_MS,
+    noWaitAfter: true,
+  });
+
+  const response = await signInResponse;
+  assert.strictEqual(response.status(), 200, `Sign-in request returned HTTP ${response.status()}.`);
+}
+
+async function verifyAssignedLeadInApp(page: Page, visibleLead: string, hiddenLeads: string[]): Promise<void> {
+  await page.getByRole('tab', { name: /Leads/i }).click();
+  await page.getByText(visibleLead, { exact: true }).first().waitFor({ state: 'visible', timeout: 60_000 });
+  for (const hiddenLead of hiddenLeads) {
+    assert.strictEqual(
+      await page.getByText(hiddenLead, { exact: true }).count(),
+      0,
+      `${hiddenLead} must not be rendered in the authenticated agent UI.`
+    );
+  }
+}
+
+async function exerciseAppWorkflow(page: Page, leadName: string, status: string, note: string): Promise<void> {
+  await page.getByRole('tab', { name: /Leads/i }).click();
+  await page.getByText(leadName, { exact: true }).first().waitFor({ state: 'visible', timeout: 60_000 });
+  await page.getByText(leadName, { exact: true }).first().click();
+  // Open the outcome form through the non-dial UI entry point. This keeps the
+  // Android WebView attached to the CRM while still exercising the real form;
+  // native ACTION_DIAL itself is covered by the separate call-lifecycle tests.
+  await page.getByRole('button', { name: /Log call outcome & add remark/i }).click();
+  await page.locator('#custom-note').waitFor({ state: 'visible', timeout: 60_000 });
+  await page.locator('#custom-note').fill(note);
+  await page.locator('#reported-minutes').fill('1.5');
+  await page.locator('#pipeline-status').selectOption(status);
+  assert.strictEqual(await page.locator('#custom-note').inputValue(), note, 'App call-note form retained the entered note.');
+  assert.strictEqual(await page.locator('#pipeline-status').inputValue(), status, 'App call form selected the requested status.');
+  await page.getByRole('button', { name: /Skip \/ do not record/i }).click();
+  await page.getByRole('button', { name: /Back to leads list/i }).waitFor({ state: 'visible', timeout: 60_000 });
 }
 
 describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulators + Docker Supabase)', () => {
@@ -163,24 +330,44 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
   let agentBBrowser: Browser | null = null;
   let agentBPage: Page | null = null;
 
+  let cleanupComplete = false;
+  const cleanupDeviceSessions = async (): Promise<void> => {
+    if (cleanupComplete) return;
+    cleanupComplete = true;
+
+    for (const browser of [adminBrowser, agentABrowser, agentBBrowser]) {
+      if (browser) await browser.close().catch(() => {});
+    }
+    adminBrowser = null;
+    agentABrowser = null;
+    agentBBrowser = null;
+
+    for (const config of [adminConfig, agentAConfig, agentBConfig]) {
+      try {
+        execSync(`"${ADB}" -s ${config.serial} forward --remove tcp:${config.cdpPort}`);
+      } catch {}
+      try {
+        execSync(`"${ADB}" -s ${config.serial} reverse --remove tcp:15432`);
+      } catch {}
+    }
+  };
+
+  after(async () => {
+    await cleanupDeviceSessions();
+  });
+
   test('Step 1: Admin Emulator Setup & Login', async () => {
     console.log(`\n--- Step 1: Launching Admin on ${adminConfig.serial} ---`);
     const setup = await prepareDevice(adminConfig.serial, adminConfig.cdpPort);
     adminBrowser = setup.browser;
     adminPage = setup.page;
 
-    // Verify login screen
-    await adminPage.waitForSelector('input[type="email"]', { timeout: 60000 });
-    await adminPage.locator('input[type="email"]').fill(adminConfig.email);
-    await adminPage.locator('input[type="password"]').fill('Admin@123');
-    // noWaitAfter: the post-login navigation can exceed the click's action
-    // timeout on slow emulators; readiness is gated by the dashboard marker below.
-    await adminPage.locator('button:has-text("Sign In")').click({ timeout: 60000, noWaitAfter: true });
+    await signInFromInteractiveLoginForm(adminPage, adminConfig.email, 'Admin@123');
 
     // Wait for Admin Dashboard header & badge
-    await adminPage.waitForSelector('text=ADMIN', { timeout: 90000 });
-    const headerText = await adminPage.textContent('header');
-    assert.ok(headerText?.includes('ADMIN'), 'Admin role badge verified on Admin emulator.');
+    const adminBadge = adminPage.locator('[data-role="admin"] header').getByText('Admin', { exact: true });
+    await adminBadge.waitFor({ state: 'visible', timeout: 90000 });
+    assert.strictEqual(await adminBadge.count(), 1, 'Admin role badge verified on Admin emulator.');
     console.log('✅ Admin successfully logged in and dashboard loaded.');
   });
 
@@ -327,11 +514,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     agentABrowser = setup.browser;
     agentAPage = setup.page;
 
-    // Login as Agent A
-    await agentAPage.waitForSelector('input[type="email"]', { timeout: 60000 });
-    await agentAPage.locator('input[type="email"]').fill(agentAConfig.email);
-    await agentAPage.locator('input[type="password"]').fill('Agent@123');
-    await agentAPage.locator('button:has-text("Sign In")').click({ timeout: 60000, noWaitAfter: true });
+    await signInFromInteractiveLoginForm(agentAPage, agentAConfig.email, 'Agent@123');
 
     // Wait for Field Sales CRM list/dashboard
     // Harness-only: slow emulators can take well over 15s to render the
@@ -341,6 +524,10 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     // Sync down assigned leads from Supabase
     await agentAPage.locator('button[title="Sync Now"]').click().catch(() => {});
     await new Promise((r) => setTimeout(r, 2000));
+    await verifyAssignedLeadInApp(agentAPage, 'Gold Gym Test Hazratganj', [
+      'FitHub Test Gomti Nagar',
+      'Iron Paradise Test Alambagh',
+    ]);
 
     // Query Agent A's visible leads via token from Supabase
     const tokenARes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
@@ -372,11 +559,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     agentBBrowser = setup.browser;
     agentBPage = setup.page;
 
-    // Login as Agent B
-    await agentBPage.waitForSelector('input[type="email"]', { timeout: 60000 });
-    await agentBPage.locator('input[type="email"]').fill(agentBConfig.email);
-    await agentBPage.locator('input[type="password"]').fill('Agent@123');
-    await agentBPage.locator('button:has-text("Sign In")').click({ timeout: 60000, noWaitAfter: true });
+    await signInFromInteractiveLoginForm(agentBPage, agentBConfig.email, 'Agent@123');
 
     // Wait for Field Sales CRM dashboard
     // Harness-only: same rationale as Step 4.
@@ -385,6 +568,10 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     // Sync down assigned leads from Supabase
     await agentBPage.locator('button[title="Sync Now"]').click().catch(() => {});
     await new Promise((r) => setTimeout(r, 2000));
+    await verifyAssignedLeadInApp(agentBPage, 'FitHub Test Gomti Nagar', [
+      'Gold Gym Test Hazratganj',
+      'Iron Paradise Test Alambagh',
+    ]);
 
     // Query Agent B's visible leads via token from Supabase
     const tokenBRes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
@@ -411,6 +598,14 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
   test('Step 6: Agent A Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
     assert.ok(agentAPage, 'Agent A page must be active.');
     console.log('\n--- Step 6: Agent A Actions on Lead A ---');
+
+    await exerciseAppWorkflow(
+      agentAPage,
+      'Gold Gym Test Hazratganj',
+      'INTERESTED',
+      'Owner interested in gym supply catalog - requested quote'
+    );
+    console.log('✅ Agent A real app workflow completed before independent database verification.');
 
     const tokenARes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
@@ -504,6 +699,14 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
   test('Step 7: Agent B Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
     assert.ok(agentBPage, 'Agent B page must be active.');
     console.log('\n--- Step 7: Agent B Actions on Lead B ---');
+
+    await exerciseAppWorkflow(
+      agentBPage,
+      'FitHub Test Gomti Nagar',
+      'SAMPLE_REQUESTED',
+      'Trial samples delivered to front desk - trainer feedback awaited'
+    );
+    console.log('✅ Agent B real app workflow completed before independent database verification.');
 
     const tokenBRes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
@@ -772,9 +975,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
 
   test('Step 13: Clean Teardown', async () => {
     console.log('\n--- Step 13: Closing Device CDP Sessions ---');
-    if (adminBrowser) await adminBrowser.close().catch(() => {});
-    if (agentABrowser) await agentABrowser.close().catch(() => {});
-    if (agentBBrowser) await agentBBrowser.close().catch(() => {});
+    await cleanupDeviceSessions();
     console.log('✅ Teardown complete.');
   });
 });

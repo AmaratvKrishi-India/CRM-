@@ -4,11 +4,16 @@
  * and reconciles them into local Dexie using deterministic conflict resolution.
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../supabaseClient';
-import { db as defaultDb, SalesCRMDatabase } from '../../db/database';
+import type { SalesCRMDatabase } from '../../db/database';
+import { db as defaultDb } from '../../db/database';
+import { canAccessLead, type AccessScope } from '../../db/accessScope';
+import { pruneLeadData } from '../../db/pruning';
+import type { Lead } from '../../db/types';
 import { SyncConflictResolver } from './syncConflictResolver';
-import { SyncEntityType, SyncConflict } from './syncTypes';
+import type { SyncEntityType, SyncConflict} from './syncTypes';
+import { type SyncRunGuard } from './syncTypes';
 
 export class SyncPull {
   private database?: SalesCRMDatabase;
@@ -19,6 +24,28 @@ export class SyncPull {
 
   private getDatabase(): SalesCRMDatabase {
     return this.database || defaultDb;
+  }
+
+  private async isAuthorizedRecord(
+    scope: AccessScope,
+    entityType: SyncEntityType,
+    row: Record<string, any>,
+    transformed: Record<string, any>
+  ): Promise<boolean> {
+    if (row.organization_id !== scope.organizationId) return false;
+    if (scope.role === 'ADMIN') return true;
+
+    if (entityType === 'leads') return canAccessLead(scope, transformed as Lead);
+    if (entityType === 'profiles') return transformed.id === scope.userId;
+    if (entityType === 'import_audits') return transformed.uploadedBy === scope.userId;
+    if (entityType === 'bulk_assignment_audits') return false;
+
+    const leadId = transformed.leadId;
+    if (typeof leadId === 'string') {
+      const lead = await this.getDatabase().leads.get(leadId);
+      return !!lead && canAccessLead(scope, lead);
+    }
+    return entityType === 'activities' && transformed.userId === scope.userId;
   }
 
   /**
@@ -201,8 +228,10 @@ export class SyncPull {
   async pullEntityChanges(
     client: SupabaseClient,
     entityType: SyncEntityType,
-    sinceCursor: string | null
+    sinceCursor: string | null,
+    guard?: SyncRunGuard
   ): Promise<{ records: any[]; newestTimestamp: string | null }> {
+    const scope = this.getDatabase().requireAccessScope();
     const pageSize = 500;
     let allRecords: any[] = [];
     // Keyset cursor within this run: last row's (updated_at, id).
@@ -214,9 +243,11 @@ export class SyncPull {
     const seenIds = new Set<string>();
 
     while (hasMore) {
+      guard?.();
       let query = client
         .from(entityType)
         .select('*')
+        .eq('organization_id', scope.organizationId)
         .order('updated_at', { ascending: true })
         .order('id', { ascending: true })
         .limit(pageSize);
@@ -231,7 +262,16 @@ export class SyncPull {
         query = query.gte('updated_at', sinceCursor);
       }
 
+      if (scope.role === 'AGENT' && entityType === 'leads') {
+        query = query.or(`assigned_to.eq.${scope.userId},created_by.eq.${scope.userId}`);
+      } else if (scope.role === 'AGENT' && entityType === 'profiles') {
+        query = query.eq('id', scope.userId);
+      } else if (scope.role === 'AGENT' && entityType === 'import_audits') {
+        query = query.eq('uploaded_by', scope.userId);
+      }
+
       const { data, error } = await query;
+      guard?.();
       if (error) {
         throw new Error(`Failed to pull ${entityType}: ${error.message}`);
       }
@@ -271,7 +311,8 @@ export class SyncPull {
    */
   async pullAllChanges(
     sinceCursor: string | null,
-    client: SupabaseClient | null = getSupabaseClient()
+    client: SupabaseClient | null = getSupabaseClient(),
+    guard?: SyncRunGuard
   ): Promise<{
     pulledCount: number;
     conflicts: SyncConflict[];
@@ -282,6 +323,7 @@ export class SyncPull {
     }
 
     const db = this.getDatabase();
+    const scope = db.requireAccessScope();
     const entities: SyncEntityType[] = [
       'leads',
       'call_records',
@@ -299,10 +341,10 @@ export class SyncPull {
     let maxCursor: string | null = sinceCursor;
 
     for (const entityType of entities) {
-      const { records, newestTimestamp } = await this.pullEntityChanges(client, entityType, sinceCursor);
+      guard?.();
+      const { records, newestTimestamp } = await this.pullEntityChanges(client, entityType, sinceCursor, guard);
       if (records.length === 0) continue;
 
-      totalPulled += records.length;
       if (newestTimestamp && (!maxCursor || new Date(newestTimestamp).getTime() > new Date(maxCursor).getTime())) {
         maxCursor = newestTimestamp;
       }
@@ -324,8 +366,24 @@ export class SyncPull {
       if (!table) continue;
 
       for (const row of records) {
+        guard?.();
         const transformed = SyncPull.transformFromPgRecord(entityType, row);
         const existingLocal = await table.get(transformed.id);
+        const authorized = await this.isAuthorizedRecord(scope, entityType, row, transformed);
+        if (!authorized) {
+          if (entityType === 'leads' && existingLocal) {
+            await pruneLeadData(db, [transformed.id], scope);
+          } else if (existingLocal) {
+            await table.delete(transformed.id);
+          }
+          continue;
+        }
+        totalPulled++;
+
+        if (entityType === 'leads' && transformed.deletedAt) {
+          await pruneLeadData(db, [transformed.id], scope);
+          continue;
+        }
 
         if (entityType === 'call_records') {
           const res = SyncConflictResolver.resolveCallRecord(existingLocal, transformed);
@@ -350,6 +408,38 @@ export class SyncPull {
           }
         }
       }
+    }
+
+    // Incremental RLS results cannot describe a lead that has just been
+    // reassigned away from an agent. Compare against an authoritative,
+    // paginated set of currently visible lead IDs after every successful pull.
+    if (scope.role === 'AGENT') {
+      const visibleIds = new Set<string>();
+      const pageSize = 1000;
+      let from = 0;
+      while (true) {
+        guard?.();
+        const { data, error } = await client
+          .from('leads')
+          .select('id, organization_id')
+          .eq('organization_id', scope.organizationId)
+          .is('deleted_at', null)
+          .or(`assigned_to.eq.${scope.userId},created_by.eq.${scope.userId}`)
+          .range(from, from + pageSize - 1);
+        guard?.();
+        if (error) throw new Error(`Failed to verify lead assignments: ${error.message}`);
+        const rows = data || [];
+        for (const row of rows) {
+          if (row.id && row.organization_id === scope.organizationId) visibleIds.add(row.id);
+        }
+        if (rows.length < pageSize) break;
+        from += pageSize;
+      }
+
+      const revokedIds = (await db.leads.toArray())
+        .filter((lead) => canAccessLead(scope, lead) && !visibleIds.has(lead.id))
+        .map((lead) => lead.id);
+      await pruneLeadData(db, revokedIds, scope);
     }
 
     return {

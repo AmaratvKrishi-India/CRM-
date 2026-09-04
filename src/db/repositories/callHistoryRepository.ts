@@ -3,8 +3,8 @@
  * Handles logging of call attempts, outcomes, durations, and updates to Lead metrics.
  */
 
-import { SalesCRMDatabase } from '../database';
-import { CallHistory, CallOutcome, LeadStatus, PhoneType } from '../types';
+import type { SalesCRMDatabase } from '../database';
+import type { CallHistory, CallOutcome, LeadStatus, PhoneType } from '../types';
 
 export class CallHistoryRepository {
   constructor(private db: SalesCRMDatabase) {}
@@ -33,6 +33,7 @@ export class CallHistoryRepository {
     startedAt?: string;
     updateLeadStatus?: LeadStatus;
   }): Promise<CallHistory> {
+    const scope = this.db.requireAccessScope();
     const {
       leadId,
       calledNumber,
@@ -44,10 +45,7 @@ export class CallHistoryRepository {
       updateLeadStatus,
     } = params;
 
-    const lead = await this.db.leads.get(leadId);
-    if (!lead) {
-      throw new Error(`Cannot log call: Lead ${leadId} does not exist.`);
-    }
+    const lead = await this.db.requireAccessibleLead(leadId, scope);
 
     const now = new Date().toISOString();
     const callStart = startedAt || now;
@@ -97,6 +95,7 @@ export class CallHistoryRepository {
    * Retrieves call logs for a specific lead, ordered latest first.
    */
   async getCallHistoryByLead(leadId: string): Promise<CallHistory[]> {
+    await this.db.requireAccessibleLead(leadId);
     return await this.db.callHistory
       .where('leadId')
       .equals(leadId)
@@ -109,8 +108,14 @@ export class CallHistoryRepository {
    * Retrieves recent call logs across all leads.
    */
   async getRecentCalls(limit = 20): Promise<CallHistory[]> {
+    const scope = this.db.requireAccessScope();
+    const leadIds = new Set(
+      (await this.db.leads.toArray())
+        .filter((lead) => scope.role === 'ADMIN' || lead.assignedTo === scope.userId || lead.createdBy === scope.userId)
+        .map((lead) => lead.id)
+    );
     return await this.db.callHistory
-      .filter((c) => c.deletedAt === null)
+      .filter((c) => leadIds.has(c.leadId) && c.deletedAt === null)
       .reverse()
       .sortBy('startedAt')
       .then((records) => records.slice(0, limit));
@@ -120,6 +125,9 @@ export class CallHistoryRepository {
    * Soft-deletes a call log entry.
    */
   async softDeleteCall(id: string): Promise<void> {
+    const existing = await this.db.callHistory.get(id);
+    if (!existing) return;
+    await this.db.requireAccessibleLead(existing.leadId);
     const now = new Date().toISOString();
     await this.db.callHistory.update(id, {
       deletedAt: now,

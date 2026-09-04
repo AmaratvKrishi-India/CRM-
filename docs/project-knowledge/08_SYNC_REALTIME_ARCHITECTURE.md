@@ -1,90 +1,51 @@
-# 08 - SYNC & REALTIME ARCHITECTURE
+# 08 - Sync and realtime architecture
 
-## Overview
-Offline-first bidirectional sync between Dexie (IndexedDB) and Supabase PostgreSQL. Push-then-Pull pattern.
+## Phase 3 context boundary
 
-## Key Source Files
-- [syncEngine.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncEngine.ts) (6,320 bytes) - Central coordinator
-- [syncPush.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncPush.ts) (10,339 bytes) - Push mutations
-- [syncPull.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncPull.ts) (10,686 bytes) - Pull changes
-- [syncQueue.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncQueue.ts) (4,767 bytes) - Outbox queue
-- [syncConflictResolver.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncConflictResolver.ts) (3,629 bytes) - Conflict resolution
-- [backgroundSyncManager.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/backgroundSyncManager.ts) (5,210 bytes) - Auto-sync lifecycle
-- [syncStateRepository.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncStateRepository.ts) (1,911 bytes) - Cursor state
-- [syncTypes.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncTypes.ts) (1,769 bytes) - Type definitions
-- [useSync.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/useSync.ts) (845 bytes) - React hook
-- [realtimeService.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/realtime/realtimeService.ts) (13,173 bytes) - Realtime subscriber
-- [realtimeTypes.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/realtime/realtimeTypes.ts) (1,451 bytes) - Realtime types
+Every active sync engine is constructed for one exact `{organizationId, userId, role}` access scope and one physically partitioned Dexie database. Before each cycle it revalidates the server profile. A missing, revoked, moved, or role-changed profile fails closed before push or pull. Disposal increments the engine generation, so late push, pull, realtime, timer, and retry callbacks cannot update another account's database or cursor.
 
-## Outbox Queue (SyncQueue)
-- Dexie `outbox` table: `id`, `entityType`, `entityId`, `operation`, `payload`, `status`, `retryCount`, `lastAttemptAt`, `lastError`
-- Compound index: `[status+createdAt]`
-- Operations: `CREATE`, `UPDATE`, `DELETE`
-- Status flow: `PENDING` -> `SYNCING` -> `SYNCED` / `FAILED`
-- Every repository method calls `syncQueue.enqueue()` inside the same Dexie transaction as the data
-  write (BUG-4 fix, 2026-08-23): data + outbox persist atomically, or neither does. Enqueue failure
-  aborts the transaction instead of being swallowed.
+In-app organization switching is **NOT SUPPORTED — VERIFIED**. A changed server organization is treated as an authorization-context change: the old engine is disposed and a separately partitioned account database must be activated.
 
-## Push Phase (SyncPush)
-- Reads `PENDING` outbox items ordered by `createdAt`
-- Batches by `entityType` (9 entity types)
-- Transforms `camelCase` -> `snake_case` for Supabase
-- Operation-aware push (BUG-8 fix, 2026-08-23): `CREATE`/`UPDATE` items accumulate into an upsert
-  batch (`.upsert` with `onConflict: 'id'`); a `DELETE` item flushes pending upserts first, then
-  executes `.delete().eq('id', entityId)` individually. A DELETE is never converted into an upsert
-  (no resurrection), and DELETE is idempotent (0-row delete = success) so retries are safe.
-- On batch failure: falls back to single-record retry
-- Marks items `SYNCED` or `FAILED` with error message
-- Increments `retryCount` on failure
-- Cloud hard-delete requires migration 000007 (child FK CASCADE + `leads_delete_policy`); applied
-  locally, cloud application is a release step.
+## State and cursor model
 
-## Pull Phase (SyncPull)
-- Uses cursor (`lastPullCursor`) to pull only new/changed records
-- Queries each table: `SELECT * WHERE updated_at > cursor ORDER BY updated_at ASC`
-- Incremental pagination (safe, no infinite loops)
-- Transforms `snake_case` -> `camelCase`
-- Applies `SyncConflictResolver` for each incoming record
-- Upserts resolved records into Dexie
+- `syncState` is stored inside the account-partitioned Dexie database.
+- The row carries both `organizationId` and `userId`; reads and updates reject mismatches.
+- A pull cursor advances only after every table page and the agent visibility snapshot succeed.
+- A/B/A account switching therefore resumes each account's independent cursor. There is no global cursor or hard-coded organization fallback.
 
-## Conflict Resolution (SyncConflictResolver)
-Four rules:
-1. Append-only entities (activities): local wins on UUID match (idempotency)
-2. Call records: `VERIFIED` status ALWAYS wins over `UNVERIFIED` (regardless of timestamp)
-3. All others: Last-Write-Wins (LWW) by `updatedAt` timestamp
-4. LWW tie-break (BUG-5 fix, 2026-08-23): exactly equal timestamps resolve deterministically to
-   REMOTE (server canonical; pull is the convergence path) and the tie is recorded as a
-   `REMOTE_WON` conflict.
+## Transactional outbox and push
 
-## Background Sync Manager
-Trigger points:
-- User login (immediate full sync)
-- App resume (Capacitor `App.addListener`)
-- Visibility change (`document.visibilityState`)
-- Network reconnect (`window.addEventListener 'online'`)
-- Periodic interval timer
+Repository writes and outbox enqueue occur in one Dexie transaction. Each item retains mutation ID, entity ID/type, operation, payload, organization, user, device, timestamps, status, retry count, next-attempt time, error, and original scope across restart.
 
-Behavior:
-- Single-flight mutex (no concurrent syncs)
-- Exponential backoff: 1s, 2s, 4s, 8s, 16s, 32s (cap)
-- Non-blocking UI (status badge only, no modal confirmations)
+Push selects only the active database's exact organization/user scope. It rechecks the active engine generation at network and local-state boundaries. `CREATE` and `UPDATE` use idempotent ID upserts; stale queued updates are marked complete without overwriting newer local data. `DELETE` always uses a scoped server delete (`id` plus `organization_id`) and is never converted to an upsert.
 
-## Realtime Service
-- Subscribes to Supabase `postgres_changes` channel
-- 9 published tables (all with `REPLICA IDENTITY FULL`): `leads`, `call_records`, `activities`, `remarks`, `follow_ups`, `message_history`, `profiles`, `import_audits` (migration 4) + `bulk_assignment_audits` (migration 5)
-- Client subscribes to 8 of them (all except `bulk_assignment_audits`)
-- Events: `INSERT`, `UPDATE`, `DELETE`
-- On receive: hydrates into local Dexie + emits to listeners. Every subscribed table has a
-  reconciliation case; `message_history` uses insert-if-absent (append-only, same pattern as
-  `import_audits`) — BUG-2 fix, 2026-08-23. Pull remains the eventual-consistency fallback.
-- Connection states: `DISCONNECTED` -> `CONNECTING` -> `SUBSCRIBING` -> `SUBSCRIBED` -> `RECONNECTING` -> `ERROR`
-- Provides: live activity feed, in-app notifications, entity change listeners
+Transient failures use bounded per-item exponential delay (1, 2, 4, 8, 16, then 32 seconds). Ten failed attempts move an item to `DEAD_LETTER`, preserving scope and failure details. Recovery is explicit through `retryDeadLetter`; it is not silently replayed. Items left `SYNCING` by force-stop are reset for the same account when the next single-flight cycle starts.
 
-## Sync State
-- Persisted in Dexie `syncState` table (single row, `id='current'`)
-- Fields: `deviceId`, `organizationId`, `lastSuccessfulSyncAt`, `lastPullCursor`, `lastPushAt`, `lastPullAt`, `lastSyncError`, `status`
-- SyncEngineStatus: `SYNCED`, `SYNCING`, `OFFLINE`, `PENDING`, `ERROR`, `AUTH_REQUIRED`
+## Pull, reconciliation, and pruning
 
-## React Integration
-- `useSync()` hook: provides reactive sync state + manual trigger
-- `SyncStatusBadge` component: displays current sync status in header
+Every table query includes the active organization. Agent lead pulls are additionally restricted to `assigned_to` or `created_by`; profiles/import data use their applicable user/role rules. Incoming records are independently checked against local access scope, so a faulty or over-broad response cannot materialize cross-scope data.
+
+Deletes and tombstones remove the local lead graph. After a successful agent pull, an authoritative paginated visible-lead-ID snapshot prunes reassigned or otherwise revoked leads, children, and queued mutations. A partial pull does not advance the cursor. Repeating pull or receiving the same record through realtime and pull is idempotent.
+
+## Realtime
+
+Realtime subscribes to all published CRM entities, including bulk-assignment audits. Each subscription is generation-bound and validates organization plus agent visibility before reconciliation. Lead deletion or assignment revocation prunes its local graph. Profile role/status changes trigger server-authoritative revalidation instead of trusting the event's cached role. Reconnect invokes the same scoped pull path, which recovers missed events; there is no unscoped full-pull fallback.
+
+## Conflict and delete policy
+
+- Mutable records: last-write-wins by `updatedAt`; exact ties deterministically choose remote.
+- Call records: timestamp ordering and verified-duration protection prevent newer verified data from being demoted.
+- Append-only records: duplicate IDs are idempotent, while a remote tombstone wins to prevent resurrection.
+- Delete/update and delete/create outcomes are deterministic; remote tombstones are never turned back into local creates by reconciliation.
+
+## Lifecycle and concurrency
+
+Manual, background, reconnect, and realtime recovery share the active engine's single-flight mutex. Login/session restore, foreground/resume, reconnect, and interval triggers use only the current data layer. Logout, failed revalidation, account change, or manager stop removes listeners/timers, unsubscribes realtime, disposes the engine, and locks local access.
+
+## Phase 3 evidence (2026-09-01)
+
+- Focused synchronization suite: `npx tsx --test tests/phase3Synchronization.test.ts` — 14/14 PASS.
+- Local migrations 1–7: PASS on disposable Docker PostgreSQL.
+- Real RLS transaction: `tests/integration/phase3_sync_rls.sql` — PASS.
+- TypeScript: PASS.
+- Recovery verification: clean install, TypeScript, and production build pass; the dedicated Phase 1–3 Node-runner suite passes 25/25. The aggregate `npm test` gate remains blocked by mixed test-runner topology and stale legacy fixtures, documented in `PHASE_3_RECOVERY_VERIFICATION_2026-09-01.md`. Phase 3 must not be released until that aggregate gate is repaired.

@@ -1,12 +1,14 @@
 import fs from 'fs';
 
-const PROD_URL = 'https://lahvcodvgubplzfshare.supabase.co';
-const PROD_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhaHZjb2R2Z3VicGx6ZnNoYXJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMTI5OTAsImV4cCI6MjEwMjc4ODk5MH0.65L_juAx8V5y03dvBnIndNm73ysHqSNl9AQ9Puc54yk';
+const PROD_URL = process.env.PROD_SUPABASE_URL;
+const PROD_ANON_KEY = process.env.PROD_SUPABASE_ANON_KEY;
 
 const localSnapshot = JSON.parse(fs.readFileSync('docs/local_schema_snapshot.json', 'utf-8'));
 
 async function probeCloud() {
+  if (!PROD_URL || !PROD_ANON_KEY) {
+    throw new Error('Set PROD_SUPABASE_URL and PROD_SUPABASE_ANON_KEY explicitly before probing a non-production test target.');
+  }
   console.log('Probing Supabase Cloud Production database at', PROD_URL, '...');
   const results: any = {
     probedAt: new Date().toISOString(),

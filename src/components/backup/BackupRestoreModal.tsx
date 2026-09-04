@@ -13,12 +13,12 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import {
-  BackupService,
-  CRMBackupPayload,
+import type {
   BackupValidationResult,
   MergeRestoreResult,
-  BackupAuditLog,
+  BackupAuditLog} from '../../services/backupService';
+import {
+  BackupService
 } from '../../services/backupService';
 import { Modal } from '../common/Modal';
 import { useToast } from '../common/Toast';
@@ -59,7 +59,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   // Restore State
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [validationResult, setValidationResult] = useState<BackupValidationResult | null>(null);
-  const [mergeResult, setMergeResult] = useState<MergeRestoreResult | null>(null);
+  const [, setMergeResult] = useState<MergeRestoreResult | null>(null);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [confirmInputText, setConfirmInputText] = useState('');
 

@@ -22,8 +22,9 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import { MessageTemplate, TemplateCategory, Lead } from '../../db/types';
-import { AppSettingsService, StoredCatalogueMeta } from '../../services/appSettingsService';
+import type { MessageTemplate, TemplateCategory, Lead } from '../../db/types';
+import type { StoredCatalogueMeta } from '../../services/appSettingsService';
+import { AppSettingsService } from '../../services/appSettingsService';
 import { AttachmentService } from '../../services/attachmentService';
 import { renderMessageTemplate } from '../../services/templateRenderer';
 import { useAuth } from '../../context/AuthContext';
@@ -421,9 +422,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h4 className="text-sm font-bold text-ink">
+                  <h3 className="text-sm font-bold text-ink">
                     Saved Pitch Templates ({templates.length})
-                  </h4>
+                  </h3>
                   <p className="text-xs text-soft mt-0.5">
                     Default template is automatically pre-filled when tapping WhatsApp on any lead.
                   </p>
@@ -474,7 +475,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h5 className="font-bold text-sm text-ink">{tpl.title}</h5>
+                              <h4 className="font-bold text-sm text-ink">{tpl.title}</h4>
                               {tpl.isDefault && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-black bg-accent text-on-accent uppercase tracking-wide">
                                   <Check className="w-3 h-3" aria-hidden="true" /> Default Pitch
@@ -569,9 +570,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             /* CREATE / EDIT TEMPLATE FORM */
             <div className="space-y-3 animate-in fade-in">
               <div className="flex items-center justify-between pb-2 border-b border-line">
-                <h4 className="text-sm font-bold text-ink">
+                <h3 className="text-sm font-bold text-ink">
                   {isCreating ? 'Create WhatsApp Pitch Message' : 'Edit WhatsApp Pitch Message'}
-                </h4>
+                </h3>
                 <button
                   type="button"
                   onClick={() => {
@@ -721,7 +722,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           className="space-y-4"
         >
           <div>
-            <h4 className="text-sm font-bold text-ink">Default Product Catalogue & Collateral</h4>
+            <h3 className="text-sm font-bold text-ink">Default Product Catalogue & Collateral</h3>
             <p className="text-xs text-soft mt-0.5">
               Select your product catalogue PDF or price sheet once. When you tap Quick Send on any
               lead, this catalogue is automatically attached.
@@ -827,7 +828,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         >
           {/* ── Sync Status Section ── */}
           <div>
-            <h4 className="text-sm font-bold text-ink">Sync Status</h4>
+            <h3 className="text-sm font-bold text-ink">Sync Status</h3>
             <p className="text-xs text-soft mt-0.5">
               Data is automatically synced in the background. You can also trigger a sync manually.
             </p>
@@ -863,7 +864,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* ── Appearance Section ── */}
           <div>
-            <h4 className="text-sm font-bold text-ink mt-2">Appearance</h4>
+            <h3 className="text-sm font-bold text-ink mt-2">Appearance</h3>
             <p className="text-xs text-soft mt-0.5">
               Choose your preferred app theme. This setting is saved on your device.
             </p>
@@ -915,7 +916,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* ── WhatsApp Preferences ── */}
           <div>
-            <h4 className="text-sm font-bold text-ink mt-2">WhatsApp Outreach Preferences</h4>
+            <h3 className="text-sm font-bold text-ink mt-2">WhatsApp Outreach Preferences</h3>
             <p className="text-xs text-soft mt-0.5">
               Configure the one-tap sales workflow behavior on your device.
             </p>

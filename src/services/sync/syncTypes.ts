@@ -39,14 +39,26 @@ export interface OutboxItem {
   updatedAt: string; // ISO DateTime
   retryCount: number;
   lastAttemptAt: string | null;
+  nextAttemptAt?: string | null;
   lastError: string | null;
   status: OutboxStatus;
 }
 
+/** Throws when a sync run no longer belongs to the active account generation. */
+export type SyncRunGuard = () => void;
+
+export class SyncCancelledError extends Error {
+  constructor(message = 'Synchronization context is no longer active.') {
+    super(message);
+    this.name = 'SyncCancelledError';
+  }
+}
+
 export interface SyncState {
-  id: 'current';
+  id: string;
   deviceId: string;
-  organizationId: string | null;
+  organizationId: string;
+  userId: string;
   lastSuccessfulSyncAt: string | null;
   lastPullCursor: string | null;
   lastPushAt: string | null;

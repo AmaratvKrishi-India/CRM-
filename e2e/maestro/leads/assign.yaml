@@ -1,0 +1,58 @@
+# Assign Lead Flow - Admin Assigns Lead to Agent
+# Tests the bulk and single lead assignment flow for ADMIN role
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+    timeout: 15000
+
+- tapOn: "email-input"
+- inputText: "admin@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "admin-dashboard"
+    timeout: 10000
+
+- tapOn:
+    id: "leads-tab"
+
+- waitFor:
+    id: "leads-list"
+    timeout: 5000
+
+- # Select first lead
+- tapOn:
+    id: "lead-checkbox-0"
+
+- # Tap assign button
+- tapOn:
+    id: "assign-leads-button"
+
+- waitFor:
+    id: "assign-modal"
+    timeout: 3000
+
+- # Select agent
+- tapOn:
+    id: "agent-dropdown"
+- tapOn:
+    text: "Test Agent"
+
+- tapOn:
+    id: "confirm-assign-button"
+
+- waitFor:
+    id: "leads-list"
+    timeout: 5000
+
+- # Verify assignment
+- assertVisible:
+    text: "Test Agent"

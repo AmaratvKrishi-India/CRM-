@@ -1,12 +1,13 @@
 /**
  * Excel Parser & Lead Ingestion Pipeline
- * Supports .xlsx / .xls parsing, auto-column mapping, Indian phone number normalisation,
+ * Supports .xlsx / .csv parsing, auto-column mapping, Indian phone number normalisation,
  * address & PIN extraction, duplicate detection, and non-destructive batch importing.
  */
 
-import * as XLSX from 'xlsx';
-import { SalesCRMDatabase } from '../db/database';
-import { Lead, PhoneType } from '../db/types';
+import readXlsxFile from 'read-excel-file/universal';
+import Papa from 'papaparse';
+import type { SalesCRMDatabase } from '../db/database';
+import type { Lead, PhoneType } from '../db/types';
 import {
   normalizePhoneNumber,
   parseAddress,
@@ -23,6 +24,47 @@ export interface ColumnMapping {
   alternatePhone?: string;
   contactPerson?: string;
   website?: string;
+}
+
+export const IMPORT_LIMITS = Object.freeze({
+  maxFileSizeBytes: 10 * 1024 * 1024,
+  maxRows: 10_000,
+  maxColumns: 50,
+  maxSheets: 20,
+  maxCells: 500_000,
+  maxUncompressedWorkbookBytes: 50 * 1024 * 1024,
+  parseTimeoutMs: 10_000,
+});
+
+export type SpreadsheetImportErrorCode =
+  | 'UNSUPPORTED_FILE_TYPE'
+  | 'FILE_TOO_LARGE'
+  | 'WORKBOOK_TOO_COMPLEX'
+  | 'ROW_LIMIT_EXCEEDED'
+  | 'COLUMN_LIMIT_EXCEEDED'
+  | 'INVALID_FILE'
+  | 'PARSER_TIMEOUT'
+  | 'PARSER_ERROR';
+
+export class SpreadsheetImportError extends Error {
+  constructor(
+    public readonly code: SpreadsheetImportErrorCode,
+    message: string,
+    options?: ErrorOptions
+  ) {
+    super(message, options);
+    this.name = 'SpreadsheetImportError';
+  }
+}
+
+export interface SpreadsheetSheet {
+  name: string;
+  rows: unknown[][];
+}
+
+export interface SpreadsheetWorkbook {
+  format: 'xlsx' | 'csv' | 'rows';
+  sheets: SpreadsheetSheet[];
 }
 
 export type RecordValidationStatus = 'VALID' | 'DUPLICATE' | 'INVALID';
@@ -85,12 +127,251 @@ export interface ImportExecutionSummary {
   durationMs: number;
 }
 
+const getArrayBuffer = (data: ArrayBuffer | Uint8Array): ArrayBuffer => {
+  if (data instanceof ArrayBuffer) return data;
+  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+};
+
+const readUint16 = (bytes: Uint8Array, offset: number): number =>
+  bytes[offset] | (bytes[offset + 1] << 8);
+
+const readUint32 = (bytes: Uint8Array, offset: number): number =>
+  (bytes[offset] |
+    (bytes[offset + 1] << 8) |
+    (bytes[offset + 2] << 16) |
+    (bytes[offset + 3] << 24)) >>> 0;
+
+const validateXlsxContainer = (data: ArrayBuffer): void => {
+  const bytes = new Uint8Array(data);
+  if (bytes.length < 22 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+    throw new SpreadsheetImportError('INVALID_FILE', 'The selected XLSX file is not a valid ZIP container.');
+  }
+
+  const eocdStart = Math.max(0, bytes.length - 22 - 65_535);
+  let eocdOffset = -1;
+  for (let offset = bytes.length - 22; offset >= eocdStart; offset--) {
+    if (readUint32(bytes, offset) === 0x06054b50) {
+      eocdOffset = offset;
+      break;
+    }
+  }
+  if (eocdOffset < 0) {
+    throw new SpreadsheetImportError('INVALID_FILE', 'The selected XLSX file has no valid ZIP directory.');
+  }
+
+  const entryCount = readUint16(bytes, eocdOffset + 10);
+  const centralDirectorySize = readUint32(bytes, eocdOffset + 12);
+  const centralDirectoryOffset = readUint32(bytes, eocdOffset + 16);
+  if (
+    entryCount === 0xffff ||
+    centralDirectorySize === 0xffffffff ||
+    centralDirectoryOffset === 0xffffffff ||
+    entryCount > 2_000 ||
+    centralDirectoryOffset + centralDirectorySize > bytes.length
+  ) {
+    throw new SpreadsheetImportError(
+      'WORKBOOK_TOO_COMPLEX',
+      'The selected workbook exceeds the supported ZIP structure limits.'
+    );
+  }
+
+  let offset = centralDirectoryOffset;
+  let uncompressedBytes = 0;
+  for (let index = 0; index < entryCount; index++) {
+    if (offset + 46 > bytes.length || readUint32(bytes, offset) !== 0x02014b50) {
+      throw new SpreadsheetImportError('INVALID_FILE', 'The selected XLSX file has a malformed ZIP directory.');
+    }
+    const compressedSize = readUint32(bytes, offset + 20);
+    const uncompressedSize = readUint32(bytes, offset + 24);
+    const fileNameLength = readUint16(bytes, offset + 28);
+    const extraLength = readUint16(bytes, offset + 30);
+    const commentLength = readUint16(bytes, offset + 32);
+    if (compressedSize === 0xffffffff || uncompressedSize === 0xffffffff) {
+      throw new SpreadsheetImportError(
+        'WORKBOOK_TOO_COMPLEX',
+        'ZIP64 workbooks are not supported by the safe import path.'
+      );
+    }
+    uncompressedBytes += uncompressedSize;
+    if (uncompressedBytes > IMPORT_LIMITS.maxUncompressedWorkbookBytes) {
+      throw new SpreadsheetImportError(
+        'WORKBOOK_TOO_COMPLEX',
+        `The workbook expands beyond the ${IMPORT_LIMITS.maxUncompressedWorkbookBytes / 1024 / 1024} MB safety limit.`
+      );
+    }
+    offset += 46 + fileNameLength + extraLength + commentLength;
+    if (offset > centralDirectoryOffset + centralDirectorySize) {
+      throw new SpreadsheetImportError('INVALID_FILE', 'The selected XLSX file has an invalid ZIP directory.');
+    }
+  }
+};
+
+export const withTimeout = async <T>(work: Promise<T>, timeoutMs: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new SpreadsheetImportError('PARSER_TIMEOUT', 'Spreadsheet parsing exceeded the time limit.')),
+          timeoutMs
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
+const toSafeCell = (value: unknown): unknown => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string' && value.length > 10_000) {
+    throw new SpreadsheetImportError('WORKBOOK_TOO_COMPLEX', 'A spreadsheet cell exceeds the supported text limit.');
+  }
+  return value;
+};
+
+const normalizeRows = (rows: unknown[][], sheetName: string): SpreadsheetSheet => {
+  if (rows.length > IMPORT_LIMITS.maxRows + 1) {
+    throw new SpreadsheetImportError(
+      'ROW_LIMIT_EXCEEDED',
+      `The sheet exceeds the ${IMPORT_LIMITS.maxRows.toLocaleString()} row limit.`
+    );
+  }
+  const normalizedRows = rows.map((row) => {
+    if (row.length > IMPORT_LIMITS.maxColumns) {
+      throw new SpreadsheetImportError(
+        'COLUMN_LIMIT_EXCEEDED',
+        `The sheet exceeds the ${IMPORT_LIMITS.maxColumns} column limit.`
+      );
+    }
+    return row.map(toSafeCell);
+  });
+  const columnCount = normalizedRows.reduce((max, row) => Math.max(max, row.length), 0);
+  if (normalizedRows.length * columnCount > IMPORT_LIMITS.maxCells) {
+    throw new SpreadsheetImportError('WORKBOOK_TOO_COMPLEX', 'The sheet exceeds the supported cell limit.');
+  }
+  return { name: sheetName, rows: normalizedRows };
+};
+
 export class ExcelParserService {
   /**
-   * Reads an Excel workbook from an ArrayBuffer or File and returns basic metadata.
+   * Reads a bounded XLSX or CSV workbook and returns a format-neutral representation.
    */
-  static readWorkbook(data: ArrayBuffer | Uint8Array): XLSX.WorkBook {
-    return XLSX.read(data, { type: 'array' });
+  static async readWorkbook(
+    data: ArrayBuffer | Uint8Array,
+    fileName = 'leads.xlsx',
+    options: { timeoutMs?: number } = {}
+  ): Promise<SpreadsheetWorkbook> {
+    const lowerName = fileName.toLowerCase();
+    const format = lowerName.endsWith('.csv') ? 'csv' : lowerName.endsWith('.xlsx') ? 'xlsx' : null;
+    if (!format) {
+      throw new SpreadsheetImportError(
+        'UNSUPPORTED_FILE_TYPE',
+        'Unsupported spreadsheet type. Upload an .xlsx or .csv file.'
+      );
+    }
+
+    const arrayBuffer = getArrayBuffer(data);
+    if (arrayBuffer.byteLength > IMPORT_LIMITS.maxFileSizeBytes) {
+      throw new SpreadsheetImportError(
+        'FILE_TOO_LARGE',
+        `The file exceeds the ${IMPORT_LIMITS.maxFileSizeBytes / 1024 / 1024} MB upload limit.`
+      );
+    }
+
+    if (format === 'csv') {
+      const rows: unknown[][] = [];
+      const deadline = Date.now() + (options.timeoutMs ?? IMPORT_LIMITS.parseTimeoutMs);
+      let parseError: SpreadsheetImportError | null = null;
+      const csvText = new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+
+      Papa.parse<string[]>(csvText, {
+        skipEmptyLines: 'greedy',
+        worker: false,
+        step: (result, parser) => {
+          if (Date.now() > deadline) {
+            parseError = new SpreadsheetImportError('PARSER_TIMEOUT', 'CSV parsing exceeded the time limit.');
+            parser.abort();
+            return;
+          }
+          if (result.data.length > IMPORT_LIMITS.maxColumns) {
+            parseError = new SpreadsheetImportError(
+              'COLUMN_LIMIT_EXCEEDED',
+              `The sheet exceeds the ${IMPORT_LIMITS.maxColumns} column limit.`
+            );
+            parser.abort();
+            return;
+          }
+          rows.push(result.data.map(toSafeCell));
+          if (rows.length > IMPORT_LIMITS.maxRows + 1) {
+            parseError = new SpreadsheetImportError(
+              'ROW_LIMIT_EXCEEDED',
+              `The sheet exceeds the ${IMPORT_LIMITS.maxRows.toLocaleString()} row limit.`
+            );
+            parser.abort();
+          }
+        },
+        complete: (result) => {
+          if (result.errors.length > 0 && !parseError) {
+            parseError = new SpreadsheetImportError(
+              'PARSER_ERROR',
+              'The CSV file could not be parsed safely.'
+            );
+          }
+        },
+        error: (error: Error) => {
+          parseError = new SpreadsheetImportError('PARSER_ERROR', 'The CSV file could not be parsed safely.', {
+            cause: error,
+          });
+        },
+      });
+
+      if (parseError) throw parseError;
+      return { format, sheets: [normalizeRows(rows, 'Data')] };
+    }
+
+    validateXlsxContainer(arrayBuffer);
+    try {
+      const sheets = await withTimeout(
+        readXlsxFile(arrayBuffer),
+        options.timeoutMs ?? IMPORT_LIMITS.parseTimeoutMs
+      );
+      if (sheets.length === 0) {
+        throw new SpreadsheetImportError('INVALID_FILE', 'The workbook contains no sheets.');
+      }
+      if (sheets.length > IMPORT_LIMITS.maxSheets) {
+        throw new SpreadsheetImportError(
+          'WORKBOOK_TOO_COMPLEX',
+          `The workbook exceeds the ${IMPORT_LIMITS.maxSheets} sheet limit.`
+        );
+      }
+      return {
+        format,
+        sheets: sheets.map((sheet) => normalizeRows(sheet.data as unknown[][], sheet.sheet)),
+      };
+    } catch (error) {
+      if (error instanceof SpreadsheetImportError) throw error;
+      throw new SpreadsheetImportError('INVALID_FILE', 'The XLSX file could not be parsed safely.', {
+        cause: error,
+      });
+    }
+  }
+
+  static createWorkbookFromRows(
+    records: ReadonlyArray<Record<string, unknown>>,
+    sheetName = 'Data'
+  ): SpreadsheetWorkbook {
+    const headers = Array.from(new Set(records.flatMap((record) => Object.keys(record))));
+    return {
+      format: 'rows',
+      sheets: [
+        normalizeRows(
+          [headers, ...records.map((record) => headers.map((header) => record[header] ?? ''))],
+          sheetName
+        ),
+      ],
+    };
   }
 
   /**
@@ -187,26 +468,32 @@ export class ExcelParserService {
    * Parses and validates a specific worksheet in the workbook against existing DB records.
    */
   static async parseSheet(
-    workbook: XLSX.WorkBook,
+    workbook: SpreadsheetWorkbook,
     sheetName: string,
     db: SalesCRMDatabase,
     customMapping?: Partial<ColumnMapping>,
     fileName: string = 'leads.xlsx'
   ): Promise<ParseResult> {
-    const ws = workbook.Sheets[sheetName];
-    if (!ws) {
+    const sheet = workbook.sheets.find((candidate) => candidate.name === sheetName);
+    if (!sheet) {
       throw new Error(`Sheet "${sheetName}" not found in workbook.`);
     }
 
-    const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, {
-      defval: '',
-      blankrows: false,
+    const nonEmptyRows = sheet.rows.filter((row) => row.some((cell) => cell !== ''));
+    const headerRow = nonEmptyRows[0] || [];
+    const headers = headerRow.map((header, index) => String(header || `Column ${index + 1}`).trim());
+    const rawRows: Array<Record<string, unknown>> = nonEmptyRows.slice(1).map((row) => {
+      const record = Object.create(null) as Record<string, unknown>;
+      headers.forEach((header, index) => {
+        record[header] = row[index] ?? '';
+      });
+      return record;
     });
 
     if (rawRows.length === 0) {
       return {
         fileName,
-        sheetNames: workbook.SheetNames,
+        sheetNames: workbook.sheets.map((candidate) => candidate.name),
         selectedSheet: sheetName,
         availableColumns: [],
         detectedMapping: { businessName: '', phone: '', address: '', category: '' },
@@ -215,7 +502,6 @@ export class ExcelParserService {
       };
     }
 
-    const headers = Object.keys(rawRows[0]);
     const detectedMapping = {
       ...this.detectColumnMapping(headers),
       ...customMapping,
@@ -241,27 +527,39 @@ export class ExcelParserService {
       const sourceRow = i + 2; // +1 for 0-index, +1 for header
       const issues: string[] = [];
 
-      const rawTitle = row[detectedMapping.businessName];
-      const rawPhone = row[detectedMapping.phone];
-      const rawAddress = row[detectedMapping.address];
-      const rawCategory = row[detectedMapping.category];
-      const rawAltPhone = detectedMapping.alternatePhone ? row[detectedMapping.alternatePhone] : undefined;
-      const rawContact = detectedMapping.contactPerson ? row[detectedMapping.contactPerson] : undefined;
-      const rawWeb = detectedMapping.website ? row[detectedMapping.website] : undefined;
+      const asText = (value: unknown): string =>
+        value === null || value === undefined ? '' : String(value);
+      const rawTitle = asText(row[detectedMapping.businessName]);
+      const rawPhoneValue = row[detectedMapping.phone];
+      const rawPhone =
+        typeof rawPhoneValue === 'number' || typeof rawPhoneValue === 'string' ? rawPhoneValue : null;
+      const rawAddress = asText(row[detectedMapping.address]);
+      const rawCategory = asText(row[detectedMapping.category]);
+      const rawAltPhoneValue = detectedMapping.alternatePhone
+        ? row[detectedMapping.alternatePhone]
+        : undefined;
+      const rawAltPhone =
+        typeof rawAltPhoneValue === 'number' || typeof rawAltPhoneValue === 'string'
+          ? rawAltPhoneValue
+          : null;
+      const rawContact = detectedMapping.contactPerson
+        ? asText(row[detectedMapping.contactPerson])
+        : '';
+      const rawWeb = detectedMapping.website ? asText(row[detectedMapping.website]) : '';
 
       const businessName = cleanBusinessName(rawTitle);
       const normPhone = normalizePhoneNumber(rawPhone);
       const parsedAddr = parseAddress(rawAddress);
       const normAlt = rawAltPhone ? normalizePhoneNumber(rawAltPhone) : null;
 
-      if (!rawTitle || String(rawTitle).trim() === '') {
+      if (rawTitle.trim() === '') {
         issues.push('Missing business name');
       }
 
       if (!rawPhone || String(rawPhone).trim() === '') {
         issues.push('Missing phone number');
       } else if (!normPhone.isValid) {
-        issues.push(`Invalid phone format: "${rawPhone}"`);
+          issues.push(`Invalid phone format: "${String(rawPhone)}"`);
       }
 
       if (normPhone.type === 'landline') {
@@ -311,21 +609,21 @@ export class ExcelParserService {
         phoneType: normPhone.type,
         canWhatsApp: normPhone.canWhatsApp,
         alternatePhone: normAlt?.clean || null,
-        contactPerson: rawContact ? String(rawContact).trim() : null,
+        contactPerson: rawContact ? rawContact.trim() : null,
         address: parsedAddr.fullAddress,
         locality: parsedAddr.locality,
         pincode: parsedAddr.pincode,
         city: parsedAddr.city,
         state: parsedAddr.state,
-        category: (rawCategory ? String(rawCategory).trim() : 'Gym') || 'Gym',
-        website: rawWeb ? String(rawWeb).trim() : null,
+        category: rawCategory.trim() || 'Gym',
+        website: rawWeb ? rawWeb.trim() : null,
         existingLead: existingLeadContext,
       });
     }
 
     return {
       fileName,
-      sheetNames: workbook.SheetNames,
+        sheetNames: workbook.sheets.map((candidate) => candidate.name),
       selectedSheet: sheetName,
       availableColumns: headers,
       detectedMapping,
@@ -359,6 +657,12 @@ export class ExcelParserService {
       userId = null,
       onProgress,
     } = params;
+
+    const scope = db.requireAccessScope();
+    if (userId && userId !== scope.userId) {
+      throw new Error('Spreadsheet imports must run as the active signed-in user.');
+    }
+    const effectiveUserId = scope.userId;
 
     const startTime = Date.now();
     let imported = 0;
@@ -440,8 +744,8 @@ export class ExcelParserService {
           isSynced: 0,
           syncedAt: null,
           deletedAt: null,
-          createdBy: userId || null,
-          updatedBy: userId || null,
+          createdBy: effectiveUserId,
+          updatedBy: effectiveUserId,
         });
         imported++;
       }
@@ -465,8 +769,6 @@ export class ExcelParserService {
       }
 
       const syncQueue = new SyncQueue(db);
-      const effectiveUserId = userId || 'local-user';
-
       for (const lead of newLeadsToInsert) {
         await syncQueue.enqueue({
           entityType: 'leads',

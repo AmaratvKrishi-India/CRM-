@@ -3,7 +3,7 @@
  * Determines sensible default LeadStatus transitions based on rep-selected call outcomes and remarks.
  */
 
-import { CallOutcome, LeadStatus } from '../db/types';
+import type { CallOutcome, LeadStatus } from '../db/types';
 
 export const QUICK_SALES_REMARKS = [
   'Interested',

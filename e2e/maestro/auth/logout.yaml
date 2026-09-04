@@ -1,0 +1,28 @@
+# Logout Flow
+# Tests the logout flow and session clearing
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: false
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 10000
+
+- tapOn:
+    id: "profile-menu"
+
+- tapOn:
+    id: "logout-button"
+
+- waitFor:
+    id: "login-screen"
+    timeout: 5000
+
+- assertVisible:
+    id: "login-form"
+
+- assertNotVisible:
+    id: "agent-dashboard"

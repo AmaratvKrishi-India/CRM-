@@ -244,6 +244,7 @@ export interface BulkAssignmentAudit {
 export interface Remark {
   id: string; // Primary Key (UUID v4)
   leadId: string; // Foreign Key -> Lead.id
+  userId?: string | null; // User ID who authored the remark
   type: RemarkType; // 'PREDEFINED' | 'CUSTOM'
   content: string; // Remark text content
   author: string; // Sales rep identifier / username
@@ -366,4 +367,3 @@ export interface LeadStats {
 }
 
 export type * from '../services/sync/syncTypes';
-

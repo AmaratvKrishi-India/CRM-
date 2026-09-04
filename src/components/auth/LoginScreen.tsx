@@ -59,7 +59,10 @@ export const LoginScreen: React.FC = () => {
   const displayError = localError || authError;
 
   return (
-    <div className="min-h-screen bg-app text-ink flex flex-col justify-between p-4 sm:p-6 font-sans relative transition-colors duration-200">
+    <main
+      className="min-h-screen bg-app text-ink flex flex-col justify-between p-4 sm:p-6 font-sans relative transition-colors duration-200"
+      aria-labelledby="login-title"
+    >
       {/* Quick Theme Toggle Top-Right */}
       <div className="absolute top-6 right-5 z-50">
         <button
@@ -82,7 +85,7 @@ export const LoginScreen: React.FC = () => {
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-surface border border-line p-2 mb-3 shadow-xl">
           <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-full h-full object-contain" />
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
+        <h1 id="login-title" className="text-2xl sm:text-3xl font-extrabold tracking-tight text-ink">
           Amaratv Krishi
         </h1>
         <p className="text-sm text-accent-text font-medium tracking-wide uppercase mt-1">
@@ -216,6 +219,6 @@ export const LoginScreen: React.FC = () => {
       <div className="w-full max-w-md mx-auto text-center pb-4 text-sm text-faint">
         <p>Amaratv Krishi CRM v2.0 • Offline-First Sales Engine</p>
       </div>
-    </div>
+    </main>
   );
 };

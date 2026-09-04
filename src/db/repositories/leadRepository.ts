@@ -4,9 +4,9 @@
  * duplicate prevention, indexing, multi-criteria filtering, and cascading soft/hard delete.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import {
+import type {
   Lead,
   LeadStatus,
   LeadFilterParams,
@@ -21,6 +21,7 @@ import {
   parseAddress,
   cleanBusinessName,
 } from '../services/leadNormalizer';
+import { canAccessLead } from '../accessScope';
 
 export interface LeadWithHistory {
   lead: Lead;
@@ -81,11 +82,12 @@ export class LeadRepository {
    * Checks if a lead with the given normalized phone already exists in the database.
    */
   async findByPhone(phoneClean: string): Promise<Lead | undefined> {
+    const scope = this.db.requireAccessScope();
     if (!phoneClean) return undefined;
     return await this.db.leads
       .where('phone')
       .equals(phoneClean)
-      .and((lead) => lead.deletedAt === null)
+      .and((lead) => lead.deletedAt === null && canAccessLead(scope, lead))
       .first();
   }
 
@@ -112,6 +114,7 @@ export class LeadRepository {
     assignedTo?: string | null;
     updatedBy?: string | null;
   }): Promise<Lead> {
+    const scope = this.db.requireAccessScope();
     const normPhone = normalizePhoneNumber(input.phone);
     const parsedAddr = parseAddress(input.address);
     const cleanedName = cleanBusinessName(input.businessName);
@@ -158,9 +161,9 @@ export class LeadRepository {
       isSynced: 0,
       syncedAt: null,
       deletedAt: null,
-      createdBy: input.createdBy !== undefined ? input.createdBy : null,
-      assignedTo: input.assignedTo !== undefined ? input.assignedTo : null,
-      updatedBy: input.updatedBy !== undefined ? input.updatedBy : input.createdBy || null,
+      createdBy: scope.userId,
+      assignedTo: scope.role === 'AGENT' ? scope.userId : input.assignedTo ?? null,
+      updatedBy: scope.userId,
     };
 
     // Data write + outbox enqueue are atomic: either both persist or neither.
@@ -171,7 +174,8 @@ export class LeadRepository {
         entityId: newLead.id,
         operation: 'CREATE',
         payload: newLead,
-        userId: newLead.createdBy || 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
     return newLead;
@@ -189,6 +193,7 @@ export class LeadRepository {
       assignedTo?: string | null;
     } = {}
   ): Promise<BulkImportResult> {
+    const scope = this.db.requireAccessScope();
     const result: BulkImportResult = {
       totalProcessed: rawLeads.length,
       imported: 0,
@@ -202,7 +207,7 @@ export class LeadRepository {
 
     // Pre-fetch all active phone numbers to minimize index queries
     const existingActiveLeads = await this.db.leads
-      .filter((l) => l.deletedAt === null && Boolean(l.phone))
+      .filter((l) => l.deletedAt === null && Boolean(l.phone) && canAccessLead(scope, l))
       .toArray();
     const existingPhones = new Set(existingActiveLeads.map((l) => l.phone));
 
@@ -272,9 +277,9 @@ export class LeadRepository {
         isSynced: 0,
         syncedAt: null,
         deletedAt: null,
-        createdBy: options.createdBy !== undefined ? options.createdBy : null,
-        assignedTo: options.assignedTo !== undefined ? options.assignedTo : null,
-        updatedBy: options.createdBy || null,
+        createdBy: scope.userId,
+        assignedTo: scope.role === 'AGENT' ? scope.userId : options.assignedTo ?? null,
+        updatedBy: scope.userId,
       };
 
       leadsToInsert.push(lead);
@@ -292,7 +297,8 @@ export class LeadRepository {
             entityId: lead.id,
             operation: 'CREATE',
             payload: lead,
-            userId: lead.createdBy || 'local-user',
+            userId: scope.userId,
+            organizationId: scope.organizationId,
           });
         }
       });
@@ -306,8 +312,10 @@ export class LeadRepository {
    * Retrieves a single lead by its ID (ignoring soft-deleted by default).
    */
   async getLeadById(id: string, includeDeleted = false): Promise<Lead | undefined> {
+    const scope = this.db.requireAccessScope();
     const lead = await this.db.leads.get(id);
     if (!lead) return undefined;
+    if (!canAccessLead(scope, lead)) return undefined;
     if (!includeDeleted && lead.deletedAt !== null) return undefined;
     return lead;
   }
@@ -359,6 +367,7 @@ export class LeadRepository {
    * Updates lead fields.
    */
   async updateLead(id: string, updates: Partial<Omit<Lead, 'id' | 'createdAt'>>): Promise<Lead> {
+    const scope = this.db.requireAccessScope();
     const existing = await this.getLeadById(id);
     if (!existing) throw new Error(`Lead with id ${id} not found.`);
 
@@ -376,8 +385,18 @@ export class LeadRepository {
     }
 
     const now = new Date().toISOString();
+    if (scope.role === 'AGENT') {
+      if (updates.assignedTo !== undefined && updates.assignedTo !== existing.assignedTo) {
+        throw new Error('Agents cannot reassign leads.');
+      }
+      if (updates.createdBy !== undefined && updates.createdBy !== existing.createdBy) {
+        throw new Error('Lead ownership cannot be changed by an agent.');
+      }
+    }
+
     const updatePayload = {
       ...updates,
+      updatedBy: scope.userId,
       updatedAt: now,
       isSynced: 0,
     };
@@ -393,7 +412,8 @@ export class LeadRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.updatedBy || updated.createdBy || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -411,6 +431,7 @@ export class LeadRepository {
    * Searches and filters leads with pagination, multi-status filter, locality filter, and text search.
    */
   async searchAndFilterLeads(params: LeadFilterParams = {}): Promise<{ leads: Lead[]; total: number }> {
+    const scope = this.db.requireAccessScope();
     const {
       searchTerm,
       status,
@@ -443,6 +464,10 @@ export class LeadRepository {
         collection = this.db.leads.where('assignedTo').equals(params.assignedTo);
       }
     }
+
+    // Mandatory authorization filter. UI/index filters may narrow this set
+    // but can never broaden it.
+    collection = collection.filter((lead) => canAccessLead(scope, lead));
 
     // Soft delete filter
     if (!includeDeleted) {
@@ -540,8 +565,9 @@ export class LeadRepository {
    * Retrieves unique localities for filter chips.
    */
   async getDistinctLocalities(): Promise<string[]> {
+    const scope = this.db.requireAccessScope();
     const activeLeads = await this.db.leads
-      .filter((l) => l.deletedAt === null && Boolean(l.locality))
+      .filter((l) => l.deletedAt === null && Boolean(l.locality) && canAccessLead(scope, l))
       .toArray();
     const set = new Set(activeLeads.map((l) => l.locality));
     return Array.from(set).sort();
@@ -551,8 +577,9 @@ export class LeadRepository {
    * Retrieves unique categories for filter chips.
    */
   async getDistinctCategories(): Promise<string[]> {
+    const scope = this.db.requireAccessScope();
     const activeLeads = await this.db.leads
-      .filter((l) => l.deletedAt === null && Boolean(l.category))
+      .filter((l) => l.deletedAt === null && Boolean(l.category) && canAccessLead(scope, l))
       .toArray();
     const set = new Set(activeLeads.map((l) => l.category));
     return Array.from(set).sort();
@@ -562,6 +589,7 @@ export class LeadRepository {
    * Soft-deletes a lead (marks deletedAt timestamp).
    */
   async softDeleteLead(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
     const lead = await this.getLeadById(id);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
     const now = new Date().toISOString();
@@ -579,7 +607,8 @@ export class LeadRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.updatedBy || updated.createdBy || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -589,6 +618,7 @@ export class LeadRepository {
    * Restores a soft-deleted lead.
    */
   async restoreLead(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
     const lead = await this.getLeadById(id, true);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
     const now = new Date().toISOString();
@@ -606,7 +636,8 @@ export class LeadRepository {
           entityId: updated.id,
           operation: 'UPDATE',
           payload: updated,
-          userId: updated.updatedBy || updated.createdBy || 'local-user',
+          userId: scope.userId,
+          organizationId: scope.organizationId,
         });
       }
     });
@@ -618,7 +649,9 @@ export class LeadRepository {
    * being resurrected by the next pull.
    */
   async hardDeleteLead(id: string): Promise<void> {
+    const scope = this.db.requireAccessScope();
     const lead = await this.getLeadById(id, true);
+    if (!lead) throw new Error(`Lead with id ${id} not found.`);
 
     await this.db.transaction('rw', [
       this.db.leads,
@@ -639,15 +672,14 @@ export class LeadRepository {
         this.db.followUps.where('leadId').equals(id).delete(),
         this.db.messageHistory.where('leadId').equals(id).delete(),
       ]);
-      if (lead) {
-        await this.getSyncQueue().enqueue({
-          entityType: 'leads',
-          entityId: id,
-          operation: 'DELETE',
-          payload: lead,
-          userId: lead.updatedBy || lead.createdBy || 'local-user',
-        });
-      }
+      await this.getSyncQueue().enqueue({
+        entityType: 'leads',
+        entityId: id,
+        operation: 'DELETE',
+        payload: lead,
+        userId: scope.userId,
+        organizationId: scope.organizationId,
+      });
     });
   }
 
@@ -655,8 +687,10 @@ export class LeadRepository {
    * Calculates dashboard summary statistics.
    */
   async getLeadStats(): Promise<LeadStats> {
-    const allLeads = await this.db.leads.toArray();
+    const scope = this.db.requireAccessScope();
+    const allLeads = (await this.db.leads.toArray()).filter((lead) => canAccessLead(scope, lead));
     const activeLeads = allLeads.filter((l) => l.deletedAt === null);
+    const accessibleLeadIds = new Set(activeLeads.map((lead) => lead.id));
 
     const initialStatusCounts: Record<LeadStatus, number> = {
       NEW: 0,
@@ -684,11 +718,12 @@ export class LeadRepository {
 
     const [pendingFollowUps, todayFollowUps, totalCalls] = await Promise.all([
       this.db.followUps
-        .filter((f) => f.deletedAt === null && f.status === 'PENDING')
+        .filter((f) => accessibleLeadIds.has(f.leadId) && f.deletedAt === null && f.status === 'PENDING')
         .count(),
       this.db.followUps
         .filter(
           (f) =>
+            accessibleLeadIds.has(f.leadId) &&
             f.deletedAt === null &&
             f.status === 'PENDING' &&
             f.scheduledAt >= todayStart &&
@@ -696,7 +731,7 @@ export class LeadRepository {
         )
         .count(),
       this.db.callRecords
-        .filter((c) => c.deletedAt === null)
+        .filter((c) => accessibleLeadIds.has(c.leadId) && c.deletedAt === null)
         .count(),
     ]);
 

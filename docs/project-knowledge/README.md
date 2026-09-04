@@ -8,21 +8,43 @@ This knowledge base provides an exact, source-verified map of the application's 
 
 ### 1. Architecture & Overview
 - [01 - Project Overview](./01_PROJECT_OVERVIEW.md)
-- [02 - System Architecture](./02_SYSTEM_ARCHITECTURE.md)
-- [15 - File & Codebase Index](./15_CODEBASE_INDEX.md)
+- [02 - Product Requirements](./02_PRODUCT_REQUIREMENTS.md)
+- [03 - Feature Inventory](./03_FEATURE_INVENTORY.md)
+- [04 - User Roles & Permissions](./03_ROLES_AND_PERMISSIONS.md)
+- [05 - User Workflows](./05_BUSINESS_WORKFLOW.md)
+- [06 - UI/UX Specification](./06_UI_UX_SPECIFICATION.md)
+- [07 - Design System](./07_DESIGN_SYSTEM.md)
+- [08 - Accessibility](./08_ACCESSIBILITY.md)
+- [09 - Architecture](./02_SYSTEM_ARCHITECTURE.md)
+- [10 - Codebase Index](./15_CODEBASE_INDEX.md)
+- [11 - Frontend Architecture](./11_FRONTEND_ARCHITECTURE.md)
+- [12 - Backend Architecture](./12_BACKEND_ARCHITECTURE.md)
 
-### 2. Business Logic & Users
-- [03 - User Roles & Permissions](./03_ROLES_AND_PERMISSIONS.md)
-- [04 - Complete Navigation Map](./04_NAVIGATION_MAP.md)
-- [05 - Complete Business Workflow](./05_BUSINESS_WORKFLOW.md)
+### 2. Data & Security
+- [13 - Database Schema](./06_DATABASE_REFERENCE.md)
+- [14 - Database Relationships](./14_DATABASE_RELATIONSHIPS.md)
+- [15 - Migrations](./14_MIGRATION_HISTORY.md)
+- [16 - RLS Security](./07_SUPABASE_SECURITY_MODEL.md)
+- [Offline-First and Background Sync](./BACKGROUND_SYNC_ARCHITECTURE.md)
+- [08 - Sync and Realtime Architecture](./08_SYNC_REALTIME_ARCHITECTURE.md)
+- [19 - Realtime](./19_REALTIME.md)
+- [20 - Data Contracts](./09_API_DATA_CONTRACTS.md)
+- [21 - Error Handling](./21_ERROR_HANDLING.md)
+- [25 - Security](./25_SECURITY.md)
 
-### 3. Data & Security
-- [06 - Database Complete Reference](./06_DATABASE_REFERENCE.md) (PostgreSQL Schema)
-- [07 - Supabase & RLS Security Model](./07_SUPABASE_SECURITY_MODEL.md)
-- [08 - Sync & Realtime Architecture](./08_SYNC_REALTIME_ARCHITECTURE.md)
-- [09 - API & Data Contracts](./09_API_DATA_CONTRACTS.md)
+### 3. Testing & Quality
+- [22 - Testing Strategy](./12_TESTING_VERIFICATION.md)
+- [23 - QA Test Matrix](./23_QA_TEST_MATRIX.md)
+- [24 - Android](./10_ANDROID_APPLICATION.md)
+- [26 - Performance](./26_PERFORMANCE.md)
+- [27 - Backup & Restore](./27_BACKUP_RESTORE.md)
+- [Release Readiness Gates](./GATES.md)
 
-### 4. Environments & Interfaces
+### 4. Operations & Deployment
+- [28 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
+- [Current State and Known Limitations](./16_CURRENT_STATE.md)
+
+### 5. Environments & Interfaces
 - [10 - Android Application](./10_ANDROID_APPLICATION.md)
 - [11 - Web / Admin Application](./11_WEB_ADMIN_APPLICATION.md)
 - [13 - Deployment & Environments](./13_DEPLOYMENT_ENVIRONMENTS.md)
@@ -51,6 +73,6 @@ This knowledge base provides an exact, source-verified map of the application's 
 
 1. Read **[17 - AI Agent Operating Context](./17_AI_AGENT_CONTEXT.md)** to understand safety rules and boundaries.
 2. Read **[01 - Project Overview](./01_PROJECT_OVERVIEW.md)** to grasp what the app does.
-3. Read **[02 - System Architecture](./02_SYSTEM_ARCHITECTURE.md)** to see how React, Dexie, and Supabase connect.
-4. Read **[07 - Supabase & RLS Security Model](./07_SUPABASE_SECURITY_MODEL.md)** to understand how data is secured and isolated.
-5. Review **[06 - Database Reference](./06_DATABASE_REFERENCE.md)** as you begin modifying the code.
+3. Read **[09 - Architecture](./02_SYSTEM_ARCHITECTURE.md)** to see how React, Dexie, and Supabase connect.
+4. Read **[16 - RLS Security](./07_SUPABASE_SECURITY_MODEL.md)** to understand how data is secured and isolated.
+5. Review **[13 - Database Schema](./06_DATABASE_REFERENCE.md)** as you begin modifying the code.

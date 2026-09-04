@@ -7,7 +7,11 @@ import { RealtimeService } from '../src/services/realtime/realtimeService.ts';
 import type { Lead, CallRecord } from '../src/db/types.ts';
 
 function freshDb(name: string) {
-  const db = new SalesCRMDatabase(`NewBugRegression_${Date.now()}_${name}`);
+  const db = new SalesCRMDatabase(`NewBugRegression_${Date.now()}_${name}`, {
+    organizationId: 'org-nb1',
+    userId: 'admin-nb1',
+    role: 'ADMIN',
+  });
   return db;
 }
 

@@ -27,7 +27,7 @@ Snapshot of every tool and CLI the project depends on, with login/auth status an
 ## What Is Broken Right Now
 
 1. **Android release builds cannot run.** `JAVA_HOME` and `ANDROID_HOME` are unset and `java` is not on PATH, so `gradlew assembleRelease` fails immediately. Fix: set `JAVA_HOME` to the Android Studio JBR (e.g. `C:\Program Files\Android\Android Studio\jbr`) and `ANDROID_HOME` to `%LOCALAPPDATA%\Android\Sdk`, then reopen the shell.
-2. ~~**`node_modules` is missing.**~~ FIXED on 2026-08-23: dependencies are installed; `npm test`, `npm run dev`, and `npm run build` all run.
+2. **Phase 3.1 recovery update (2026-09-01).** Clean `npm ci`, TypeScript, the production build, and `npm test` pass. The test command now runs the maintained Node test-runner suite through `tsx`; Vitest is no longer used as an indiscriminate glob runner for incompatible Node suites and obsolete fixtures. See `PHASE_3_RECOVERY_VERIFICATION_2026-09-01.md` for exact current evidence.
 3. **`adb` is not on PATH.** Scripts must call it by full path or add `%LOCALAPPDATA%\Android\Sdk\platform-tools` to PATH.
 4. ~~**Supabase project is not linked.**~~ FIXED on 2026-08-22: `npx supabase link --project-ref lahvcodvgubplzfshare` completed; `npx supabase status` now reports the linked project.
 5. ~~**`.env.staging` is empty.**~~ FIXED on 2026-08-22: `.env.staging` now carries the cloud project URL, anon key, and `VITE_APP_ENV=staging` (see [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md)). `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` remain machine-local and intentionally empty in the file.

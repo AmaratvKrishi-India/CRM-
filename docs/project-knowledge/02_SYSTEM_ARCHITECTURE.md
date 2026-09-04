@@ -28,13 +28,14 @@ The local offline database enables robust querying and temporary offline storage
 
 ## Sync Architecture
 The synchronization mechanism ensures that local modifications are seamlessly communicated with the cloud backend when connectivity is available.
-- **Coordinator**: `SyncEngine` in [`syncEngine.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncEngine.ts) acts as the central coordinator following a push-then-pull methodology.
-- **SyncQueue**: A persistent outbox managed by [`syncQueue.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncQueue.ts) within Dexie. Items transition through `PENDING` -> `SYNCING` -> `SYNCED`/`FAILED` states.
-- **SyncPush**: Handled by [`syncPush.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncPush.ts), executing batched upserts to Supabase with a fallback to single-record upserts on failure.
-- **SyncPull**: Incremental cursor-based pulls managed by [`syncPull.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncPull.ts), performing automatic `snake_case` to `camelCase` transformation.
-- **Conflict Resolution**: The `SyncConflictResolver` in [`syncConflictResolver.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncConflictResolver.ts) utilizes LWW (Last-Write-Wins) combined with VERIFIED call duration protections.
-- **Automation**: [`backgroundSyncManager.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/backgroundSyncManager.ts) automatically triggers syncs on login, app resume, visibility change, network reconnect, and interval timers utilizing an exponential backoff strategy (1s -> 32s cap).
-- **State Persistence**: A `SyncStateRepository` persists cursor positions, timestamps, and status information locally.
+- **Scope**: Every engine, cursor, outbox item, retry, and realtime generation belongs to one exact organization/user/role context and its partitioned Dexie database.
+- **Authority**: `SyncEngine` revalidates the current server profile before push/pull and cancels stale generations on logout, revocation, role/account change, or disposal.
+- **Push**: Transactional outbox mutations preserve original scope. CREATE/UPDATE are idempotent upserts; DELETE is a scoped delete and never an upsert.
+- **Pull**: Every query is organization-filtered and agent-filtered where applicable. The cursor advances only after complete reconciliation and the authoritative visibility snapshot.
+- **Pruning**: Assignment revocation, remote deletion, and access loss remove inaccessible lead graphs and their queued mutations.
+- **Conflict resolution**: deterministic timestamp LWW with remote tie-break, append-only tombstone protection, and verified-call protections.
+- **Automation**: login, resume, visibility, reconnect, interval, realtime recovery, and manual triggers share the current engine's single-flight cycle.
+- **Recovery**: bounded 1–32 second retry, ten-attempt dead letter, explicit recovery, and immediate same-account recovery of force-stopped `SYNCING` items.
 
 ## Realtime Architecture
 Realtime subscriptions keep the active application in sync with backend changes in near real-time.

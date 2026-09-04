@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { crmData } from '../../../db';
-import { Lead, User, ImportAudit, LeadStatus } from '../../../db/types';
+import type { Lead, User, ImportAudit, LeadStatus } from '../../../db/types';
 import { ExcelImporter } from '../../import/ExcelImporter';
 import { AgentManagementService } from '../../../services/agentManagementService';
 import { LeadAssignmentService } from '../../../services/leadAssignmentService';

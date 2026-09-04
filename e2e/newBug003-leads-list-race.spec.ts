@@ -65,38 +65,46 @@ function buildLead(prefix: string, i: number, status: 'NEW' | 'CUSTOMER') {
 
 async function waitForLeadsStore(page: Page): Promise<void> {
   await page.waitForFunction(
-    () =>
-      new Promise<boolean>((resolve) => {
-        const req = indexedDB.open('AmaratvSalesCRM');
-        req.onerror = () => resolve(false);
-        req.onsuccess = () => {
-          const has = Array.from(req.result.objectStoreNames).includes('leads');
-          req.result.close();
-          resolve(has);
-        };
-      }),
+    async () => {
+      const databases = await indexedDB.databases();
+      for (const database of databases) {
+        if (!database.name?.startsWith('AmaratvSalesCRM__')) continue;
+        const req = indexedDB.open(database.name);
+        const hasLeads = await new Promise<boolean>((resolve, reject) => {
+          req.onerror = () => reject(req.error);
+          req.onsuccess = () => {
+            const has = Array.from(req.result.objectStoreNames).includes('leads');
+            req.result.close();
+            resolve(has);
+          };
+        });
+        if (hasLeads) return true;
+      }
+      return false;
+    },
     { timeout: 30000 }
   );
 }
 
 async function seedLeads(page: Page, leads: unknown[]): Promise<void> {
   await page.evaluate(
-    (rows) =>
-      new Promise<void>((resolve, reject) => {
-        const req = indexedDB.open('AmaratvSalesCRM');
+    async (rows) => {
+      const database = (await indexedDB.databases()).find((item) => item.name?.startsWith('AmaratvSalesCRM__'));
+      if (!database?.name) throw new Error('Scoped CRM database was not created.');
+      const idb = await new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open(database.name!);
         req.onerror = () => reject(req.error);
-        req.onsuccess = () => {
-          const idb = req.result;
-          const tx = idb.transaction('leads', 'readwrite');
-          const store = tx.objectStore('leads');
-          for (const lead of rows) store.put(lead);
-          tx.oncomplete = () => {
-            idb.close();
-            resolve();
-          };
-          tx.onerror = () => reject(tx.error);
-        };
-      }),
+        req.onsuccess = () => resolve(req.result);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const tx = idb.transaction('leads', 'readwrite');
+        const store = tx.objectStore('leads');
+        for (const lead of rows) store.put(lead);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      idb.close();
+    },
     leads
   );
 }
@@ -195,10 +203,10 @@ test.describe('NEW-BUG-003/004: leads list stale-result races', () => {
     await leadsTab.click();
     const loadMoreBtn = page.getByRole('button', { name: /Load More/ });
     await expect(loadMoreBtn).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('h3', { hasText: 'Race NEW Gym' })).toHaveCount(150, {
+    await expect(page.locator('h2', { hasText: 'Race NEW Gym' })).toHaveCount(150, {
       timeout: 30000,
     });
-    await expect(page.locator('h3', { hasText: 'Race CUST Gym' })).toHaveCount(0);
+    await expect(page.locator('h2', { hasText: 'Race CUST Gym' })).toHaveCount(0);
 
     // Gate pagination queries, then trigger the race.
     await installOffsetGate(page);
@@ -213,17 +221,17 @@ test.describe('NEW-BUG-003/004: leads list stale-result races', () => {
     // resolves and renders first.
     const statusGroup = page.getByRole('group', { name: 'Filter by status' });
     await statusGroup.getByRole('button', { name: 'Customer', exact: true }).click();
-    await expect(page.locator('h3', { hasText: 'Race CUST Gym' })).toHaveCount(3, {
+    await expect(page.locator('h2', { hasText: 'Race CUST Gym' })).toHaveCount(3, {
       timeout: 30000,
     });
 
     // Release the stale NEW page. With no guard it is appended onto the
     // CUSTOMER list; with the fix it must be discarded.
     await releaseGate(page);
-    await expect(page.locator('h3', { hasText: 'Race CUST Gym' })).toHaveCount(3, {
+    await expect(page.locator('h2', { hasText: 'Race CUST Gym' })).toHaveCount(3, {
       timeout: 30000,
     });
-    await expect(page.locator('h3', { hasText: 'Race NEW Gym' })).toHaveCount(0, {
+    await expect(page.locator('h2', { hasText: 'Race NEW Gym' })).toHaveCount(0, {
       timeout: 30000,
     });
   });

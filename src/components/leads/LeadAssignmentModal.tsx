@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   UserCheck,
-  UserX,
   Users,
   Loader2,
   AlertCircle,
@@ -15,7 +14,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { LeadAssignmentService } from '../../services/leadAssignmentService';
 import { AgentManagementService } from '../../services/agentManagementService';
-import { Lead, User } from '../../db/types';
+import type { Lead, User } from '../../db/types';
 import { Modal } from '../common/Modal';
 
 interface LeadAssignmentModalProps {

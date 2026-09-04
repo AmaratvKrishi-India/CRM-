@@ -8,6 +8,45 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+const rollbackProvisionedAgent = async (supabaseAdmin: any, authUserId: string): Promise<string[]> => {
+  const errors: string[] = [];
+
+  try {
+    const { error } = await supabaseAdmin.from('profiles').delete().eq('id', authUserId);
+    if (error) errors.push(`profile: ${error.message || 'delete failed'}`);
+  } catch (error: any) {
+    errors.push(`profile: ${error?.message || 'delete rejected'}`);
+  }
+
+  try {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+    if (error) errors.push(`auth: ${error.message || 'delete failed'}`);
+  } catch (error: any) {
+    errors.push(`auth: ${error?.message || 'delete rejected'}`);
+  }
+
+  return errors;
+};
+
+const resolveAuditWrite = async (supabaseAdmin: any, auditId: string): Promise<'present' | 'absent' | 'unknown'> => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('activities')
+      .select('id')
+      .eq('id', auditId)
+      .maybeSingle();
+    if (error) {
+      console.error('Unable to resolve audit write state:', error);
+      return 'unknown';
+    }
+    return data ? 'present' : 'absent';
+  } catch (error) {
+    console.error('Unable to resolve audit write state:', error);
+    return 'unknown';
+  }
 };
 
 serve(async (req) => {
@@ -16,12 +55,23 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed.' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  let supabaseAdmin: any = null;
+  let provisionedAuthUserId: string | null = null;
+  let activeAuditId: string | null = null;
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
       return new Response(
         JSON.stringify({ error: 'Server configuration error: missing environment variables.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -51,7 +101,7 @@ serve(async (req) => {
     }
 
     // 2. Privileged Admin Client (Used only server-side within this Edge Function)
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: { persistSession: false },
     });
 
@@ -92,7 +142,15 @@ serve(async (req) => {
     }
 
     // 4. Parse & Validate Payload
-    const body = await req.json();
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON request body.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const { name, email, phone, password } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
@@ -121,13 +179,21 @@ serve(async (req) => {
     const cleanPhone = phone ? String(phone).trim() : '';
 
     // 5. Check for Existing Profile with same Email in the Organization
-    const { data: existingProfile } = await supabaseAdmin
+    const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('organization_id', callerProfile.organization_id)
       .eq('email', normalizedEmail)
       .is('deleted_at', null)
       .maybeSingle();
+
+    if (existingProfileError) {
+      console.error('Existing profile lookup failed:', existingProfileError);
+      return new Response(
+        JSON.stringify({ error: 'Unable to verify whether the agent email is already registered.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (existingProfile) {
       return new Response(
@@ -162,6 +228,7 @@ serve(async (req) => {
     }
 
     const newAuthUserId = newAuthData.user.id;
+    provisionedAuthUserId = newAuthUserId;
 
     // 7. Step 2: Insert into public.profiles
     // Note: organization_id is strictly inherited from callerProfile (client input is ignored)
@@ -188,20 +255,36 @@ serve(async (req) => {
       .select()
       .single();
 
-    // 8. Compensation / Rollback: If profile creation fails, delete the created auth user
+    // 8. Compensation / Rollback: If profile creation fails, remove any partial
+    // profile and the created auth user. Each cleanup operation is isolated so a
+    // rejected network request cannot skip the remaining compensation step.
     if (profileInsertError || !insertedProfile) {
-      console.error('Profile creation failed; initiating rollback on auth.users:', profileInsertError);
-      await supabaseAdmin.auth.admin.deleteUser(newAuthUserId);
+      console.error('Profile creation failed; initiating rollback:', profileInsertError);
+      const rollbackErrors = await rollbackProvisionedAgent(supabaseAdmin, newAuthUserId);
 
+      if (rollbackErrors.length > 0) {
+        console.error('Agent rollback was incomplete:', rollbackErrors);
+        return new Response(
+          JSON.stringify({ error: 'Agent provisioning failed and cleanup was incomplete. Manual remediation is required.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const duplicate = /already exists|duplicate|unique/i.test(profileInsertError?.message || '');
       return new Response(
-        JSON.stringify({ error: `Failed to create agent profile: ${profileInsertError?.message || 'Database error'}. Auth user was rolled back.` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: duplicate
+          ? 'An account with this email already exists in this organization.'
+          : 'Failed to create agent profile. Auth identity and profile were rolled back.' }),
+        { status: duplicate ? 409 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // 9. Step 3: Record Immutable Append-Only Audit Event
     // Passwords or secrets are NEVER included in activity metadata
+    const auditId = crypto.randomUUID();
+    activeAuditId = auditId;
     const auditActivity = {
+      id: auditId,
       organization_id: callerProfile.organization_id,
       lead_id: null,
       user_id: callerProfile.id,
@@ -219,7 +302,37 @@ serve(async (req) => {
       version: 1,
     };
 
-    await supabaseAdmin.from('activities').insert(auditActivity);
+    const { error: auditInsertError } = await supabaseAdmin.from('activities').insert(auditActivity);
+
+    if (auditInsertError) {
+      console.error('Audit activity creation failed; initiating rollback:', auditInsertError);
+      // An insert can commit before its response fails. Resolve the audit row
+      // first so compensation cannot leave an append-only event pointing at a
+      // deleted agent.
+      const auditWriteState = await resolveAuditWrite(supabaseAdmin, auditId);
+      if (auditWriteState !== 'absent') {
+        console.error('Audit write state is not safely absent; retaining agent for manual reconciliation:', auditWriteState);
+        return new Response(
+          JSON.stringify({ error: 'Agent provisioning could not be confirmed safely after an audit failure. Manual reconciliation is required.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const rollbackErrors = await rollbackProvisionedAgent(supabaseAdmin, newAuthUserId);
+
+      if (rollbackErrors.length > 0) {
+        console.error('Audit failure rollback was incomplete:', rollbackErrors);
+        return new Response(
+          JSON.stringify({ error: 'Agent provisioning failed and cleanup was incomplete. Manual remediation is required.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ error: 'Agent provisioning failed because the audit record could not be created. Auth identity and profile were rolled back.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // 10. Return Sanitized Result (No passwords in response)
     return new Response(
@@ -243,6 +356,28 @@ serve(async (req) => {
     );
   } catch (err: any) {
     console.error('Unhandled Edge Function error:', err);
+
+    if (supabaseAdmin && provisionedAuthUserId) {
+      if (activeAuditId) {
+        const auditWriteState = await resolveAuditWrite(supabaseAdmin, activeAuditId);
+        if (auditWriteState !== 'absent') {
+          return new Response(
+            JSON.stringify({ error: 'Agent provisioning could not be confirmed safely after an audit failure. Manual reconciliation is required.' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      const rollbackErrors = await rollbackProvisionedAgent(supabaseAdmin, provisionedAuthUserId);
+      if (rollbackErrors.length > 0) {
+        console.error('Unhandled error rollback was incomplete:', rollbackErrors);
+        return new Response(
+          JSON.stringify({ error: 'Agent provisioning failed and cleanup was incomplete. Manual remediation is required.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: err.message || 'Internal server error during agent provisioning.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

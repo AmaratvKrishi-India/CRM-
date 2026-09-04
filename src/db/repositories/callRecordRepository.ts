@@ -4,9 +4,9 @@
  * and Admin analytics aggregation methods.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { CallOutcome, CallRecord, CallRecordStatus, CallVerificationStatus } from '../types';
+import type { CallOutcome, CallRecord, CallRecordStatus, CallVerificationStatus } from '../types';
 
 export interface AgentCallMetrics {
   total: number;
@@ -69,6 +69,11 @@ export class CallRecordRepository {
     remark?: string | null;
     verificationStatus?: CallVerificationStatus;
   }): Promise<CallRecord> {
+    const scope = this.db.requireAccessScope();
+    await this.db.requireAccessibleLead(input.leadId, scope);
+    if (input.userId !== scope.userId) {
+      throw new Error('Call records must be attributed to the signed-in user.');
+    }
     const now = new Date().toISOString();
     const record: CallRecord = {
       id: input.id || this.generateId(),
@@ -100,7 +105,8 @@ export class CallRecordRepository {
         entityId: record.id,
         operation: 'CREATE',
         payload: record,
-        userId: record.userId || 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
 
@@ -111,6 +117,7 @@ export class CallRecordRepository {
    * Retrieves call records for a specific lead.
    */
   async getCallsForLead(leadId: string): Promise<CallRecord[]> {
+    await this.db.requireAccessibleLead(leadId);
     return await this.db.callRecords
       .where('leadId')
       .equals(leadId)
@@ -130,6 +137,10 @@ export class CallRecordRepository {
    * Retrieves call records logged by a specific agent/user.
    */
   async getCallsForAgent(agentId: string, limit = 1000): Promise<CallRecord[]> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role === 'AGENT' && agentId !== scope.userId) {
+      return [];
+    }
     const records = await this.db.callRecords
       .where('userId')
       .equals(agentId)
@@ -151,7 +162,15 @@ export class CallRecordRepository {
    * Retrieves a single call record by ID.
    */
   async getCallRecordById(id: string): Promise<CallRecord | undefined> {
-    return await this.db.callRecords.get(id);
+    this.db.requireAccessScope();
+    const record = await this.db.callRecords.get(id);
+    if (!record) return undefined;
+    try {
+      await this.db.requireAccessibleLead(record.leadId);
+      return record.deletedAt === null ? record : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -208,8 +227,14 @@ export class CallRecordRepository {
    * Only verified durations contribute to total talk time.
    */
   async getOrganisationCallSummary(): Promise<OrganisationCallSummary> {
+    const scope = this.db.requireAccessScope();
+    const accessibleLeadIds = new Set(
+      (await this.db.leads.toArray())
+        .filter((lead) => scope.role === 'ADMIN' || lead.assignedTo === scope.userId || lead.createdBy === scope.userId)
+        .map((lead) => lead.id)
+    );
     const allCalls = await this.db.callRecords
-      .filter((c) => c.deletedAt === null)
+      .filter((c) => c.deletedAt === null && accessibleLeadIds.has(c.leadId))
       .toArray();
 
     let totalCalls = allCalls.length;

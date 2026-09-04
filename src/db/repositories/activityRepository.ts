@@ -3,9 +3,9 @@
  * Manages the append-only immutable event log for all lead operations.
  */
 
-import { SalesCRMDatabase } from '../database';
+import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
-import { Activity, ActivityType } from '../types';
+import type { Activity, ActivityType } from '../types';
 
 export class ActivityRepository {
   private syncQueue?: SyncQueue;
@@ -43,6 +43,13 @@ export class ActivityRepository {
     metadata?: Record<string, any>;
     deviceId?: string | null;
   }): Promise<Activity> {
+    const scope = this.db.requireAccessScope();
+    if (input.userId !== scope.userId) {
+      throw new Error('Activities must be attributed to the signed-in user.');
+    }
+    if (input.leadId) {
+      await this.db.requireAccessibleLead(input.leadId, scope);
+    }
     const now = new Date().toISOString();
     const activity: Activity = {
       id: input.id || this.generateId(),
@@ -65,7 +72,8 @@ export class ActivityRepository {
         entityId: activity.id,
         operation: 'CREATE',
         payload: activity,
-        userId: activity.userId || 'local-user',
+        userId: scope.userId,
+        organizationId: scope.organizationId,
       });
     });
 
@@ -76,6 +84,7 @@ export class ActivityRepository {
    * Retrieves all activities for a given lead, sorted newest to oldest.
    */
   async getActivitiesForLead(leadId: string): Promise<Activity[]> {
+    await this.db.requireAccessibleLead(leadId);
     return await this.db.activities
       .where('leadId')
       .equals(leadId)
@@ -88,6 +97,8 @@ export class ActivityRepository {
    * Retrieves all activities performed by a specific user.
    */
   async getActivitiesByUser(userId: string, limit = 100): Promise<Activity[]> {
+    const scope = this.db.requireAccessScope();
+    if (scope.role === 'AGENT' && userId !== scope.userId) return [];
     const activities = await this.db.activities
       .where('userId')
       .equals(userId)
@@ -102,8 +113,18 @@ export class ActivityRepository {
    * Retrieves the latest system-wide activities.
    */
   async getRecentActivities(limit = 50): Promise<Activity[]> {
+    const scope = this.db.requireAccessScope();
+    const leadIds = new Set(
+      (await this.db.leads.toArray())
+        .filter((lead) => scope.role === 'ADMIN' || lead.assignedTo === scope.userId || lead.createdBy === scope.userId)
+        .map((lead) => lead.id)
+    );
     const activities = await this.db.activities
-      .filter((a) => a.deletedAt === null)
+      .filter(
+        (a) =>
+          a.deletedAt === null &&
+          (scope.role === 'ADMIN' || a.userId === scope.userId || (!!a.leadId && leadIds.has(a.leadId)))
+      )
       .reverse()
       .sortBy('createdAt');
 

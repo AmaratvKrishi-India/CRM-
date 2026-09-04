@@ -1,0 +1,121 @@
+# Agent Management Flow
+# Tests agent provisioning, editing, deactivation
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+
+- tapOn: "email-input"
+- inputText: "admin@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "admin-dashboard"
+
+- tapOn:
+    id: "agents-tab"
+
+- waitFor:
+    id: "agents-list"
+
+- # Verify existing agents listed
+- assertVisible:
+    id: "agent-item-0"
+
+- # Add new agent
+- tapOn:
+    id: "add-agent-button"
+
+- waitFor:
+    id: "create-agent-form"
+
+- tapOn:
+    id: "agent-name-input"
+- inputText: "New Test Agent"
+
+- tapOn:
+    id: "agent-phone-input"
+- inputText: "9876543219"
+
+- tapOn:
+    id: "agent-email-input"
+- inputText: "newagent@test.com"
+
+- tapOn:
+    id: "agent-role-dropdown"
+- tapOn:
+    text: "AGENT"
+
+- tapOn:
+    id: "submit-agent-button"
+
+- waitFor:
+    id: "agents-list"
+    timeout: 10000
+
+- # Verify agent added
+- assertVisible:
+    text: "New Test Agent"
+- assertVisible:
+    text: "newagent@test.com"
+- assertVisible:
+    text: "ACTIVE"
+
+- # Edit agent
+- tapOn:
+    id: "agent-item-new"
+- waitFor:
+    id: "agent-detail"
+
+- tapOn:
+    id: "edit-agent-button"
+- waitFor:
+    id: "edit-agent-form"
+
+- tapOn:
+    id: "agent-phone-input"
+- inputText: "9876543220"
+
+- tapOn:
+    id: "save-agent-button"
+- waitFor:
+    id: "agent-detail"
+
+- assertVisible:
+    text: "9876543220"
+
+- # Deactivate agent
+- tapOn:
+    id: "deactivate-agent-button"
+- waitFor:
+    id: "confirm-deactivate-dialog"
+- tapOn:
+    id: "confirm-button"
+
+- waitFor:
+    id: "agents-list"
+- assertVisible:
+    text: "INACTIVE"
+
+- # Verify agent can't login
+- runCommand: "adb shell am force-stop com.amaratvkrishi.salescrm"
+- runCommand: "adb shell am start -n com.amaratvkrishi.salescrm/.MainActivity"
+- waitFor:
+    id: "login-screen"
+- tapOn: "email-input"
+- inputText: "newagent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+- waitFor:
+    id: "error-message"
+    timeout: 5000
+- assertVisible:
+    text: "Account deactivated"

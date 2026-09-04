@@ -5,14 +5,17 @@
  * and live UI event dispatching.
  */
 
-import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../supabaseClient';
-import { SalesCRMDatabase, getDatabase } from '../../db/database';
+import type { SalesCRMDatabase} from '../../db/database';
+import { getDatabase } from '../../db/database';
 import { SyncConflictResolver } from '../sync/syncConflictResolver';
 import { SyncPull } from '../sync/syncPull';
-import { SyncEngine } from '../sync/syncEngine';
-import { User, Lead, CallRecord, Activity, FollowUp, Remark } from '../../db/types';
-import {
+import type { SyncEngine } from '../sync/syncEngine';
+import { accessScopeFromUser, canAccessLead, sameAccessScope } from '../../db/accessScope';
+import { pruneLeadData } from '../../db/pruning';
+import type { User, Lead, Activity} from '../../db/types';
+import type {
   RealtimeConnectionStatus,
   RealtimeInAppNotification,
   RealtimeStatusListener,
@@ -30,6 +33,7 @@ export class RealtimeService {
   private static currentUser: User | null = null;
   private static currentStatus: RealtimeConnectionStatus = 'DISCONNECTED';
   private static lastReconnectedAt: string | null = null;
+  private static subscriptionGeneration = 0;
 
   // Listeners
   private static statusListeners: Set<RealtimeStatusListener> = new Set();
@@ -144,12 +148,6 @@ export class RealtimeService {
     try {
       if (this.syncEngineInstance) {
         await this.syncEngineInstance.triggerSync();
-      } else {
-        const pull = new SyncPull(this.getDb());
-        const client = this.getClient();
-        if (client) {
-          await pull.pullAllChanges(null, client);
-        }
       }
     } catch (err) {
       console.warn('Reconnection sync reconciliation error:', err);
@@ -165,11 +163,28 @@ export class RealtimeService {
       return false;
     }
 
-    // If already subscribed for same user and active, do nothing
-    if (this.currentUser?.id === user.id && this.currentStatus === 'SUBSCRIBED') {
+    if (!user.organizationId) {
+      await this.unsubscribe();
+      return false;
+    }
+    const requestedScope = accessScopeFromUser(user);
+    try {
+      this.getDb().requireAccessScope(requestedScope);
+    } catch {
+      await this.unsubscribe();
+      return false;
+    }
+
+    // If already subscribed for the exact same account context, do nothing.
+    if (
+      this.currentUser &&
+      sameAccessScope(accessScopeFromUser(this.currentUser), requestedScope) &&
+      this.currentStatus === 'SUBSCRIBED'
+    ) {
       return true;
     }
 
+    const generation = ++this.subscriptionGeneration;
     this.currentUser = user;
     this.setConnectionStatus('SUBSCRIBING');
 
@@ -185,7 +200,7 @@ export class RealtimeService {
       this.currentChannel = null;
     }
 
-    const orgId = user.organizationId || 'default';
+    const orgId = user.organizationId;
     const channelName = `org_${orgId}_${user.role.toLowerCase()}_${user.id.substring(0, 8)}`;
 
     try {
@@ -201,6 +216,7 @@ export class RealtimeService {
         'message_history',
         'profiles',
         'import_audits',
+        'bulk_assignment_audits',
       ];
 
       for (const table of tables) {
@@ -213,12 +229,19 @@ export class RealtimeService {
             filter: `organization_id=eq.${orgId}`,
           },
           (payload) => {
-            this.handleIncomingPostgresChange(table, payload.eventType, payload.new || payload.old);
+            if (generation !== this.subscriptionGeneration) return;
+            return this.handleIncomingPostgresChange(
+              table,
+              payload.eventType,
+              payload.new || payload.old,
+              generation
+            );
           }
         );
       }
 
       channel.subscribe((status, err) => {
+        if (generation !== this.subscriptionGeneration) return;
         if (status === 'SUBSCRIBED') {
           this.setConnectionStatus('SUBSCRIBED');
         } else if (status === 'CLOSED' || status === 'TIMED_OUT') {
@@ -244,12 +267,38 @@ export class RealtimeService {
   static async handleIncomingPostgresChange(
     table: string,
     eventType: 'INSERT' | 'UPDATE' | 'DELETE',
-    row: any
+    row: any,
+    expectedGeneration: number = this.subscriptionGeneration
   ): Promise<void> {
     if (!row || !row.id) return;
+    if (expectedGeneration !== this.subscriptionGeneration) return;
 
     try {
       const db = this.getDb();
+      const scope = db.requireAccessScope();
+      if (this.currentUser && !sameAccessScope(accessScopeFromUser(this.currentUser), scope)) return;
+      if (row.organization_id !== scope.organizationId) return;
+
+      const transformed = SyncPull.transformFromPgRecord(table as any, row);
+      const leadId = transformed.leadId;
+      let authorized = scope.role === 'ADMIN';
+      if (scope.role === 'AGENT') {
+        if (table === 'leads') authorized = canAccessLead(scope, transformed as Lead);
+        else if (table === 'profiles') authorized = transformed.id === scope.userId;
+        else if (table === 'import_audits') authorized = transformed.uploadedBy === scope.userId;
+        else if (table === 'bulk_assignment_audits') authorized = false;
+        else if (typeof leadId === 'string') {
+          const lead = await db.leads.get(leadId);
+          authorized = !!lead && canAccessLead(scope, lead);
+        } else {
+          authorized = table === 'activities' && transformed.userId === scope.userId;
+        }
+      }
+
+      if (!authorized) {
+        if (table === 'leads') await pruneLeadData(db, [row.id], scope);
+        return;
+      }
 
       // DELETE events (REPLICA IDENTITY FULL carries the full old row):
       // remove the local row. Without this branch the upsert path below
@@ -269,23 +318,22 @@ export class RealtimeService {
           import_audits: db.importAudits,
         };
         const deleteTable = deleteTableMap[table];
-        if (deleteTable) {
+        if (table === 'leads') {
+          await pruneLeadData(db, [row.id], scope);
+        } else if (deleteTable) {
           await deleteTable.delete(row.id);
         }
 
         // Notify generic entity listeners so the UI refreshes.
-        const transformedDeleted = SyncPull.transformFromPgRecord(table as any, row);
         this.entityListeners.forEach((l) => {
           try {
-            l(table, eventType, transformedDeleted);
+            l(table, eventType, transformed);
           } catch (e) {
             console.warn('Entity listener error:', e);
           }
         });
         return;
       }
-
-      const transformed = SyncPull.transformFromPgRecord(table as any, row);
 
       switch (table) {
         case 'activities': {
@@ -338,6 +386,14 @@ export class RealtimeService {
         }
 
         case 'profiles': {
+          if (transformed.id === scope.userId && this.currentUser && (
+            transformed.status !== this.currentUser.status || transformed.role !== this.currentUser.role
+          )) {
+            // Recalculate the database/sync context through server-authoritative
+            // authentication; never mutate the active role in place.
+            void this.syncEngineInstance?.triggerSync();
+            break;
+          }
           const existing = await db.users.get(transformed.id);
           const resolved = SyncConflictResolver.resolveMutable('profiles', existing, transformed as any);
           if (resolved.winner === 'REMOTE') {
@@ -360,6 +416,12 @@ export class RealtimeService {
           if (!existing) {
             await db.messageHistory.put(transformed as any);
           }
+          break;
+        }
+
+        case 'bulk_assignment_audits': {
+          const existing = await db.bulkAssignmentAudits.get(transformed.id);
+          if (!existing) await db.bulkAssignmentAudits.put(transformed as any);
           break;
         }
       }
@@ -433,7 +495,9 @@ export class RealtimeService {
    * Cleans up channel subscriptions on logout or inactive session.
    */
   static async unsubscribe(): Promise<void> {
+    this.subscriptionGeneration++;
     this.currentUser = null;
+    this.syncEngineInstance = null;
     this.setConnectionStatus('DISCONNECTED');
 
     if (this.currentChannel) {

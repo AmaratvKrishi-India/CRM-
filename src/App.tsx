@@ -21,9 +21,9 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastProvider, useToast } from './components/common/Toast';
 import { CallLifecycleService } from './services/callLifecycleService';
 import { RealtimeService } from './services/realtime/realtimeService';
-import { RealtimeInAppNotification } from './services/realtime/realtimeTypes';
+import type { RealtimeInAppNotification } from './services/realtime/realtimeTypes';
 import { crmData } from './db';
-import { Lead, CallOutcome, LeadStatus, FollowUpPriority } from './db/types';
+import type { Lead, CallOutcome, LeadStatus, FollowUpPriority } from './db/types';
 
 // Lazy-load heavy Admin and Settings components for code splitting & faster mobile bundle load
 const AdminShell = React.lazy(() =>
@@ -69,8 +69,8 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   const [leadsLocalityFilter, setLeadsLocalityFilter] = useState<string>('ALL');
 
   // In-Memory Pending Call State
-  const [pendingCallLead, setPendingCallLead] = useState<Lead | null>(null);
-  const [callStartedAt, setCallStartedAt] = useState<string | null>(null);
+  const [, setPendingCallLead] = useState<Lead | null>(null);
+  const [, setCallStartedAt] = useState<string | null>(null);
 
   // Call Outcome Modal State
   const [activeOutcomeLead, setActiveOutcomeLead] = useState<Lead | null>(null);
@@ -87,7 +87,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Follow-up Modal State
-  const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isFollowUpModalOpen] = useState(false);
 
   // Badge count for pending follow-ups
   const [pendingFollowUpsCount, setPendingFollowUpsCount] = useState<number>(0);
@@ -334,7 +334,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
     <div className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans">
       {/* Return to Admin Banner if in Admin Sales Mode */}
       {isSalesModeForAdmin && onReturnToAdmin && (
-        <div className="bg-accent-soft text-accent-text px-4 py-2 text-sm flex items-center justify-between shadow-sm sticky top-0 z-40 border-b border-line">
+        <aside aria-label="Admin sales mode" className="bg-accent-soft text-accent-text px-4 py-2 text-sm flex items-center justify-between shadow-sm sticky top-0 z-40 border-b border-line">
           <div className="flex items-center gap-1.5 font-semibold">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" aria-hidden="true" />
             <span>Field Sales Rep Mode (Admin Preview)</span>
@@ -346,16 +346,17 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
           >
             Back to Admin Shell
           </button>
-        </div>
+        </aside>
       )}
 
       {/* Main Tab Content */}
-      <div
-        className="flex-1 flex flex-col min-h-0"
-        role="tabpanel"
-        id="app-tab-panel"
-        aria-labelledby={`app-tab-${tab}`}
-      >
+      <main className="flex-1 flex flex-col min-h-0" aria-label="Field sales workspace">
+        <div
+          className="flex-1 flex flex-col min-h-0"
+          role="tabpanel"
+          id="app-tab-panel"
+          aria-labelledby={`app-tab-${tab}`}
+        >
         {/* TAB 1: DASHBOARD */}
         {tab === 'DASHBOARD' && (
           <SalesDashboard
@@ -441,11 +442,12 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
             onOpenWhatsApp={handleOpenWhatsApp}
           />
         )}
-      </div>
+        </div>
+      </main>
 
       {/* Bottom Mobile Navigation Bar */}
       {tab !== 'DETAIL' && tab !== 'IMPORT' && (
-        <div className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-3 py-1.5 shadow-lg">
+        <nav aria-label="Sales sections" className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-3 py-1.5 shadow-lg">
           <div
             role="tablist"
             aria-label="Main sections"
@@ -534,7 +536,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
               <span className="text-xs">Follow-ups</span>
             </button>
           </div>
-        </div>
+        </nav>
       )}
 
       {/* Global Call Outcome & Remark Modal */}

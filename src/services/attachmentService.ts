@@ -91,7 +91,7 @@ export class AttachmentService {
     if (metadata.localUrl) {
       try {
         URL.revokeObjectURL(metadata.localUrl);
-      } catch (err) {
+      } catch {
         // Ignore revocation errors
       }
     }

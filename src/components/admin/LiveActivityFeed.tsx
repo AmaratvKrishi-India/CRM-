@@ -19,10 +19,10 @@ import {
   WifiOff,
   RefreshCw,
 } from 'lucide-react';
-import { Activity, ActivityType } from '../../db/types';
+import type { Activity, ActivityType } from '../../db/types';
 import { getDatabase } from '../../db/database';
 import { RealtimeService } from '../../services/realtime/realtimeService';
-import { RealtimeConnectionStatus } from '../../services/realtime/realtimeTypes';
+import type { RealtimeConnectionStatus } from '../../services/realtime/realtimeTypes';
 
 interface LiveActivityFeedProps {
   limit?: number;

@@ -1,0 +1,156 @@
+# Maestro Configuration for Amaratv Krishi Sales CRM
+# Capacitor v8 + React 19 E2E Testing
+
+appId: "com.amaratvkrishi.salescrm"
+
+# Device Configuration
+devices:
+  - platform: "android"
+    avdName: "pixel_7_pro_api_34"  # Will be auto-detected if not found
+    # For CI: use emulator name from available AVDs
+  - platform: "ios"
+    simulator: "iPhone 15 Pro"
+    # Note: iOS testing requires macOS runner
+
+# Test Execution Settings
+settings:
+  # Retry flaky tests
+  retry:
+    count: 2
+    interval: 2000
+
+  # Timeouts
+  timeout:
+    command: 30000
+    assertion: 10000
+    launch: 60000
+
+  # Screenshots on failure
+  screenshotOnFailure: true
+  screenshotPath: "./test-results/maestro/screenshots"
+
+  # Video recording (optional, increases CI time)
+  recordVideo: false
+
+  # Log level
+  logLevel: "info"
+
+# Environment Variables
+env:
+  NODE_ENV: "test"
+  VITE_SUPABASE_URL: "http://10.0.2.2:15432"  # Android emulator -> host localhost
+  VITE_SUPABASE_ANON_KEY: "test-anon-key"
+
+# Pre-hooks (run before each test)
+preHooks:
+  - command: "adb shell settings put global window_animation_scale 0"
+  - command: "adb shell settings put global transition_animation_scale 0"
+  - command: "adb shell settings put global animator_duration_scale 0"
+  - command: "adb shell am force-stop com.amaratvkrishi.salescrm"
+
+# Post-hooks (run after each test)
+postHooks:
+  - command: "adb shell am force-stop com.amaratvkrishi.salescrm"
+
+# Test Suites Organization
+suites:
+  - name: "auth"
+    description: "Authentication flows"
+    tags: ["auth", "critical"]
+    flows:
+      - "e2e/maestro/auth/login.yaml"
+      - "e2e/maestro/auth/logout.yaml"
+      - "e2e/maestro/auth/session-persistence.yaml"
+
+  - name: "leads"
+    description: "Lead management flows"
+    tags: ["leads", "critical"]
+    flows:
+      - "e2e/maestro/leads/list.yaml"
+      - "e2e/maestro/leads/create.yaml"
+      - "e2e/maestro/leads/edit.yaml"
+      - "e2e/maestro/leads/assign.yaml"
+
+  - name: "calls"
+    description: "Call lifecycle flows"
+    tags: ["calls", "critical"]
+    flows:
+      - "e2e/maestro/calls/dial.yaml"
+      - "e2e/maestro/calls/outcome.yaml"
+      - "e2e/maestro/calls/unverified.yaml"
+
+  - name: "sync"
+    description: "Offline sync flows"
+    tags: ["sync", "offline", "critical"]
+    flows:
+      - "e2e/maestro/sync/online.yaml"
+      - "e2e/maestro/sync/offline.yaml"
+      - "e2e/maestro/sync/conflict.yaml"
+      - "e2e/maestro/sync/background.yaml"
+
+  - name: "admin"
+    description: "Admin-only flows"
+    tags: ["admin"]
+    flows:
+      - "e2e/maestro/admin/dashboard.yaml"
+      - "e2e/maestro/admin/import.yaml"
+      - "e2e/maestro/admin/agents.yaml"
+
+# Parallel Execution
+parallel:
+  enabled: true
+  maxWorkers: 2  # Limited by emulator count
+
+# CI Configuration
+ci:
+  # Sharding for large test suites
+  sharding:
+    enabled: true
+    totalShards: 4
+    shardIndex: 0  # Set via CI env: MAESTRO_SHARD_INDEX
+
+  # Artifact upload
+  artifacts:
+    screenshots: true
+    videos: false
+    logs: true
+    junit: true
+    junitPath: "./test-results/maestro/junit.xml"
+
+  # Failure handling
+  failFast: false
+  continueOnFailure: true
+
+# Reporting
+reporting:
+  formats: ["junit", "json", "html"]
+  outputDir: "./test-results/maestro"
+
+# Selectors (custom for this app)
+selectors:
+  # Common patterns used across tests
+  loginButton: 'button[contains(text(), "Login")]'
+  emailInput: 'input[type="email"]'
+  passwordInput: 'input[type="password"]'
+  leadsTab: 'button[contains(text(), "Leads")]'
+  callsTab: 'button[contains(text(), "Calls")]'
+  syncButton: 'button[contains(text(), "Sync")]'
+  offlineIndicator: '[data-testid="offline-indicator"]'
+  onlineIndicator: '[data-testid="online-indicator"]'
+
+# Flow Defaults
+flowDefaults:
+  # Wait for app to be ready
+  - launchApp:
+      clearState: true
+  - waitForAnimationToEnd
+  - waitFor:
+      id: "app-root"
+      timeout: 15000
+
+# Tags for filtering
+tags:
+  critical: ["auth", "leads", "calls", "sync"]
+  smoke: ["auth/login", "leads/list", "sync/online"]
+  regression: ["*"]
+  offline: ["sync/offline", "sync/conflict"]

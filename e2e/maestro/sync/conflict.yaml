@@ -1,0 +1,96 @@
+# Sync Conflict Resolution Flow
+# Tests conflict resolution when local and remote changes differ
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+
+- tapOn: "email-input"
+- inputText: "admin@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "admin-dashboard"
+
+- tapOn:
+    id: "leads-tab"
+
+- waitFor:
+    id: "leads-list"
+
+- # Create a lead
+- tapOn:
+    id: "add-lead-button"
+- waitFor:
+    id: "create-lead-form"
+- tapOn: "lead-name-input"
+- inputText: "Conflict Test Lead"
+- tapOn: "lead-phone-input"
+- inputText: "9876543210"
+- tapOn: "submit-lead-button"
+- waitFor:
+    id: "leads-list"
+
+- # Simulate offline edit (local change)
+- tapOn:
+    id: "lead-item-0"
+- waitFor:
+    id: "lead-detail"
+- tapOn:
+    id: "edit-lead-button"
+- waitFor:
+    id: "edit-lead-form"
+- tapOn:
+    id: "lead-name-input"
+- inputText: "Conflict Test Lead LOCAL"
+- tapOn:
+    id: "save-lead-button"
+- waitFor:
+    id: "lead-detail"
+
+- # Simulate remote edit by another user (admin via web)
+- # This would typically be done via API, but we simulate by going offline then online
+- # Go offline
+- runCommand: "adb shell settings put global airplane_mode_on 1"
+- runCommand: "adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true"
+
+- # Make another local change while offline
+- tapOn:
+    id: "edit-lead-button"
+- waitFor:
+    id: "edit-lead-form"
+- tapOn:
+    id: "lead-name-input"
+- inputText: "Conflict Test Lead LOCAL v2"
+- tapOn:
+    id: "save-lead-button"
+- waitFor:
+    id: "lead-detail"
+
+- # Go online - sync should trigger conflict resolution
+- runCommand: "adb shell settings put global airplane_mode_on 0"
+- runCommand: "adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false"
+
+- waitFor:
+    id: "sync-indicator"
+    timeout: 5000
+
+- waitFor:
+    id: "sync-complete"
+    timeout: 15000
+
+- # Verify conflict resolved (REMOTE-wins or merge)
+- tapOn:
+    id: "lead-item-0"
+- waitFor:
+    id: "lead-detail"
+- assertVisible:
+    id: "lead-name"
+    # Should show resolved state

@@ -17,8 +17,8 @@ import {
   CloudOff,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import { FullDashboardData } from '../../services/dashboardService';
-import { Lead, LeadStatus } from '../../db/types';
+import type { FullDashboardData } from '../../services/dashboardService';
+import type { Lead, LeadStatus } from '../../db/types';
 import { SyncStatusBadge } from '../sync/SyncStatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../common/Toast';
@@ -290,7 +290,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               onClick={() => onOpenLeadsWithStatus('CUSTOMER')}
               className="bg-success hover:opacity-90 p-3 rounded-2xl border border-success text-on-accent shadow-xs transition-colors text-left"
             >
-              <div className="flex items-center justify-between text-on-accent/80 mb-1">
+              <div className="flex items-center justify-between text-on-accent mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Customers</span>
                 <Award className="w-3.5 h-3.5" aria-hidden="true" />
               </div>

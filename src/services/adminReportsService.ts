@@ -5,8 +5,9 @@
  * Enforces strict ADMIN-only role authorization and zero-fake duration rules.
  */
 
-import { SalesCRMDatabase, getDatabase } from '../db/database';
-import { User, Lead, CallRecord, FollowUp, MessageHistory, ImportAudit, Activity, LeadStatus } from '../db/types';
+import type { SalesCRMDatabase} from '../db/database';
+import { getDatabase } from '../db/database';
+import type { User, LeadStatus } from '../db/types';
 
 export type ReportDatePreset =
   | 'TODAY'
@@ -137,6 +138,10 @@ export class AdminReportsService {
   private static assertAdmin(actor: User | null): void {
     if (!actor || actor.role !== 'ADMIN' || actor.status !== 'ACTIVE') {
       throw new Error('Unauthorized: Only active administrators can access Analytics & Reports.');
+    }
+    const scope = this.getDb().requireAccessScope();
+    if (actor.id !== scope.userId || actor.organizationId !== scope.organizationId || scope.role !== 'ADMIN') {
+      throw new Error('Unauthorized: Administrator does not match the active data partition.');
     }
   }
 
@@ -731,7 +736,7 @@ export class AdminReportsService {
     const sanitize = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
 
     if (reportType === 'LEADS') {
-      const report = await this.getLeadReport(actor, filters);
+      await this.getLeadReport(actor, filters);
       const leads = await db.leads.filter((l) => l.deletedAt === null).toArray();
       const users = await db.users.toArray();
       const userMap = new Map(users.map((u) => [u.id, u.name]));

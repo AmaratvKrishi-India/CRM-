@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { AgentManagementService } from '../../services/agentManagementService';
-import { User } from '../../db/types';
+import type { User } from '../../db/types';
 import { Modal } from '../common/Modal';
 
 interface DeleteAgentModalProps {

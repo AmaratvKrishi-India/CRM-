@@ -1,5 +1,17 @@
 # 12 - TESTING & VERIFICATION
 
+## Current Phase 3 evidence — 2026-09-01
+
+- `npm run typecheck`: PASS.
+- `npx tsx --test tests/phase3Synchronization.test.ts`: PASS, 14/14.
+- Selected Phase 1–3 and synchronization regression run: final 93/93 PASS across 24 suites. An earlier 92/93 run exposed only a new test's error-label expectation; the production fail-closed behavior was already correct.
+- Local Docker PostgreSQL: migrations 1–7 applied successfully.
+- `tests/integration/phase3_sync_rls.sql`: PASS; verifies organization isolation, agent scope, cross-org write rejection, and assignment revocation under real RLS.
+- `npm test`: FAIL before collection because Vitest is absent from the partial install.
+- Recovery update: clean `npm ci`, `npm run typecheck`, and `npm run build` pass. The Phase 1–3 Node-runner suite passes 25/25. The aggregate `npm test` command still fails because it mixes Node-runner suites with stale/incompatible Vitest fixtures; see `PHASE_3_RECOVERY_VERIFICATION_2026-09-01.md`.
+
+The older counts below are historical and do not override this current evidence. Do not report the current working tree release-ready until the clean-install, unit/integration, and build gates pass.
+
 This document provides a comprehensive overview of the testing and verification infrastructure, test files, and verification pipeline for the Amaratv Krishi Field Sales CRM.
 
 ## Test Infrastructure

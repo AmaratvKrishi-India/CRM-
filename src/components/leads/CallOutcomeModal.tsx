@@ -10,7 +10,7 @@ import {
   Calendar,
   Clock,
 } from 'lucide-react';
-import { CallOutcome, FollowUpPriority, Lead, LeadStatus } from '../../db/types';
+import type { CallOutcome, FollowUpPriority, Lead, LeadStatus } from '../../db/types';
 import {
   CALL_OUTCOMES,
   QUICK_SALES_REMARKS,

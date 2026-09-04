@@ -10,14 +10,22 @@ const envStaging = path.join(rootDir, '.env.staging');
 const envProduction = path.join(rootDir, '.env.production');
 const envExample = path.join(rootDir, '.env.example');
 
+function readEnvValue(filePath: string, name: string): string | undefined {
+  if (!fs.existsSync(filePath)) return undefined;
+  const line = fs
+    .readFileSync(filePath, 'utf-8')
+    .split(/\r?\n/)
+    .find((entry) => entry.trimStart().startsWith(`${name}=`));
+  return line?.slice(line.indexOf('=') + 1).trim().replace(/^['"]|['"]$/g, '');
+}
+
 // Ensure docs directory exists
 if (!fs.existsSync(path.join(rootDir, 'docs'))) {
   fs.mkdirSync(path.join(rootDir, 'docs'), { recursive: true });
 }
 
 // 1. Ensure Environment Files Exist with Correct Isolated Configurations
-const LOCAL_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+const LOCAL_ANON_KEY_FROM_PROCESS = process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!fs.existsSync(envLocal)) {
   fs.writeFileSync(
@@ -29,6 +37,9 @@ if (!fs.existsSync(envLocal)) {
       'VITE_APP_VERSION=2.0.0\n'
   );
 }
+
+const LOCAL_ANON_KEY =
+  LOCAL_ANON_KEY_FROM_PROCESS || readEnvValue(envLocal, 'VITE_SUPABASE_ANON_KEY') || '';
 
 if (!fs.existsSync(envStaging)) {
   fs.writeFileSync(
@@ -57,7 +68,6 @@ function executeStep(
   name: string,
   command: string,
   options: {
-    ignoreError?: boolean;
     timeoutMs?: number;
     env?: Record<string, string>;
   } = {}
@@ -97,7 +107,7 @@ function executeStep(
     const res: StepResult = {
       name,
       command,
-      status: options.ignoreError ? 'PASS' : 'FAIL',
+      status: 'FAIL',
       output: rawOutput.trim(),
       durationMs,
     };
@@ -119,15 +129,18 @@ async function runVerificationPipeline() {
   const prodContent = fs.existsSync(envProduction)
     ? fs.readFileSync(envProduction, 'utf-8')
     : '';
-  const isProdLahvcod = prodContent.includes('lahvcodvgubplzfshare');
+  const prodUrl = readEnvValue(envProduction, 'VITE_SUPABASE_URL');
+  const hasProductionSafetyConfiguration =
+    prodUrl === 'https://lahvcodvgubplzfshare.supabase.co' &&
+    !/^\s*SUPABASE_(?:SERVICE_ROLE_KEY|DB_PASSWORD)\s*=/im.test(prodContent);
 
   results['prod_safety_audit'] = {
     name: 'Production Environment Safety Guardrails',
-    command: 'Verify lahvcodvgubplzfshare is marked PRODUCTION and READ-ONLY',
-    status: 'PASS',
-    output:
-      `Project 'lahvcodvgubplzfshare' correctly classified as PRODUCTION.\n` +
-      `Automated destructive migrations, database resets, and seed operations are STRICTLY PROHIBITED against production.`,
+    command: 'Verify production URL identity and absence of write-capable credentials',
+    status: hasProductionSafetyConfiguration ? 'PASS' : 'FAIL',
+    output: hasProductionSafetyConfiguration
+      ? 'Production URL identity verified; no service-role key or database password is configured in the production environment file.'
+      : 'Production environment identity or credential safety configuration is invalid.',
   };
 
   // -------------------------------------------------------------
@@ -211,12 +224,19 @@ async function runVerificationPipeline() {
 
     // Verify REST API and Postgres responsiveness
     try {
+      if (!LOCAL_ANON_KEY || LOCAL_ANON_KEY.startsWith('your_')) {
+        throw new Error('Local Supabase anon key is not configured.');
+      }
+
       const res = await fetch('http://127.0.0.1:15432/rest/v1/leads?select=id,business_name&limit=1', {
         headers: {
           apikey: LOCAL_ANON_KEY,
           Authorization: `Bearer ${LOCAL_ANON_KEY}`,
         },
       });
+      if (!res.ok) {
+        throw new Error(`Local Supabase REST health check returned HTTP ${res.status}.`);
+      }
 
       const psList = execSync('docker ps --filter "name=calling_app" --format "{{.Names}}"', {
         encoding: 'utf-8',
@@ -592,11 +612,20 @@ async function runVerificationPipeline() {
 
   // Production Supabase Verification (Strictly READ-ONLY)
   try {
-    const prodUrl = 'https://lahvcodvgubplzfshare.supabase.co/rest/v1/';
-    const prodAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhaHZjb2R2Z3VicGx6ZnNoYXJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyMTI5OTAsImV4cCI6MjEwMjc4ODk5MH0.65L_juAx8V5y03dvBnIndNm73ysHqSNl9AQ9Puc54yk';
+    const configuredProdUrl = process.env.PROD_SUPABASE_URL;
+    const prodAnonKey = process.env.PROD_SUPABASE_ANON_KEY;
+    if (!configuredProdUrl || !prodAnonKey) {
+      results['production_supabase_verification'] = {
+        name: 'Production Supabase Verification (READ-ONLY)',
+        command: 'Check PROD_SUPABASE_URL and PROD_SUPABASE_ANON_KEY',
+        status: 'BLOCKED',
+        reason: 'Production verification requires explicit, externally supplied read-only credentials.',
+        output: 'No production request was made.',
+      };
+      return;
+    }
 
-    const response = await fetch(prodUrl, {
+    const response = await fetch(configuredProdUrl, {
       method: 'GET',
       headers: {
         apikey: prodAnonKey,
@@ -606,39 +635,29 @@ async function runVerificationPipeline() {
 
     results['production_supabase_verification'] = {
       name: 'Production Supabase Verification (READ-ONLY)',
-      command: `GET ${prodUrl} (Read-Only Health Check)`,
-      status: response.ok || response.status === 200 || response.status === 404 ? 'PASS' : 'PASS',
+      command: `GET ${configuredProdUrl} (Read-Only Health Check)`,
+      status: response.ok || response.status === 404 ? 'PASS' : 'FAIL',
       output:
-        `Production endpoint https://lahvcodvgubplzfshare.supabase.co reachable (HTTP ${response.status}).\n` +
+        `Production endpoint returned HTTP ${response.status}.\n` +
         `READ-ONLY mode enforced. No destructive migrations, resets, or writes executed against production.`,
     };
   } catch (err: any) {
     results['production_supabase_verification'] = {
       name: 'Production Supabase Verification (READ-ONLY)',
-      command: 'GET https://lahvcodvgubplzfshare.supabase.co/rest/v1/',
-      status: 'PASS',
-      output: `Production endpoint configured in .env.production. READ-ONLY mode enforced.`,
+      command: 'GET configured production Supabase endpoint (read-only)',
+      status: 'FAIL',
+      output: `Production read-only health check failed: ${err.message}`,
     };
   }
 
   // Production Schema Comparison (Read-Only)
-  const schemaReportPath = path.resolve(rootDir, 'docs', 'LOCAL_VS_CLOUD_SUPABASE_SCHEMA_REPORT.md');
-  if (fs.existsSync(schemaReportPath)) {
-    results['production_schema_compared'] = {
-      name: 'Production Schema Comparison (READ-ONLY)',
-      command: 'Read-only catalog & REST/WebSocket probe against lahvcodvgubplzfshare.supabase.co',
-      status: 'PASS',
-      output: 'Schema comparison complete: Partially Synchronized (Migrations 1-5 active on Cloud; Migration 6 pending). Report: docs/LOCAL_VS_CLOUD_SUPABASE_SCHEMA_REPORT.md',
-    };
-  } else {
-    results['production_schema_compared'] = {
-      name: 'Production Schema Comparison (READ-ONLY)',
-      command: 'Check schema comparison report',
-      status: 'BLOCKED',
-      reason: 'Schema comparison report not found.',
-      output: 'Run schema probe to generate report.',
-    };
-  }
+  results['production_schema_compared'] = {
+    name: 'Production Schema Comparison (READ-ONLY)',
+    command: 'Run a fresh read-only catalog/schema probe against the configured production project',
+    status: 'BLOCKED',
+    reason: 'A historical report file is not accepted as fresh schema evidence.',
+    output: 'No production schema comparison was performed by this verifier.',
+  };
 
   // -------------------------------------------------------------
   // GENERATE VERIFICATION REPORT & UPDATE GATES.md
@@ -693,9 +712,9 @@ async function runVerificationPipeline() {
   }
 
   report += `\n## 3. Environment Isolation & Safety Audits\n\n`;
-  report += `- **Docker Supabase Local**: Fully automated isolated environment running on ports 15432-15438. Verified with 21 Test Suites (102 tests, including 15 real PostgreSQL / RLS tests) & 30 Playwright E2E tests.\n`;
-  report += `- **Staging Supabase**: Marked **BLOCKED**. Production environment (\`lahvcodvgubplzfshare\`) is protected and isolated from destructive staging tests. Dedicated staging credentials required in \`.env.staging\`.\n`;
-  report += `- **Production Supabase**: Verified as **READ-ONLY**. Zero automated destructive operations or migration pushes permitted.\n\n`;
+  report += `- **Docker Supabase Local**: ${results['local_supabase_status']?.status || 'NOT RUN'}; no production writes are performed by this verifier.\n`;
+  report += `- **Staging Supabase**: ${results['staging_supabase_verification']?.status || 'NOT RUN'}; production is not used as a staging target.\n`;
+  report += `- **Production Supabase**: ${results['production_supabase_verification']?.status || 'NOT RUN'}; checks are read-only when explicitly configured.\n\n`;
 
   if (blockeds > 0) {
     report += `## 4. Blocked Items & Exact Actions Required\n\n`;
@@ -725,12 +744,13 @@ async function runVerificationPipeline() {
   }
 
   report += `## 6. Final Recommendation\n\n`;
-  if (fails === 0) {
-    report += `✅ **LOCAL DOCKER SUPABASE & REGRESSION VERIFICATION 100% COMPLETE**.\n`;
-    report += `All real PostgreSQL database tests, RLS isolation policies, unit tests (102/102), Playwright E2E tests (30/30), Vite web builds, Android release APK builds, security scans, and emulator deployments are PASSING with 0 errors.\n`;
-    report += `The automated local Supabase environment is fully operational and isolated from production.\n`;
+  if (fails === 0 && blockeds === 0) {
+    report += `✅ Verification completed with all executed stages passing.\n`;
+    report += `The report contains only results produced during this run.\n`;
+  } else if (fails === 0) {
+    report += `⚠️ Verification completed without command failures, but ${blockeds} prerequisite-gated stage(s) remain BLOCKED.\n`;
   } else {
-    report += `❌ Failures detected. Please inspect Failure Diagnostics above.\n`;
+    report += `❌ Verification completed with ${fails} failure(s) and ${blockeds} blocked stage(s). Please inspect the diagnostics above.\n`;
   }
 
   fs.writeFileSync(reportFile, report.trim() + '\n', 'utf-8');
@@ -739,116 +759,74 @@ async function runVerificationPipeline() {
   // -------------------------------------------------------------
   // UPDATE GATES.md
   // -------------------------------------------------------------
-  let gatesContent = `# Master Acceptance Gates: Phase 2 Remediation & Production Readiness Audit
+  const statusFor = (...keys: string[]): string => {
+    const statuses = keys.map((key) => results[key]?.status || 'NOT RUN');
+    if (statuses.includes('FAIL')) return 'FAIL';
+    if (statuses.includes('BLOCKED')) return 'BLOCKED';
+    return statuses.length > 0 && statuses.every((status) => status === 'PASS') ? 'PASS' : 'NOT RUN';
+  };
+  const evidenceFor = (key: string): string =>
+    results[key]?.output.split('\n')[0] || 'No executed evidence.';
 
-## Environment & Deployment Gates
+  const gatesContent = `# Verification Gates
 
-- [x] GATE_DOCKER_SUPABASE_LOCAL: Fully automated Docker Desktop local Supabase environment, health checks, 6 PostgreSQL migrations, deterministic seed data, and 15 real PostgreSQL integration tests
-  STATUS: ${results['local_supabase_status']?.status === 'PASS' && results['real_postgres_tests']?.status === 'PASS' ? 'PASS' : 'FAIL'}
-  EVIDENCE: Docker stack running (ports 15432-15438), 6 migrations applied, seed verified, realSupabasePostgres.test.ts (15 passing)
+## Environment And Deployment Gates
 
-- [x] GATE_LOCAL_VERIFIED: Real Dexie outbox, 21 unit test suites (102 passing tests), 30 Playwright E2E tests, clean Vite build, security scanning
-  STATUS: PASS
-  EVIDENCE: npm test (102 passing), npm run test:e2e (30 passing), npm run build (clean bundle)
+- GATE_DOCKER_SUPABASE_LOCAL
+  STATUS: ${statusFor('local_supabase_status', 'real_postgres_tests')}
+  EVIDENCE: ${evidenceFor('local_supabase_status')}
 
-- [ ] GATE_STAGING_SUPABASE_VERIFIED: Dedicated staging Supabase project schema, migrations, RLS, and CRUD verification
-  STATUS: BLOCKED (${results['staging_supabase_verification'].reason || 'Missing dedicated staging project'})
-  EVIDENCE: Production project (lahvcodvgubplzfshare) is protected and not used for destructive testing
+- GATE_LOCAL_VERIFIED
+  STATUS: ${statusFor('unit_tests', 'playwright_e2e', 'vite_build', 'security_scan')}
+  EVIDENCE: ${evidenceFor('unit_tests')}
 
-- [x] GATE_PRODUCTION_SUPABASE_VERIFIED: Safe read-only connectivity and health verification of production project (lahvcodvgubplzfshare)
-  STATUS: PASS (READ-ONLY)
-  EVIDENCE: Production endpoint reachable; strict read-only policy enforced
+- GATE_STAGING_SUPABASE_VERIFIED
+  STATUS: ${statusFor('staging_supabase_verification')}
+  EVIDENCE: ${evidenceFor('staging_supabase_verification')}
 
-- [x] GATE_PRODUCTION_SCHEMA_COMPARED: Read-only local vs cloud Supabase schema comparison and structural synchronization audit
-  STATUS: ${results['production_schema_compared']?.status === 'PASS' ? 'PASS' : 'BLOCKED'}
-  EVIDENCE: ${results['production_schema_compared']?.output || 'Comparison pending'}
+- GATE_PRODUCTION_SUPABASE_VERIFIED
+  STATUS: ${statusFor('production_supabase_verification')}
+  EVIDENCE: ${evidenceFor('production_supabase_verification')}
 
-- [x] GATE_EMULATOR_VERIFIED: Production-signed APK built, installed, launched, and verified on Android emulator
-  STATUS: ${results['emulator_verification']?.status === 'PASS' ? 'PASS' : 'BLOCKED (' + (results['emulator_verification']?.reason || 'No emulator running') + ')'}
-  EVIDENCE: ${results['emulator_verification']?.status === 'PASS' ? 'MainActivity window verified active on emulator-5554 via ADB dumpsys' : 'Emulator not running'}
+- GATE_PRODUCTION_SCHEMA_COMPARED
+  STATUS: ${statusFor('production_schema_compared')}
+  EVIDENCE: ${evidenceFor('production_schema_compared')}
 
-- [x] GATE_MULTI_DEVICE_SYNC_VERIFIED: Real multi-device synchronization across 3 real Android Studio emulators and local Docker Supabase PostgreSQL
-  STATUS: ${results['multi_device_sync']?.status === 'PASS' ? 'PASS' : 'BLOCKED (' + (results['multi_device_sync']?.reason || '3 Emulators required') + ')'}
-  EVIDENCE: ${results['multi_device_sync']?.status === 'PASS' ? '13-step full lifecycle test: Admin Lead Ingestion & Assignment, Agent A & B Lead Isolation, Call Outcomes, Remarks, Follow-Ups, PostgreSQL DB Verification, Offline Sync, RLS Security' : 'Requires 3 running Android emulators'}
+- GATE_EMULATOR_VERIFIED
+  STATUS: ${statusFor('emulator_verification')}
+  EVIDENCE: ${evidenceFor('emulator_verification')}
 
-- [ ] GATE_PHYSICAL_DEVICE_VERIFIED: Verification on physical Android hardware connected via USB/ADB
-  STATUS: BLOCKED (No physical Android device connected)
-  EVIDENCE: adb devices reports 0 physical hardware devices attached
+- GATE_MULTI_DEVICE_SYNC_VERIFIED
+  STATUS: ${statusFor('multi_device_sync')}
+  EVIDENCE: ${evidenceFor('multi_device_sync')}
 
-- [ ] GATE_TWO_DEVICE_VERIFIED: Two-device real-time sync verification on dual physical hardware
-  STATUS: BLOCKED (Requires two physical Android devices)
-  EVIDENCE: Requires 2 concurrent physical hardware devices
+- GATE_PHYSICAL_DEVICE_VERIFIED
+  STATUS: ${statusFor('physical_device_verification')}
+  EVIDENCE: ${evidenceFor('physical_device_verification')}
 
----
+- GATE_TWO_DEVICE_VERIFIED
+  STATUS: ${statusFor('two_device_verification')}
+  EVIDENCE: ${evidenceFor('two_device_verification')}
 
-## Functional & Regression Master Gates (G1 - G17)
+## Functional And Regression Gates
 
-- [x] G1_DEXIE_OUTBOX: Real Dexie repository mutations produce genuine outbox records in Dexie outbox table
-  CHECK: npx tsx --test tests/realDexieRepositoryOutbox.test.ts
-  STATUS: PASS
-
-- [x] G2_PERSISTENCE: Real persistence across application close and IndexedDB reopen
-  CHECK: npx tsx --test tests/backupRestoreIntegrity.test.ts
-  STATUS: PASS
-
-- [x] G3_SUPABASE_MIGRATIONS: Validation of all 6 PostgreSQL migrations and schema definitions in supabase/migrations/
-  CHECK: Verify 6 migration SQL files, search_path=public, and deterministic seed.sql on Docker PostgreSQL
-  STATUS: PASS
-
-- [x] G4_PRODUCTION_SAFETY: Strict guardrails preventing automated destructive actions against production (lahvcodvgubplzfshare)
-  STATUS: PASS (READ-ONLY)
-
-- [x] G5_LEAD_NORMALIZER: Phone (+91, 0, Lucknow 0522 STD) and address/PIN normalizer tests
-  CHECK: npx tsx --test tests/leadNormalizer.test.ts
-  STATUS: PASS
-
-- [x] G6_TELEPHONY_AUDIT: Zero-duration fabricated talk-time prevention and UNVERIFIED status under ACTION_DIAL
-  CHECK: npx tsx --test tests/realCallLifecycle.test.ts
-  STATUS: PASS
-
-- [x] G7_WHATSAPP_AUDIT: WhatsApp template rendering, fallback hierarchy, and safety tag removal
-  CHECK: npx tsx --test tests/realTemplateRenderer.test.ts
-  STATUS: PASS
-
-- [x] G8_EXCEL_IMPORT: Real XLSX buffer parsing, auto-column mapping, and duplicate classification
-  CHECK: npx tsx --test tests/realExcelParser.test.ts
-  STATUS: PASS
-
-- [x] G9_BULK_ASSIGNMENT: Scalability testing of bulk lead assignment at 1, 10, 50, and 100+ records in real Dexie
-  CHECK: npx tsx --test tests/syncOutboxQueue.test.ts
-  STATUS: PASS
-
-- [x] G10_BACKUP_RESTORE: Real backup payload generation, JSON validation, and Last-Write-Wins merge restore
-  CHECK: npx tsx --test tests/realBackupService.test.ts
-  STATUS: PASS
-
-- [x] G11_SECURITY_SCAN: Absence of leaked service role keys in src/dist, allowBackup=false, search_path=public
-  CHECK: npx tsx --test tests/securitySecretScan.test.ts
-  STATUS: PASS
-
-- [x] G12_VITE_BUILD: Production TypeScript compilation and Vite bundling
-  CHECK: npm run build
-  STATUS: PASS
-
-- [x] G13_RELEASE_APK: Signed production release APK built with external release keystore
-  CHECK: cd android && gradlew assembleRelease
-  STATUS: PASS
-
-- [x] G14_EMULATOR_VERIFIED: Release APK successfully installed and verified on Android emulator
-  CHECK: adb install & dumpsys window check
-  STATUS: ${results['emulator_verification']?.status === 'PASS' ? 'PASS' : 'BLOCKED'}
-
-- [x] G15_FULL_TEST_SUITE: Complete automated test suite passes with 0 failures
-  CHECK: npm test
-  STATUS: PASS
-
-- [x] G16_REAL_POSTGRES_RLS: Real PostgreSQL triggers, foreign keys, and RLS lead isolation verified on Docker stack
-  CHECK: npx tsx --test tests/realSupabasePostgres.test.ts
-  STATUS: PASS
-
-- [x] G17_MULTI_DEVICE_SYNC: Real multi-device synchronization and role-based lead isolation across 3 Android emulators
-  CHECK: npx tsx --test tests/multiDeviceSync.test.ts
-  STATUS: ${results['multi_device_sync']?.status === 'PASS' ? 'PASS' : 'BLOCKED'}
+- G1_DEXIE_OUTBOX: ${statusFor('unit_tests')}
+- G2_PERSISTENCE: ${statusFor('unit_tests')}
+- G3_SUPABASE_MIGRATIONS: ${statusFor('migration_audit')}
+- G4_PRODUCTION_SAFETY: ${statusFor('prod_safety_audit')}
+- G5_LEAD_NORMALIZER: ${statusFor('unit_tests')}
+- G6_TELEPHONY_AUDIT: ${statusFor('unit_tests')}
+- G7_WHATSAPP_AUDIT: ${statusFor('unit_tests')}
+- G8_EXCEL_IMPORT: ${statusFor('unit_tests')}
+- G9_BULK_ASSIGNMENT: ${statusFor('unit_tests')}
+- G10_BACKUP_RESTORE: ${statusFor('unit_tests')}
+- G11_SECURITY_SCAN: ${statusFor('security_scan')}
+- G12_VITE_BUILD: ${statusFor('vite_build')}
+- G13_RELEASE_APK: ${statusFor('android_build', 'apk_integrity')}
+- G14_EMULATOR_VERIFIED: ${statusFor('emulator_verification')}
+- G15_FULL_TEST_SUITE: ${statusFor('unit_tests')}
+- G16_REAL_POSTGRES_RLS: ${statusFor('real_postgres_tests')}
+- G17_MULTI_DEVICE_SYNC: ${statusFor('multi_device_sync')}
 `;
 
   fs.writeFileSync(gatesFile, gatesContent.trim() + '\n', 'utf-8');
@@ -863,7 +841,28 @@ async function runVerificationPipeline() {
   }
 }
 
-runVerificationPipeline().catch((err) => {
-  console.error('Fatal verification error:', err);
-  process.exit(1);
-});
+function runVerificationSelfTest(): void {
+  const nodeCommand = `"${process.execPath}"`;
+  const failedCommand = executeStep(
+    'self_test_failure',
+    'Verifier self-test: intentional command failure',
+    `${nodeCommand} -e "process.exit(7)"`
+  );
+  const successfulCommand = executeStep(
+    'self_test_success',
+    'Verifier self-test: successful command',
+    `${nodeCommand} -e "process.stdout.write('verification-ok')"`
+  );
+
+  process.exitCode =
+    failedCommand.status === 'FAIL' && successfulCommand.status === 'PASS' ? 0 : 1;
+}
+
+if (process.argv.includes('--self-test')) {
+  runVerificationSelfTest();
+} else {
+  runVerificationPipeline().catch((err) => {
+    console.error('Fatal verification error:', err);
+    process.exit(1);
+  });
+}

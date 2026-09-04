@@ -1,0 +1,42 @@
+# Session Persistence Flow
+# Tests that login session persists across app restarts
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+    timeout: 15000
+
+- tapOn: "email-input"
+- inputText: "agent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 10000
+
+- assertVisible:
+    id: "leads-tab"
+
+# Close and relaunch app
+- launchApp:
+    clearState: false
+
+- waitFor:
+    id: "agent-dashboard"
+    timeout: 10000
+
+- assertVisible:
+    id: "leads-tab"
+
+- assertVisible:
+    id: "calls-tab"
+
+- assertNotVisible:
+    id: "login-screen"

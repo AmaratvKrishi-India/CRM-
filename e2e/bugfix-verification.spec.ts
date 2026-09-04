@@ -7,7 +7,7 @@ import { setupAuthMocks, performLogin, MOCK_ADMIN } from './helpers/mockAuth';
  *  - Excel import enqueues outbox items + writes an import audit (bug #1)
  *  - WhatsApp launch uses the E.164 number in wa.me links (bug #4)
  *  - Dashboard "Calls Today" reads callRecords in local time (bugs #5/#12)
- *  - Backup export header is schemaVersion 5 / appVersion 2.0.0 and includes
+ *  - Backup export header is schemaVersion 6 / appVersion 2.0.0 and includes
  *    outbox, syncState, bulkAssignmentAudits (bugs #6/#17)
  */
 
@@ -21,84 +21,85 @@ interface IdbSnapshot {
 
 async function readIdb(page: Page): Promise<IdbSnapshot> {
   return page.evaluate(
-    () =>
-      new Promise<IdbSnapshot>((resolve, reject) => {
-        const openReq = indexedDB.open('AmaratvSalesCRM');
-        openReq.onerror = () => reject(openReq.error);
-        openReq.onsuccess = async () => {
-          const idb = openReq.result;
-          const getAll = (name: string) =>
-            new Promise<any[]>((res, rej) => {
-              const tx = idb.transaction(name, 'readonly');
-              const rq = tx.objectStore(name).getAll();
-              rq.onsuccess = () => res(rq.result);
-              rq.onerror = () => rej(rq.error);
-            });
-          try {
-            const [leads, outbox, importAudits, messageHistory, callRecords] = await Promise.all([
-              getAll('leads'),
-              getAll('outbox'),
-              getAll('importAudits'),
-              getAll('messageHistory'),
-              getAll('callRecords'),
-            ]);
-            resolve({ leads, outbox, importAudits, messageHistory, callRecords });
-          } catch (err) {
-            reject(err);
-          }
-        };
-      })
+    async () => {
+      const database = (await indexedDB.databases()).find((item) => item.name?.startsWith('AmaratvSalesCRM__'));
+      if (!database?.name) throw new Error('Scoped CRM database was not created.');
+      const idb = await new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open(database.name!);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      });
+      const getAll = (name: string) => new Promise<any[]>((resolve, reject) => {
+        const tx = idb.transaction(name, 'readonly');
+        const request = tx.objectStore(name).getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const [leads, outbox, importAudits, messageHistory, callRecords] = await Promise.all([
+        getAll('leads'),
+        getAll('outbox'),
+        getAll('importAudits'),
+        getAll('messageHistory'),
+        getAll('callRecords'),
+      ]);
+      idb.close();
+      return { leads, outbox, importAudits, messageHistory, callRecords };
+    }
   );
 }
 
 async function seedCallRecord(page: Page): Promise<string | null> {
   return page.evaluate(
-    () =>
-      new Promise<string | null>((resolve, reject) => {
-        const openReq = indexedDB.open('AmaratvSalesCRM');
-        openReq.onerror = () => reject(openReq.error);
-        openReq.onsuccess = () => {
-          const idb = openReq.result;
-          const tx = idb.transaction('leads', 'readonly');
-          const cursorReq = tx.objectStore('leads').openCursor();
-          cursorReq.onerror = () => reject(cursorReq.error);
-          cursorReq.onsuccess = () => {
-            const cursor = cursorReq.result;
-            if (!cursor) {
-              resolve(null);
-              return;
-            }
-            const lead = cursor.value;
-            const now = new Date().toISOString();
-            const rec = {
-              id: `verify-call-${Date.now()}`,
-              leadId: lead.id,
-              userId: 'usr-admin-001',
-              deviceId: null,
-              startedAt: now,
-              answeredAt: now,
-              endedAt: now,
-              durationSeconds: 42,
-              outcome: 'INTERESTED',
-              remark: 'Browser verification call',
-              verificationStatus: 'UNVERIFIED',
-              createdAt: now,
-              updatedAt: now,
-              isSynced: 0,
-              deletedAt: null,
-            };
-            const wTx = idb.transaction('callRecords', 'readwrite');
-            const putReq = wTx.objectStore('callRecords').add(rec);
-            putReq.onsuccess = () => resolve(lead.id);
-            putReq.onerror = () => reject(putReq.error);
-          };
-        };
-      })
+    async () => {
+      const database = (await indexedDB.databases()).find((item) => item.name?.startsWith('AmaratvSalesCRM__'));
+      if (!database?.name) throw new Error('Scoped CRM database was not created.');
+      const idb = await new Promise<IDBDatabase>((resolve, reject) => {
+        const req = indexedDB.open(database.name!);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => resolve(req.result);
+      });
+      const lead = await new Promise<any | null>((resolve, reject) => {
+        const tx = idb.transaction('leads', 'readonly');
+        const request = tx.objectStore('leads').openCursor();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result?.value ?? null);
+      });
+      if (!lead) {
+        idb.close();
+        return null;
+      }
+      const now = new Date().toISOString();
+      const rec = {
+        id: `verify-call-${Date.now()}`,
+        leadId: lead.id,
+        userId: 'usr-admin-001',
+        deviceId: null,
+        startedAt: now,
+        answeredAt: now,
+        endedAt: now,
+        durationSeconds: 42,
+        outcome: 'INTERESTED',
+        remark: 'Browser verification call',
+        verificationStatus: 'UNVERIFIED',
+        createdAt: now,
+        updatedAt: now,
+        isSynced: 0,
+        deletedAt: null,
+      };
+      await new Promise<void>((resolve, reject) => {
+        const tx = idb.transaction('callRecords', 'readwrite');
+        const request = tx.objectStore('callRecords').add(rec);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+      idb.close();
+      return lead.id;
+    }
   );
 }
 
 test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => {
-  test('import enqueues outbox + audit; WA uses E.164; calls-today counts callRecords; backup header v5', async ({
+  test('import enqueues outbox + audit; WA uses E.164; calls-today counts callRecords; backup header v6', async ({
     page,
   }) => {
     test.setTimeout(240_000);
@@ -224,7 +225,7 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
     expect(downloadPath).toBeTruthy();
 
     const payload = JSON.parse(fs.readFileSync(downloadPath as string, 'utf8'));
-    expect(payload.schemaVersion).toBe(5);
+    expect(payload.schemaVersion).toBe(6);
     expect(payload.appVersion).toBe('2.0.0');
     expect(Array.isArray(payload.data.outbox)).toBeTruthy();
     expect(Array.isArray(payload.data.syncState)).toBeTruthy();

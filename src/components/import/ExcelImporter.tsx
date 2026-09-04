@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -12,12 +11,16 @@ import {
   Check,
 } from 'lucide-react';
 import { db } from '../../db/database';
-import {
-  ExcelParserService,
+import type {
   ParseResult,
   ColumnMapping,
   RecordValidationStatus,
   ImportExecutionSummary,
+  SpreadsheetWorkbook,
+} from '../../services/excelParser';
+import {
+  ExcelParserService,
+  IMPORT_LIMITS,
 } from '../../services/excelParser';
 import { BUNDLED_LUCKNOW_DATASET } from '../../services/sampleData';
 import { ImportStatsCard } from './ImportStatsCard';
@@ -42,7 +45,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
 }) => {
   const [step, setStep] = useState<ImportStep>('UPLOAD');
   const [loadingFile, setLoadingFile] = useState(false);
-  const [activeWorkbook, setActiveWorkbook] = useState<XLSX.WorkBook | null>(null);
+  const [activeWorkbook, setActiveWorkbook] = useState<SpreadsheetWorkbook | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
@@ -62,29 +65,33 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
   /**
    * Processes a raw ArrayBuffer file into an active workbook and parses default sheet.
    */
-  const processWorkbookBuffer = async (buffer: ArrayBuffer, name: string) => {
+  const processWorkbook = async (workbook: SpreadsheetWorkbook, name: string) => {
     setLoadingFile(true);
     setErrorMessage(null);
     try {
-      const wb = ExcelParserService.readWorkbook(buffer);
-      if (wb.SheetNames.length === 0) {
+      if (workbook.sheets.length === 0) {
         throw new Error('The selected workbook contains no sheets.');
       }
 
-      const defaultSheet = wb.SheetNames.includes('Data') ? 'Data' : wb.SheetNames[0];
-      setActiveWorkbook(wb);
+      const defaultSheet = workbook.sheets.some((sheet) => sheet.name === 'Data') ? 'Data' : workbook.sheets[0].name;
+      setActiveWorkbook(workbook);
       setFileName(name);
       setSelectedSheet(defaultSheet);
 
-      const result = await ExcelParserService.parseSheet(wb, defaultSheet, db, undefined, name);
+      const result = await ExcelParserService.parseSheet(workbook, defaultSheet, db, undefined, name);
       setParseResult(result);
       setStep('PREVIEW');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to parse workbook:', err);
-      setErrorMessage(err.message || 'Failed to read Excel file. Please ensure it is a valid .xlsx or .xls file.');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to read the spreadsheet safely.');
     } finally {
       setLoadingFile(false);
     }
+  };
+
+  const processWorkbookBuffer = async (buffer: ArrayBuffer, name: string) => {
+    const workbook = await ExcelParserService.readWorkbook(buffer, name);
+    await processWorkbook(workbook, name);
   };
 
   /**
@@ -94,8 +101,16 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
-    const buffer = await file.arrayBuffer();
-    await processWorkbookBuffer(buffer, file.name);
+    if (file.size > IMPORT_LIMITS.maxFileSizeBytes) {
+      setErrorMessage(`The file exceeds the ${IMPORT_LIMITS.maxFileSizeBytes / 1024 / 1024} MB upload limit.`);
+      return;
+    }
+    try {
+      const buffer = await file.arrayBuffer();
+      await processWorkbookBuffer(buffer, file.name);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to read the spreadsheet safely.');
+    }
   };
 
   /**
@@ -104,13 +119,10 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
   const handleLoadSampleDataset = async () => {
     setLoadingFile(true);
     try {
-      const ws = XLSX.utils.json_to_sheet(BUNDLED_LUCKNOW_DATASET);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Data');
-      const wbOut = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      await processWorkbookBuffer(wbOut, 'Lucknow_Gyms_Crawler_Dataset.xlsx');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to load sample dataset.');
+      const workbook = ExcelParserService.createWorkbookFromRows(BUNDLED_LUCKNOW_DATASET, 'Data');
+      await processWorkbook(workbook, 'Lucknow_Gyms_Crawler_Dataset.xlsx');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to load sample dataset.');
     } finally {
       setLoadingFile(false);
     }
@@ -126,8 +138,8 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
     try {
       const result = await ExcelParserService.parseSheet(activeWorkbook, sheetName, db, undefined, fileName);
       setParseResult(result);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to parse sheet.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to parse sheet safely.');
     } finally {
       setLoadingFile(false);
     }
@@ -147,8 +159,8 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
         fileName
       );
       setParseResult(result);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update mapping.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update mapping safely.');
     }
   };
 
@@ -173,9 +185,9 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
 
       setFinalSummary(summary);
       setStep('SUMMARY');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Import failed:', err);
-      setErrorMessage(err.message || 'An error occurred while importing leads.');
+      setErrorMessage(err instanceof Error ? err.message : 'An error occurred while importing leads.');
       setStep('PREVIEW');
     }
   };
@@ -282,7 +294,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".xlsx,.xls,.csv"
+                   accept=".xlsx,.csv"
                   onChange={handleFileChange}
                   className="hidden"
                   tabIndex={-1}
@@ -297,7 +309,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                 </div>
                 <h3 className="text-base font-bold mb-1">Select Excel Lead Sheet</h3>
                 <p className="text-sm text-soft mb-4 max-w-xs mx-auto">
-                  Tap to choose a <code>.xlsx</code> or <code>.xls</code> file from your device storage.
+                   Tap to choose a <code>.xlsx</code> or <code>.csv</code> file from your device storage.
                 </p>
                 <button
                   type="button"
@@ -459,10 +471,19 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                 aria-label="Import progress"
                 className="w-full bg-inset rounded-full h-3 overflow-hidden"
               >
-                <div
-                  className="bg-accent h-full transition-all duration-150 rounded-full"
-                  style={{ width: `${importProgress.percent}%` }}
-                />
+                <svg
+                  aria-hidden="true"
+                  className="block w-full h-full transition-all duration-150"
+                  viewBox="0 0 100 1"
+                  preserveAspectRatio="none"
+                >
+                  <rect
+                    width={Math.max(0, Math.min(100, importProgress.percent))}
+                    height="1"
+                    rx="0.5"
+                    className="fill-accent"
+                  />
+                </svg>
               </div>
 
               <div className="flex justify-between text-sm text-soft font-medium" aria-live="polite">

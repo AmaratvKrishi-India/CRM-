@@ -7,8 +7,8 @@
 
 import React from 'react';
 import { Filter, Download } from 'lucide-react';
-import { ReportDatePreset, ReportFilterOptions } from '../../../services/adminReportsService';
-import { User } from '../../../db/types';
+import type { ReportDatePreset, ReportFilterOptions } from '../../../services/adminReportsService';
+import type { User } from '../../../db/types';
 
 interface ReportFilterBarProps {
   filters: ReportFilterOptions;

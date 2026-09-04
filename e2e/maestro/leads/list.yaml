@@ -1,0 +1,55 @@
+# Leads List - View and Navigate
+# Tests viewing the leads list as an agent
+
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- waitFor:
+    id: "login-screen"
+
+- tapOn: "email-input"
+- inputText: "agent@test.com"
+- tapOn: "password-input"
+- inputText: "testpassword"
+- tapOn: "login-button"
+
+- waitFor:
+    id: "agent-dashboard"
+
+- tapOn:
+    id: "leads-tab"
+
+- waitFor:
+    id: "leads-list"
+    timeout: 5000
+
+- assertVisible:
+    id: "leads-list"
+
+- # Verify lead items are visible
+- assertVisible:
+    id: "lead-item-0"
+
+- # Tap on a lead to view details
+- tapOn:
+    id: "lead-item-0"
+
+- waitFor:
+    id: "lead-detail"
+    timeout: 3000
+
+- assertVisible:
+    id: "lead-name"
+
+- assertVisible:
+    id: "lead-phone"
+
+- # Go back
+- tapOn:
+    id: "back-button"
+
+- waitFor:
+    id: "leads-list"

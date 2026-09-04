@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Calendar,
   Clock,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   Tag,
@@ -10,7 +9,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { crmData } from '../../db';
-import { FollowUp, FollowUpPriority, Lead } from '../../db/types';
+import type { FollowUp, FollowUpPriority, Lead } from '../../db/types';
 import { NativePlatformService } from '../../services/nativePlatform';
 import { Modal } from '../common/Modal';
 import { labelFor } from '../../lib/labels';

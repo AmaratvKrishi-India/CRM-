@@ -75,15 +75,15 @@ const TEST_SUITES: TestSuite[] = [
   {
     name: 'unit-tests',
     command: 'npx',
-    args: ['vitest', 'run', '--reporter=json', '--outputFile=test-results/unit.json'],
+    args: ['vitest', 'run', '--exclude', 'tests/integration/**', '--reporter=json', '--outputFile=test-results/unit.json'],
     outputFile: 'test-results/unit.json',
     required: true,
     timeout: 120000,
   },
   {
     name: 'type-tests',
-    command: 'npx',
-    args: ['tsd'],
+    command: 'npm',
+    args: ['run', 'test:type'],
     outputFile: 'test-results/type-tests.json',
     required: true,
     timeout: 60000,
@@ -91,7 +91,7 @@ const TEST_SUITES: TestSuite[] = [
   {
     name: 'integration-tests',
     command: 'npx',
-    args: ['vitest', 'run', 'tests/integration', '--reporter=json', '--outputFile=test-results/integration.json'],
+    args: ['vitest', 'run', 'tests/integration', '--no-file-parallelism', '--reporter=json', '--outputFile=test-results/integration.json'],
     outputFile: 'test-results/integration.json',
     required: true,
     timeout: 180000,
@@ -99,40 +99,40 @@ const TEST_SUITES: TestSuite[] = [
   {
     name: 'e2e-tests',
     command: 'npx',
-    args: ['maestro', 'test', 'e2e/maestro', '--format', 'junit', '--output', 'test-results/e2e.xml'],
-    outputFile: 'test-results/e2e.xml',
+    args: ['playwright', 'test', '--project=chromium'],
+    outputFile: 'test-results/playwright-junit.xml',
     required: true,
     timeout: 300000,
   },
   {
     name: 'visual-tests',
     command: 'npx',
-    args: ['lost-pixel', '--reporter=junit', '--output=test-results/visual.xml'],
-    outputFile: 'test-results/visual.xml',
+    args: ['playwright', 'test', 'e2e/visual-regression.spec.ts', '--project=chromium'],
+    outputFile: 'playwright-report/index.html',
     required: false,
-    timeout: 180000,
+    timeout: 240000,
   },
   {
     name: 'performance-tests',
-    command: 'npx',
-    args: ['tsx', 'scripts/load-test.ts', '--output=test-results/load-test.json'],
-    outputFile: 'test-results/load-test.json',
+    command: 'npm',
+    args: ['run', 'test:perf:bundle'],
+    outputFile: 'test-results/bundle-analysis/bundle-analysis.json',
     required: false,
     timeout: 120000,
   },
   {
     name: 'accessibility-tests',
     command: 'npx',
-    args: ['tsx', 'scripts/accessibility-runtime-test.ts', '--output=test-results/a11y-runtime.json'],
-    outputFile: 'test-results/a11y-runtime.json',
+    args: ['playwright', 'test', 'e2e/accessibility.spec.ts', '--project=chromium'],
+    outputFile: 'playwright-report/index.html',
     required: true,
-    timeout: 120000,
+    timeout: 240000,
   },
   {
     name: 'security-tests',
-    command: 'npx',
-    args: ['tsx', 'scripts/security-deps-test.ts', '--output=test-results/security.json'],
-    outputFile: 'test-results/security.json',
+    command: 'npm',
+    args: ['audit', '--audit-level=high', '--json'],
+    outputFile: 'test-results/unified-report.json',
     required: true,
     timeout: 180000,
   },
@@ -173,7 +173,7 @@ async function runTestSuite(suite: TestSuite): Promise<TestResult> {
 
       // Parse coverage for unit tests
       let coverage: CoverageSummary | undefined;
-      if (suite.name === 'unit-tests' && existsSync('coverage/coverage-summary.json')) {
+      if (suite.name === 'unit-tests' && suite.args.includes('--coverage') && existsSync('coverage/coverage-summary.json')) {
         try {
           coverage = JSON.parse(readFileSync('coverage/coverage-summary.json', 'utf8')).total;
         } catch {
@@ -268,7 +268,7 @@ async function main(): Promise<void> {
     .option('--skip <suites>', 'Comma-separated list of suites to skip', '')
     .option('-o, --output <file>', 'Output report file', 'test-results/unified-report.json')
     .option('--fail-fast', 'Stop on first failure', false)
-    .option('--no-quality-gate', 'Skip quality gate evaluation', false)
+    .option('--no-quality-gate', 'Skip quality gate evaluation')
     .parse(process.argv);
 
   const options = program.opts();

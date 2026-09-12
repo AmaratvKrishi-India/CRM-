@@ -13,7 +13,7 @@ import { pruneLeadData } from '../../db/pruning';
 import type { Lead } from '../../db/types';
 import { SyncConflictResolver } from './syncConflictResolver';
 import type { SyncEntityType, SyncConflict} from './syncTypes';
-import { type SyncRunGuard } from './syncTypes';
+import { parseRevisionCursor, revisionCursor, serverRevision, type SyncRunGuard } from './syncTypes';
 
 export class SyncPull {
   private database?: SalesCRMDatabase;
@@ -58,6 +58,7 @@ export class SyncPull {
       updatedAt: row.updated_at || new Date().toISOString(),
       deletedAt: row.deleted_at || null,
       isSynced: 1,
+      serverRevision: serverRevision(row),
     };
 
     switch (entityType) {
@@ -179,6 +180,7 @@ export class SyncPull {
           createdAt: base.createdAt,
           updatedAt: base.updatedAt,
           isSynced: 1,
+          serverRevision: base.serverRevision,
         };
 
       case 'profiles':
@@ -211,6 +213,7 @@ export class SyncPull {
           createdAt: base.createdAt,
           updatedAt: base.updatedAt,
           isSynced: 1,
+          serverRevision: base.serverRevision,
         };
 
       default:
@@ -218,92 +221,50 @@ export class SyncPull {
     }
   }
 
-  /**
-   * Pulls incremental records for an entity table since cursor.
-   * Uses inclusive (gte) semantics on the shared timestamp cursor plus keyset
-   * pagination on (updated_at, id) within a run, so rows sharing a boundary
-   * timestamp are never skipped. Boundary rows may be re-fetched and are
-   * reconciled idempotently.
-   */
+  /** Page one entity inside a committed, organization-wide revision window. */
   async pullEntityChanges(
-    client: SupabaseClient,
-    entityType: SyncEntityType,
-    sinceCursor: string | null,
-    guard?: SyncRunGuard
+    client: SupabaseClient, entityType: SyncEntityType, sinceCursor: string | null,
+    guard?: SyncRunGuard, untilRevision?: number
   ): Promise<{ records: any[]; newestTimestamp: string | null }> {
     const scope = this.getDatabase().requireAccessScope();
-    const pageSize = 500;
-    let allRecords: any[] = [];
-    // Keyset cursor within this run: last row's (updated_at, id).
-    let keysetTs: string | null = null;
-    let keysetId: string | null = null;
-    let isFirstPage = true;
-    let hasMore = true;
-    let newestTimestamp: string | null = null;
-    const seenIds = new Set<string>();
-
-    while (hasMore) {
+    const lower = parseRevisionCursor(sinceCursor);
+    const headResult = untilRevision === undefined ? await client.rpc('sync_head') : null;
+    if (headResult?.error) throw new Error(headResult.error.message);
+    const head = untilRevision ?? headResult?.data;
+    if (!Number.isSafeInteger(head) || head < lower) throw new Error('Invalid server revision head; cursor retained.');
+    const records: any[] = [];
+    let afterRevision: number | undefined;
+    let afterId: string | undefined;
+    while (true) {
       guard?.();
-      let query = client
-        .from(entityType)
-        .select('*')
+      let query = client.from(entityType).select('*')
         .eq('organization_id', scope.organizationId)
-        .order('updated_at', { ascending: true })
-        .order('id', { ascending: true })
-        .limit(pageSize);
-
-      if (!isFirstPage && keysetTs && keysetId) {
-        // (updated_at > ts) OR (updated_at = ts AND id > lastId)
-        query = query.or(
-          `updated_at.gt."${keysetTs}",and(updated_at.eq."${keysetTs}",id.gt."${keysetId}")`
-        );
-      } else if (isFirstPage && sinceCursor) {
-        // Inclusive: re-fetch boundary-timestamp rows rather than skipping them.
-        query = query.gte('updated_at', sinceCursor);
+        .gte('sync_revision', lower).lte('sync_revision', head)
+        .order('sync_revision', { ascending: true }).order('id', { ascending: true }).limit(500);
+      if (afterRevision !== undefined && afterId) {
+        query = query.or(`sync_revision.gt.${afterRevision},and(sync_revision.eq.${afterRevision},id.gt."${afterId}")`);
       }
-
       if (scope.role === 'AGENT' && entityType === 'leads') {
         query = query.or(`assigned_to.eq.${scope.userId},created_by.eq.${scope.userId}`);
-      } else if (scope.role === 'AGENT' && entityType === 'profiles') {
-        query = query.eq('id', scope.userId);
-      } else if (scope.role === 'AGENT' && entityType === 'import_audits') {
-        query = query.eq('uploaded_by', scope.userId);
-      }
-
+      } else if (scope.role === 'AGENT' && entityType === 'profiles') query = query.eq('id', scope.userId);
+      else if (scope.role === 'AGENT' && entityType === 'import_audits') query = query.eq('uploaded_by', scope.userId);
       const { data, error } = await query;
       guard?.();
-      if (error) {
-        throw new Error(`Failed to pull ${entityType}: ${error.message}`);
-      }
-
+      if (error) throw new Error(`Failed to pull ${entityType}: ${error.message}`);
       const rows = data || [];
-      isFirstPage = false;
-
       for (const row of rows) {
-        if (row.id && seenIds.has(row.id)) continue;
-        if (row.id) seenIds.add(row.id);
-        allRecords.push(row);
+        const revision = serverRevision(row);
+        if (revision === undefined || revision < lower || revision > head ||
+            row.organization_id !== scope.organizationId) throw new Error('Invalid revision-window row.');
+        records.push(row);
       }
-
-      if (rows.length > 0) {
-        const lastRow = rows[rows.length - 1];
-        const rowTimestamp = lastRow.updated_at || lastRow.created_at || null;
-
-        if (rowTimestamp && lastRow.id) {
-          keysetTs = rowTimestamp;
-          keysetId = lastRow.id;
-          if (!newestTimestamp || new Date(rowTimestamp).getTime() > new Date(newestTimestamp).getTime()) {
-            newestTimestamp = rowTimestamp;
-          }
-        }
-      }
-
-      if (rows.length < pageSize) {
-        hasMore = false;
-      }
+      if (rows.length < 500) break;
+      const last = rows[rows.length - 1];
+      if (afterRevision === last.sync_revision && afterId === last.id) throw new Error('Sync page made no progress.');
+      afterRevision = last.sync_revision;
+      afterId = last.id;
     }
-
-    return { records: allRecords, newestTimestamp };
+    return { records, newestTimestamp: revisionCursor(head) };
   }
 
   /**
@@ -338,16 +299,17 @@ export class SyncPull {
 
     let totalPulled = 0;
     const allConflicts: SyncConflict[] = [];
-    let maxCursor: string | null = sinceCursor;
+    const { data: head, error: headError } = await client.rpc('sync_head');
+    guard?.();
+    if (headError) throw new Error(headError.message);
+    if (!Number.isSafeInteger(head) || head < parseRevisionCursor(sinceCursor)) throw new Error('Invalid server revision head.');
+    const maxCursor = revisionCursor(head);
 
     for (const entityType of entities) {
       guard?.();
-      const { records, newestTimestamp } = await this.pullEntityChanges(client, entityType, sinceCursor, guard);
+      const { records } = await this.pullEntityChanges(client, entityType, sinceCursor, guard, head);
       if (records.length === 0) continue;
 
-      if (newestTimestamp && (!maxCursor || new Date(newestTimestamp).getTime() > new Date(maxCursor).getTime())) {
-        maxCursor = newestTimestamp;
-      }
 
       // Reconcile into Dexie
       const tableMap: Record<SyncEntityType, any> = {
@@ -366,7 +328,9 @@ export class SyncPull {
       if (!table) continue;
 
       for (const row of records) {
+        await db.transaction('rw', db.tables, async () => {
         guard?.();
+        db.markRemoteSyncWrites();
         const transformed = SyncPull.transformFromPgRecord(entityType, row);
         const existingLocal = await table.get(transformed.id);
         const authorized = await this.isAuthorizedRecord(scope, entityType, row, transformed);
@@ -376,15 +340,13 @@ export class SyncPull {
           } else if (existingLocal) {
             await table.delete(transformed.id);
           }
-          continue;
+          return;
         }
         totalPulled++;
 
-        if (entityType === 'leads' && transformed.deletedAt) {
-          await pruneLeadData(db, [transformed.id], scope);
-          continue;
-        }
-
+        // An authorized archive remains restorable and keeps its history.
+        // Apply its revision like an ordinary update; revocation and physical
+        // deletion use the separate pruning paths.
         if (entityType === 'call_records') {
           const res = SyncConflictResolver.resolveCallRecord(existingLocal, transformed);
           if (res.winner === 'REMOTE') {
@@ -407,12 +369,13 @@ export class SyncPull {
             allConflicts.push(res.conflict);
           }
         }
+        });
       }
     }
 
     // Incremental RLS results cannot describe a lead that has just been
     // reassigned away from an agent. Compare against an authoritative,
-    // paginated set of currently visible lead IDs after every successful pull.
+    // paginated set of authorized lead IDs, including archives, after each pull.
     if (scope.role === 'AGENT') {
       const visibleIds = new Set<string>();
       const pageSize = 1000;
@@ -423,7 +386,6 @@ export class SyncPull {
           .from('leads')
           .select('id, organization_id')
           .eq('organization_id', scope.organizationId)
-          .is('deleted_at', null)
           .or(`assigned_to.eq.${scope.userId},created_by.eq.${scope.userId}`)
           .range(from, from + pageSize - 1);
         guard?.();

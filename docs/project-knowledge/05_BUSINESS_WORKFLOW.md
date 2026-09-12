@@ -1,4 +1,8 @@
-# 05 - BUSINESS WORKFLOW
+# 05 — Business Workflow
+
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** feature components, repositories, services, and [01_PROJECT_OVERVIEW.md](./01_PROJECT_OVERVIEW.md)
 
 This document outlines the end-to-end business workflow and operational lifecycle of the Amaratv Krishi Field Sales CRM. It covers everything from lead ingestion to execution, follow-ups, and final synchronization.
 
@@ -22,7 +26,7 @@ This document outlines the end-to-end business workflow and operational lifecycl
 - **Dialing**: The Agent taps on a lead to initiate a call. The native phone dialer opens via Capacitor using a `tel:` intent.
 - **Lifecycle Tracking**: `CallLifecycleService` tracks the telephony state machine (`IDLE` -> `DIALING` -> `OUTCOME_PENDING`).
 - **Outcome Prompt**: Once the call concludes and the app resumes, the `CallOutcomeModal` prompts the agent to record the result of the call.
-- **Duration Tracking**: The call outcome is logged, and the exact call duration is tracked. **VERIFIED** duration is computed based on the app resume time differential.
+- **Duration Tracking**: The app records the call attempt and outcome without fabricating talk time. App pause/resume timing is lifecycle evidence only; it does **not** make a duration VERIFIED. A call remains `UNVERIFIED` with zero verified duration unless trusted/native telephony evidence provides a verified duration; any device-reported estimate is stored separately as `reportedDurationSeconds`.
 
 ## 4. Outcome Processing & State Machine
 - **Pipeline Mapping**: The recorded outcome is mapped to a Pipeline Status via `callOutcomeMapping.ts`. Standard mappings include:
@@ -43,7 +47,7 @@ This document outlines the end-to-end business workflow and operational lifecycl
 - **Composition**: The `WhatsAppComposeModal` opens, presenting templated messaging options.
 - **Template Rendering**: `TemplateRenderer` dynamically replaces variables like `{{businessName}}` or `{{contactName}}` with actual lead data.
 - **Attachments**: An optional catalogue PDF can be attached based on the `AppSettings` default configuration.
-- **Execution**: The app deep links to the native WhatsApp application using the `whatsapp://send` URI scheme.
+- **Execution**: Text-only outreach opens the WhatsApp web/deep-link target built as `https://wa.me/<number>?text=...`. Attachment flows use the native Capacitor Share sheet so the catalogue and message can be handed to an installed compatible app without relying on a `whatsapp://` URI.
 - **Logging**: `MessageHistory` logs the outreach attempt, including the template used and timestamp.
 
 ## 7. Synchronization & Cloud Audit

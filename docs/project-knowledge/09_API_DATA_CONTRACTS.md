@@ -1,320 +1,98 @@
-# 09 - API & DATA CONTRACTS
+# 09 — API and Data Contracts
 
-This document outlines the core domain types, the Supabase REST API schema, Sync Data Flow, and Realtime Events used within the Amaratv Krishi Field Sales CRM.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `src/db/types.ts`, `src/services/sync/syncTypes.ts`, sync/realtime services, the `create-agent` Edge Function, and all 14 SQL migrations
 
-## TypeScript Domain Types
+This document describes the current contract boundaries between the TypeScript client, account-scoped Dexie storage, Supabase/Postgres, Realtime, and privileged agent provisioning.
 
-The application relies on strong TypeScript typing to ensure consistency across the local Dexie database and the remote Supabase database. The primary types are defined in [`types.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/db/types.ts).
+## Core domain unions
 
-### Enums/Union Types
+Important current unions include:
 
-- **UserRole**: `'ADMIN' | 'AGENT'`
-- **UserStatus**: `'ACTIVE' | 'INACTIVE'`
-- **LeadStatus**: `'NEW' | 'CONTACTED' | 'INTERESTED' | 'SAMPLE_REQUESTED' | 'FOLLOW_UP' | 'NEGOTIATION' | 'CUSTOMER' | 'NOT_INTERESTED' | 'WRONG_NUMBER' | 'DO_NOT_CONTACT'`
-- **PhoneType**: `'mobile' | 'landline' | 'invalid'`
-- **CallOutcome**: `'CONNECTED' | 'BUSY' | 'NO_ANSWER' | 'WRONG_NUMBER' | 'CALLBACK_REQUESTED' | 'INVALID_NUMBER' | 'OTHER'`
-- **CallVerificationStatus**: `'VERIFIED' | 'UNVERIFIED'`
-- **CallRecordStatus**: `'DIAL_ATTEMPT' | 'CONNECTED' | 'NOT_CONNECTED' | 'CANCELLED' | 'UNKNOWN'`
-- **FollowUpPriority**: `'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'`
-- **FollowUpStatus**: `'PENDING' | 'COMPLETED' | 'MISSED' | 'CANCELLED'`
-- **MessageChannel**: `'WHATSAPP' | 'SMS'`
-- **MessageStatus**: `'INITIATED' | 'SENT' | 'FAILED'`
-- **TemplateCategory**: `'INTRO' | 'SAMPLE_OFFER' | 'FOLLOW_UP' | 'PRICING' | 'RE_ENGAGE'`
-- **RemarkType**: `'PREDEFINED' | 'CUSTOM'`
-- **ActivityType**: `'LEAD_CREATED' | 'LEAD_IMPORTED' | 'LEAD_ASSIGNED' | 'LEAD_REASSIGNED' | 'LEAD_UNASSIGNED' | 'CALL_STARTED' | 'CALL_INITIATED' | 'CALL_COMPLETED' | 'CALL_CANCELLED' | 'CALL_OUTCOME_LOGGED' | 'REMARK_ADDED' | 'WHATSAPP_INITIATED' | 'WHATSAPP_FAILED' | 'FOLLOW_UP_CREATED' | 'FOLLOW_UP_COMPLETED' | 'FOLLOW_UP_CANCELLED' | 'FOLLOW_UP_RESCHEDULED' | 'STATUS_CHANGED' | 'LEAD_UPDATED' | 'AGENT_CREATED' | 'AGENT_UPDATED' | 'AGENT_ACTIVATED' | 'AGENT_DEACTIVATED' | 'AGENT_DELETED' | 'BULK_ASSIGNMENT_EXECUTED'`
-- **SyncEntityType**: `'leads' | 'call_records' | 'activities' | 'remarks' | 'follow_ups' | 'message_history' | 'import_audits' | 'profiles' | 'bulk_assignment_audits'`
-- **SyncOperation**: `'CREATE' | 'UPDATE' | 'DELETE'`
-- **OutboxStatus**: `'PENDING' | 'SYNCING' | 'SYNCED' | 'FAILED'`
-- **SyncEngineStatus**: `'SYNCED' | 'SYNCING' | 'OFFLINE' | 'PENDING' | 'ERROR' | 'AUTH_REQUIRED'`
+- `UserRole`: `ADMIN | AGENT`
+- `UserStatus`: `ACTIVE | INACTIVE`
+- `CallVerificationStatus`: `VERIFIED | UNVERIFIED`
+- `CallRecordStatus`: `DIAL_ATTEMPT | CONNECTED | NOT_CONNECTED | CANCELLED | UNKNOWN`
+- `SyncOperation`: `CREATE | UPDATE | DELETE`
+- `OutboxStatus`: `PENDING | SYNCING | SYNCED | FAILED | DEAD_LETTER`
+- `SyncEngineStatus`: `SYNCED | SYNCING | OFFLINE | PENDING | ERROR | AUTH_REQUIRED`
 
-### Core Interfaces
+For complete lead status, activity type, message/template, remark, and follow-up unions, use `src/db/types.ts`; copied enum lists in prose are not authoritative when source changes.
 
-#### `Lead`
-- `id`: `string`
-- `businessName`: `string`
-- `category`: `string`
-- `phone`: `string`
-- `phoneRaw`: `string`
-- `phoneE164`: `string`
-- `phoneType`: `PhoneType`
-- `alternatePhone`: `string | null`
-- `contactPerson`: `string | null`
-- `address`: `string`
-- `locality`: `string`
-- `pincode`: `string`
-- `city`: `string`
-- `state`: `string`
-- `website`: `string | null`
-- `rating`: `number | null`
-- `reviewCount`: `number | null`
-- `source`: `string`
-- `sourceFile`: `string | null`
-- `sourceRow`: `number | null`
-- `status`: `LeadStatus`
-- `customNotes`: `string`
-- `lastContactedAt`: `string | null`
-- `nextFollowUpAt`: `string | null`
-- `callCount`: `number`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `syncedAt`: `string | null`
-- `deletedAt`: `string | null`
-- `createdBy`: `string | null | undefined`
-- `assignedTo`: `string | null | undefined`
-- `updatedBy`: `string | null | undefined`
-- `version`: `number | undefined`
+## Synchronized entity set
 
-#### `User`
-- `id`: `string`
-- `organizationId`: `string | null | undefined`
-- `name`: `string`
-- `email`: `string`
-- `phone`: `string`
-- `role`: `UserRole`
-- `status`: `UserStatus`
-- `createdAt`: `string`
-- `createdBy`: `string | null`
-- `updatedAt`: `string`
-- `lastLoginAt`: `string | null`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+The server sync protocol allowlists these 9 entities:
 
-#### `CallRecord`
-- `id`: `string`
-- `leadId`: `string`
-- `userId`: `string`
-- `deviceId`: `string | null`
-- `dialAttemptId`: `string | null | undefined`
-- `startedAt`: `string`
-- `answeredAt`: `string | null`
-- `endedAt`: `string | null`
-- `durationSeconds`: `number`
-- `reportedDurationSeconds`: `number | null | undefined`
-- `outcome`: `CallOutcome`
-- `callStatus`: `CallRecordStatus | undefined`
-- `remark`: `string | null`
-- `verificationStatus`: `CallVerificationStatus`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+`leads`, `call_records`, `activities`, `remarks`, `follow_ups`, `message_history`, `import_audits`, `profiles`, `bulk_assignment_audits`.
 
-#### `CallHistory`
-- `id`: `string`
-- `leadId`: `string`
-- `calledNumber`: `string`
-- `phoneType`: `PhoneType`
-- `startedAt`: `string`
-- `endedAt`: `string | null`
-- `durationSeconds`: `number`
-- `outcome`: `CallOutcome`
-- `notes`: `string | null`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+`organizations` is not a normal outbox entity. Client-only stores such as `messageTemplates` and `callHistory` are not part of the 9-table server mutation allowlist.
+## Server sync metadata
 
-#### `Activity`
-- `id`: `string`
-- `leadId`: `string | null`
-- `userId`: `string`
-- `deviceId`: `string | null`
-- `activityType`: `ActivityType`
-- `metadata`: `Record<string, any>`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+Server-synchronized records carry a monotonic `serverRevision`/`sync_revision`. The client must treat this as server ordering metadata, not a timestamp and not the same thing as the legacy business `version` field.
 
-#### `Remark`
-- `id`: `string`
-- `leadId`: `string`
-- `type`: `RemarkType`
-- `content`: `string`
-- `author`: `string`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+The durable local `OutboxItem` currently includes:
 
-#### `FollowUp`
-- `id`: `string`
-- `leadId`: `string`
-- `userId`: `string | null | undefined`
-- `scheduledAt`: `string`
-- `title`: `string`
-- `notes`: `string | null`
-- `priority`: `FollowUpPriority`
-- `status`: `FollowUpStatus`
-- `completedAt`: `string | null`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+- identity/scope: `id`, `organizationId`, `userId`, `deviceId`, `entityType`, `entityId`;
+- mutation: `operation`, `payload`, `expectedRevision`, `sequence`, `predecessorId`;
+- retry state: `status`, `retryCount`, `lastAttemptAt`, `nextAttemptAt`, `lastError`;
+- conflict evidence: `conflictRemote`;
+- timestamps: `createdAt`, `updatedAt`.
 
-#### `MessageHistory`
-- `id`: `string`
-- `leadId`: `string`
-- `userId`: `string | null | undefined`
-- `channel`: `MessageChannel`
-- `templateId`: `string | null`
-- `recipientPhone`: `string`
-- `messageContent`: `string`
-- `sentStatus`: `MessageStatus`
-- `sentAt`: `string`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+`expectedRevision` captures the mutation base and is never silently rebased. A conflict that requires review is retained as `DEAD_LETTER` with the remote conflict record rather than being overwritten by last-writer-wins behavior.
 
-#### `MessageTemplate`
-- `id`: `string`
-- `title`: `string`
-- `category`: `TemplateCategory`
-- `body`: `string`
-- `isDefault`: `boolean`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+`SyncState` includes `id`, `deviceId`, **both** `organizationId` and `userId`, pull/push timestamps and cursor, last error, and engine status. The state row lives inside the verified account partition.
 
-#### `ImportAudit`
-- `id`: `string`
-- `uploadedBy`: `string`
-- `deviceId`: `string | null`
-- `filename`: `string`
-- `source`: `string`
-- `startedAt`: `string`
-- `completedAt`: `string`
-- `totalRows`: `number`
-- `imported`: `number`
-- `updated`: `number`
-- `duplicates`: `number`
-- `invalid`: `number`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `version`: `number | undefined`
+## Mutation RPC
 
-#### `BulkAssignmentAudit`
-- `id`: `string`
-- `organizationId`: `string | null | undefined`
-- `performedBy`: `string`
-- `targetAgentId`: `string`
-- `selectedLeadCount`: `number`
-- `successfulCount`: `number`
-- `failedCount`: `number`
-- `startedAt`: `string`
-- `completedAt`: `string`
-- `filterSnapshot`: `Record<string, any> | undefined`
-- `status`: `'PENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED'`
-- `errorSummary`: `string | null | undefined`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `isSynced`: `number`
-- `deletedAt`: `string | null`
-- `version`: `number | undefined`
+Client writes use the PostgreSQL RPC:
 
-#### `OutboxItem` (from [`syncTypes.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncTypes.ts))
-- `id`: `string`
-- `organizationId`: `string | null`
-- `userId`: `string`
-- `deviceId`: `string | null`
-- `entityType`: `SyncEntityType`
-- `entityId`: `string`
-- `operation`: `SyncOperation`
-- `payload`: `Record<string, any>`
-- `createdAt`: `string`
-- `updatedAt`: `string`
-- `retryCount`: `number`
-- `lastAttemptAt`: `string | null`
-- `lastError`: `string | null`
-- `status`: `OutboxStatus`
+`sync_mutate(entity, operation, mutation_id, expected_revision, payload)`
 
-#### `SyncState`
-- `id`: `'current'`
-- `deviceId`: `string`
-- `organizationId`: `string | null`
-- `lastSuccessfulSyncAt`: `string | null`
-- `lastPullCursor`: `string | null`
-- `lastPushAt`: `string | null`
-- `lastPullAt`: `string | null`
-- `lastSyncError`: `string | null`
-- `status`: `SyncEngineStatus`
+The RPC validates entity/operation allowlists, organization scope, revision metadata and payload fields. The local outbox UUID is used as `mutation_id`, making a replay of the same request idempotent. Reusing a mutation UUID with different data is rejected.
+Mutation outcomes are server authoritative:
 
-#### `SyncConflict`
-- `id`: `string`
-- `entityType`: `SyncEntityType`
-- `entityId`: `string`
-- `localData`: `Record<string, any>`
-- `remoteData`: `Record<string, any>`
-- `resolution`: `'LOCAL_WON' | 'REMOTE_WON' | 'MERGED'`
-- `resolvedAt`: `string`
+- `APPLIED` — mutation committed or an identical already-applied mutation was replayed.
+- `CONFLICT` — the expected revision/row state does not match the authoritative server state; the client retains the local edit for explicit recovery/review.
 
-#### `SyncResult`
-- `pushedCount`: `number`
-- `pulledCount`: `number`
-- `failedCount`: `number`
-- `conflictsCount`: `number`
-- `durationMs`: `number`
-- `error`: `string | null | undefined`
+Verified call duration is protected server-side: an unverified call mutation cannot downgrade a server record that already has `verification_status='VERIFIED'` and its verified duration.
 
-#### `LeadFilterParams`
-- `searchTerm`: `string | undefined`
-- `status`: `LeadStatus | LeadStatus[] | undefined`
-- `locality`: `string | string[] | undefined`
-- `category`: `string | string[] | undefined`
-- `hasFollowUp`: `boolean | undefined`
-- `followUpDueBefore`: `string | undefined`
-- `assignedTo`: `string | null | undefined`
-- `createdBy`: `string | null | undefined`
-- `includeDeleted`: `boolean | undefined`
-- `limit`: `number | undefined`
-- `offset`: `number | undefined`
-- `sortBy`: `'updatedAt' | 'createdAt' | 'businessName' | 'nextFollowUpAt' | 'lastContactedAt' | undefined`
-- `sortOrder`: `'asc' | 'desc' | undefined`
+## Pull and Realtime
 
-#### `LeadStats`
-- `totalLeads`: `number`
-- `activeLeads`: `number`
-- `statusCounts`: `Record<LeadStatus, number>`
-- `totalCallsLogged`: `number`
-- `pendingFollowUpsCount`: `number`
-- `todayFollowUpsCount`: `number`
+`SyncPull` reads organization-scoped remote changes and converts PostgreSQL `snake_case` records to client `camelCase`. Revisions/cursors prevent older server state from overwriting newer state. Assignment revocation is reconciled by authoritative visible-lead snapshots and local graph pruning.
 
-## Supabase REST API
+Realtime subscribes to `postgres_changes` for all **9 synchronized entity tables**, including `bulk_assignment_audits`. The channel is filtered by `organization_id`; local access-scope checks are applied again before data reaches Dexie. ADMIN can receive organization-authorized audit data; AGENT logic rejects bulk-assignment audit rows and checks parent-lead/identity authorization for other records.
 
-- **Base URL**: `VITE_SUPABASE_URL/rest/v1/`
-- **Auth**: `apikey` header + `Authorization` bearer token
-- **Tables**: `organizations`, `profiles`, `leads`, `call_records`, `activities`, `remarks`, `follow_ups`, `message_history`, `import_audits`, `bulk_assignment_audits`
-- **RPC**: `current_profile_id()`
+Realtime is an acceleration path, not the sole consistency mechanism. Pull/recovery remains authoritative after disconnects, missed events, process restarts, or assignment changes.
 
-## Sync Data Flow
+## Supabase REST/RPC boundary
 
-- **Outbox -> SyncPush**: Triggers a Supabase upsert with a `camelCase` to `snake_case` transform.
-- **Supabase -> SyncPull**: Fetches remote changes into Dexie with a `snake_case` to `camelCase` transform.
-- **Conflict resolution**: Last-Writer-Wins (LWW) with `VERIFIED` call protection (verified calls cannot be overwritten by unverified data).
+Normal table access uses the Supabase client with its public anon key plus the authenticated bearer session, with RLS as the server authorization boundary. Privileged service-role credentials are never part of the browser/Android client contract.
 
-## Realtime Events
+Important callable RPCs include `sync_mutate`, `sync_head`, `sync_was_deleted`, and the safe operational reporting path. Agent provisioning is intentionally **not** a direct client table/Auth-admin operation; it goes through the `create-agent` Edge Function.
 
-Handled via definitions in [`realtimeTypes.ts`](file:///c:/Users/PC/Desktop/calling%20app/src/services/realtime/realtimeTypes.ts).
+## Agent provisioning request
 
-- **Channel**: `postgres_changes` on 8 of the 9 published tables (all except `bulk_assignment_audits`).
-- **Event types**: `INSERT`, `UPDATE`, `DELETE`
-- **Payload**: `RealtimePayload` containing `type`, `table`, and `record` data.
+The current `create-agent` request body requires:
 
----
+- `name` — string, at least 2 characters;
+- `email` — valid email string;
+- `phone` — optional string;
+- `password` — string, at least 6 characters;
+- `idempotencyKey` — required UUID.
+Successful responses return sanitized agent fields and may include `replayed: true` when an already-completed idempotent request is returned. Passwords are never returned or persisted for comparison.
 
-### Reference Files
-- [types.ts](file:///c:/Users/PC/Desktop/calling%20app/src/db/types.ts)
-- [syncTypes.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncTypes.ts)
-- [realtimeTypes.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/realtime/realtimeTypes.ts)
+## Call-duration contract
+
+`durationSeconds` is the verified duration field. `reportedDurationSeconds` is a separate device-reported value and must not be presented as verified merely because the app paused/resumed around a dialer launch. `verificationStatus` determines whether the duration has trusted verification evidence.
+
+## Reference files
+
+- [`src/db/types.ts`](../../src/db/types.ts)
+- [`src/services/sync/syncTypes.ts`](../../src/services/sync/syncTypes.ts)
+- [`src/services/sync/syncPush.ts`](../../src/services/sync/syncPush.ts)
+- [`src/services/sync/syncPull.ts`](../../src/services/sync/syncPull.ts)
+- [`src/services/realtime/realtimeService.ts`](../../src/services/realtime/realtimeService.ts)
+- [`supabase/functions/create-agent/index.ts`](../../supabase/functions/create-agent/index.ts)
+- [`08_SYNC_REALTIME_ARCHITECTURE.md`](./08_SYNC_REALTIME_ARCHITECTURE.md)
+- [`14_MIGRATION_HISTORY.md`](./14_MIGRATION_HISTORY.md)

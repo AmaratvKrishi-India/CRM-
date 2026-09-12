@@ -3,6 +3,12 @@ node_modules/
 
 # Build outputs
 dist/
+coverage/
+reports/
+
+# Local generated research output
+public_apis_render/
+public_apis_render_updated/
 
 # Environment & secrets
 .env
@@ -47,6 +53,7 @@ e2e/android/reports/
 pdf_pages/
 playwright-report/
 test-results/
+scratch/logs/
 
 .vercel
 

@@ -21,6 +21,10 @@ function freshDb(name: string) {
 
 function makeFakeClient(ops: any[]) {
   return {
+    rpc: async (_name: string, args: any) => {
+      ops.push({op:args.operation === 'DELETE'?'delete':'upsert',table:args.entity,ids:[args.payload.id]});
+      return {data:{status:'APPLIED',record:args.operation === 'DELETE'?null:{...args.payload,sync_revision:1}},error:null};
+    },
     from(table: string) {
       return {
         upsert: async (records: any) => {

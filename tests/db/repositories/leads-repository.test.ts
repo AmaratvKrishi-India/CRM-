@@ -155,4 +155,20 @@ describe('LeadRepository', () => {
     const result = await leads.searchAndFilterLeads({ status: ['CONTACTED', 'INTERESTED'], sortOrder: 'asc' });
     expect(result.leads.map((lead) => lead.status)).toEqual(['CONTACTED', 'INTERESTED']);
   });
+
+  it('should preserve total counts while returning a sorted page window', async () => {
+    await createLead({ businessName: 'Zulu Fitness' });
+    await createLead({ businessName: 'Alpha Fitness' });
+    await createLead({ businessName: 'Bravo Fitness' });
+
+    const result = await leads.searchAndFilterLeads({
+      sortBy: 'businessName',
+      sortOrder: 'asc',
+      offset: 1,
+      limit: 1,
+    });
+
+    expect(result.total).toBe(3);
+    expect(result.leads.map((lead) => lead.businessName)).toEqual(['Bravo Fitness']);
+  });
 });

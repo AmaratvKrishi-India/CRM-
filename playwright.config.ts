@@ -1,11 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim();
+const localBaseURL = 'http://127.0.0.1:4174';
+const baseURL = externalBaseURL || localBaseURL;
+
 const apiTestIgnore = process.env.E2E_API_BASE_URL ? [] : ['**/api.spec.ts'];
-const standardProjectTestIgnore = [...apiTestIgnore, '**/tablet-responsive.spec.ts'];
+const visualTestIgnore = process.env.CI && process.platform !== 'win32'
+  ? ['**/visual-regression.spec.ts']
+  : [];
+const standardProjectTestIgnore = [
+  ...apiTestIgnore,
+  ...visualTestIgnore,
+  '**/tablet-responsive.spec.ts',
+];
 
 /**
- * Playwright configuration for Amaratv Krishi Sales CRM
- * See https://playwright.dev/docs/test-configuration
+ * Playwright configuration for Amaratv Krishi Sales CRM.
+ * Local runs always own a strict, dedicated Vite port so Playwright can never
+ * silently attach to an unrelated application already listening on port 3000.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -13,28 +25,33 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 2,
-  timeout: 30_000,
-  expect: {
-    timeout: 5_000,
-  },
-  testIgnore: apiTestIgnore,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  timeout: 30_000,  expect: { timeout: 5_000 },
+  reporter: process.env.CI
+    ? [
+        ['line'],
+        ['html', { open: 'never', outputFolder: 'playwright-report' }],
+        ['junit', { outputFile: 'test-results/playwright-junit.xml' }],
+      ]
+    : [
+        ['list'],
+        ['html', { open: 'never', outputFolder: 'playwright-report' }],
+      ],
+  outputDir: 'test-results/playwright',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000',
+    baseURL,
     actionTimeout: 10_000,
-    navigationTimeout: 15_000,
-    trace: 'on-first-retry',
+    navigationTimeout: 30_000,
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
 
-  /* Configure projects for major browsers and mobile viewports */
   projects: [
     {
       name: 'chromium',
       testIgnore: standardProjectTestIgnore,
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
+    },    {
       name: 'firefox',
       testIgnore: standardProjectTestIgnore,
       use: { ...devices['Desktop Firefox'] },
@@ -55,25 +72,23 @@ export default defineConfig({
       use: { ...devices['iPhone 15'] },
     },
     {
-      // Dedicated tablet gate: keep tablet coverage explicit and independent
-      // from the desktop/mobile cross-browser matrix.
       name: 'Tablet',
       testMatch: '**/tablet-responsive.spec.ts',
-      testIgnore: apiTestIgnore,
+      testIgnore: [...apiTestIgnore, ...visualTestIgnore],
       use: {
         viewport: { width: 1024, height: 768 },
-        deviceScaleFactor: 1,
-        isMobile: false,
+        deviceScaleFactor: 1,        isMobile: false,
         hasTouch: true,
       },
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 3000',
-    url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  webServer: externalBaseURL
+    ? undefined
+    : {
+        command: 'npm run dev -- --host 127.0.0.1 --port 4174 --strictPort',
+        url: localBaseURL,
+        reuseExistingServer: false,
+        timeout: 120_000,
+      },
 });

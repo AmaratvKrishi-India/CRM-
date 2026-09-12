@@ -11,6 +11,21 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+const agentResponse = (profile: any) => ({
+  id: profile.id,
+  authUserId: profile.auth_user_id,
+  organizationId: profile.organization_id,
+  name: profile.name,
+  email: profile.email,
+  phone: profile.phone,
+  role: profile.role,
+  status: profile.status,
+  createdBy: profile.created_by,
+  createdAt: profile.created_at,
+  updatedAt: profile.updated_at,
+  serverRevision: profile.sync_revision,
+});
+
 const rollbackProvisionedAgent = async (supabaseAdmin: any, authUserId: string): Promise<string[]> => {
   const errors: string[] = [];
 
@@ -110,7 +125,7 @@ serve(async (req) => {
       .from('profiles')
       .select('id, organization_id, role, status, name')
       .eq('auth_user_id', callerUser.id)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .maybeSingle();
 
     if (profileFetchError || !callerProfile) {
@@ -151,7 +166,7 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    const { name, email, phone, password } = body;
+    const { name, email, phone, password, idempotencyKey } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
       return new Response(
@@ -175,15 +190,57 @@ serve(async (req) => {
       );
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!idempotencyKey || typeof idempotencyKey !== 'string' || !uuidRegex.test(idempotencyKey)) {
+      return new Response(
+        JSON.stringify({ error: 'A valid idempotency key is required.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     const cleanPhone = phone ? String(phone).trim() : '';
 
-    // 5. Check for Existing Profile with same Email in the Organization
+    // 5. A completed request is replayed from durable server state. Reusing a
+    // key for different non-secret identity input is rejected instead of
+    // reinterpreted. Passwords are deliberately never persisted for comparison.
+    const { data: keyedProfile, error: keyedProfileError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision')
+      .eq('organization_id', callerProfile.organization_id)
+      .eq('provisioning_key', idempotencyKey)
+      .maybeSingle();
+
+    if (keyedProfileError) {
+      console.error('Idempotency lookup failed:', keyedProfileError);
+      return new Response(
+        JSON.stringify({ error: 'Unable to verify the provisioning request.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (keyedProfile) {
+      if (keyedProfile.role !== 'AGENT'
+        || keyedProfile.email.toLowerCase() !== normalizedEmail
+        || keyedProfile.name.trim() !== name.trim()
+        || (keyedProfile.phone || '').trim() !== cleanPhone) {
+        return new Response(
+          JSON.stringify({ error: 'Idempotency key was already used for a different request.' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, replayed: true, message: 'Agent already exists.', agent: agentResponse(keyedProfile) }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 6. Check for Existing Profile with same Email in the Organization.
     const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from('profiles')
-      .select('id')
+      .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision')
       .eq('organization_id', callerProfile.organization_id)
-      .eq('email', normalizedEmail)
+      .ilike('email', normalizedEmail)
       .is('deleted_at', null)
       .maybeSingle();
 
@@ -196,13 +253,43 @@ serve(async (req) => {
     }
 
     if (existingProfile) {
+      if (existingProfile.role === 'AGENT') {
+        return new Response(
+          JSON.stringify({ success: true, replayed: true, message: 'Agent already exists.', agent: agentResponse(existingProfile) }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: 'An account with this email already exists in this organization.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 6. Step 1: Create Supabase Auth User with Admin API
+    // 7. Atomically reserve capacity using only the verified caller profile.
+    // The database function serializes requests per organization, so this is
+    // shared across Edge isolates and cannot be bypassed with client headers.
+    const { data: rateDecision, error: rateLimitError } = await supabaseAdmin.rpc('reserve_agent_provisioning', {
+      target_organization: callerProfile.organization_id,
+      target_administrator: callerProfile.id,
+    });
+
+    if (rateLimitError || !rateDecision || typeof rateDecision.allowed !== 'boolean') {
+      console.error('Agent provisioning rate-limit check failed:', rateLimitError);
+      return new Response(
+        JSON.stringify({ error: 'Agent provisioning is temporarily unavailable.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!rateDecision.allowed) {
+      const retryAfter = Math.max(1, Number(rateDecision.retryAfterSeconds) || 1);
+      return new Response(
+        JSON.stringify({ error: 'Too many agent provisioning requests. Please retry later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': String(retryAfter) } }
+      );
+    }
+
+    // 8. Step 1: Create Supabase Auth User with Admin API
     const { data: newAuthData, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       password: password,
@@ -230,7 +317,7 @@ serve(async (req) => {
     const newAuthUserId = newAuthData.user.id;
     provisionedAuthUserId = newAuthUserId;
 
-    // 7. Step 2: Insert into public.profiles
+    // 9. Step 2: Insert into public.profiles
     // Note: organization_id is strictly inherited from callerProfile (client input is ignored)
     // Role is strictly forced to AGENT
     const profilePayload = {
@@ -246,6 +333,7 @@ serve(async (req) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       deleted_at: null,
+      provisioning_key: idempotencyKey,
       version: 1,
     };
 
@@ -255,7 +343,7 @@ serve(async (req) => {
       .select()
       .single();
 
-    // 8. Compensation / Rollback: If profile creation fails, remove any partial
+    // 10. Compensation / Rollback: If profile creation fails, remove any partial
     // profile and the created auth user. Each cleanup operation is isolated so a
     // rejected network request cannot skip the remaining compensation step.
     if (profileInsertError || !insertedProfile) {
@@ -279,7 +367,7 @@ serve(async (req) => {
       );
     }
 
-    // 9. Step 3: Record Immutable Append-Only Audit Event
+    // 11. Step 3: Record Immutable Append-Only Audit Event
     // Passwords or secrets are NEVER included in activity metadata
     const auditId = crypto.randomUUID();
     activeAuditId = auditId;
@@ -334,23 +422,12 @@ serve(async (req) => {
       );
     }
 
-    // 10. Return Sanitized Result (No passwords in response)
+    // 12. Return Sanitized Result (No passwords in response)
     return new Response(
       JSON.stringify({
         success: true,
         message: 'Agent created successfully.',
-        agent: {
-          id: insertedProfile.id,
-          authUserId: insertedProfile.auth_user_id,
-          organizationId: insertedProfile.organization_id,
-          name: insertedProfile.name,
-          email: insertedProfile.email,
-          phone: insertedProfile.phone,
-          role: insertedProfile.role,
-          status: insertedProfile.status,
-          createdBy: insertedProfile.created_by,
-          createdAt: insertedProfile.created_at,
-        },
+        agent: agentResponse(insertedProfile),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

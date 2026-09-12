@@ -11,6 +11,7 @@ import { UserRepository } from '../db/repositories/userRepository';
 import { ActivityRepository } from '../db/repositories/activityRepository';
 import { DeviceService } from './deviceService';
 import { getSupabaseClient } from './supabaseClient';
+import { SyncPush } from './sync/syncPush';
 import type { User, UserStatus, Activity } from '../db/types';
 import { validateEmail, validateMinLength, validateRequired } from '../utils/validation';
 
@@ -147,6 +148,7 @@ export class AgentManagementService {
           email: cleanEmail,
           phone: cleanPhone,
           password,
+          idempotencyKey: crypto.randomUUID(),
         },
       });
       edgeData = result.data;
@@ -189,6 +191,7 @@ export class AgentManagementService {
     const createdAt = remoteAgent.createdAt || new Date().toISOString();
     const agent: User = {
       id: remoteAgent.id,
+      serverRevision: typeof remoteAgent.serverRevision === 'number' ? remoteAgent.serverRevision : undefined,
       organizationId: remoteAgent.organizationId,
       name: (remoteAgent.name || cleanName).trim(),
       email: cleanEmail,
@@ -263,24 +266,27 @@ export class AgentManagementService {
     delete (sanitizedUpdates as any).role;
     delete (sanitizedUpdates as any).id;
 
-    const updatedAgent = await userRepo.updateUser(agentId, sanitizedUpdates);
+    const database = userRepo.getDatabase();
+    return database.transaction('rw', [database.users, database.activities, database.outbox], async () => {
+      const updatedAgent = await userRepo.updateUser(agentId, sanitizedUpdates);
 
-    // Append audit activity
-    const activityRepo = this.getActivityRepo();
-    const deviceId = DeviceService.getDeviceId();
-    const auditActivity = await activityRepo.logActivity({
-      leadId: null,
-      userId: actor.id,
-      deviceId,
-      activityType: 'AGENT_UPDATED',
-      metadata: {
-        agentId: target.id,
-        email: target.email,
-        appliedUpdates: sanitizedUpdates,
-      },
+      // Append audit activity
+      const activityRepo = this.getActivityRepo();
+      const deviceId = DeviceService.getDeviceId();
+      const auditActivity = await activityRepo.logActivity({
+        leadId: null,
+        userId: actor.id,
+        deviceId,
+        activityType: 'AGENT_UPDATED',
+        metadata: {
+          agentId: target.id,
+          email: target.email,
+          appliedUpdates: sanitizedUpdates,
+        },
+      });
+
+      return { agent: updatedAgent, auditActivity };
     });
-
-    return { agent: updatedAgent, auditActivity };
   }
 
   /**
@@ -302,22 +308,25 @@ export class AgentManagementService {
       throw new Error('Cannot activate non-agent accounts through this interface.');
     }
 
-    const updatedAgent = await userRepo.setUserStatus(agentId, 'ACTIVE');
+    const database = userRepo.getDatabase();
+    return database.transaction('rw', [database.users, database.activities, database.outbox], async () => {
+      const updatedAgent = await userRepo.setUserStatus(agentId, 'ACTIVE');
 
-    const activityRepo = this.getActivityRepo();
-    const deviceId = DeviceService.getDeviceId();
-    const auditActivity = await activityRepo.logActivity({
-      leadId: null,
-      userId: actor.id,
-      deviceId,
-      activityType: 'AGENT_ACTIVATED',
-      metadata: {
-        agentId: target.id,
-        email: target.email,
-      },
+      const activityRepo = this.getActivityRepo();
+      const deviceId = DeviceService.getDeviceId();
+      const auditActivity = await activityRepo.logActivity({
+        leadId: null,
+        userId: actor.id,
+        deviceId,
+        activityType: 'AGENT_ACTIVATED',
+        metadata: {
+          agentId: target.id,
+          email: target.email,
+        },
+      });
+
+      return { agent: updatedAgent, auditActivity };
     });
-
-    return { agent: updatedAgent, auditActivity };
   }
 
   /**
@@ -344,22 +353,25 @@ export class AgentManagementService {
       throw new Error('Cannot deactivate non-agent accounts through this interface.');
     }
 
-    const updatedAgent = await userRepo.setUserStatus(agentId, 'INACTIVE');
+    const database = userRepo.getDatabase();
+    return database.transaction('rw', [database.users, database.activities, database.outbox], async () => {
+      const updatedAgent = await userRepo.setUserStatus(agentId, 'INACTIVE');
 
-    const activityRepo = this.getActivityRepo();
-    const deviceId = DeviceService.getDeviceId();
-    const auditActivity = await activityRepo.logActivity({
-      leadId: null,
-      userId: actor.id,
-      deviceId,
-      activityType: 'AGENT_DEACTIVATED',
-      metadata: {
-        agentId: target.id,
-        email: target.email,
-      },
+      const activityRepo = this.getActivityRepo();
+      const deviceId = DeviceService.getDeviceId();
+      const auditActivity = await activityRepo.logActivity({
+        leadId: null,
+        userId: actor.id,
+        deviceId,
+        activityType: 'AGENT_DEACTIVATED',
+        metadata: {
+          agentId: target.id,
+          email: target.email,
+        },
+      });
+
+      return { agent: updatedAgent, auditActivity };
     });
-
-    return { agent: updatedAgent, auditActivity };
   }
 
   /**
@@ -392,43 +404,53 @@ export class AgentManagementService {
       throw new Error(`Agent "${target.name}" has already been deleted.`);
     }
 
-    // 1. Soft-delete locally in Dexie
-    const deletedAgent = await userRepo.deleteUser(agentId);
+    const database = userRepo.getDatabase();
+    const { deletedAgent, auditActivity } = await database.transaction(
+      'rw', [database.users, database.activities, database.outbox], async () => {
+        const deletedAgent = await userRepo.deleteUser(agentId);
+        // 3. Log immutable AGENT_DELETED audit activity
+        const activityRepo = this.getActivityRepo();
+        const deviceId = DeviceService.getDeviceId();
+        const auditActivity = await activityRepo.logActivity({
+          leadId: null,
+          userId: actor.id,
+          deviceId,
+          activityType: 'AGENT_DELETED',
+          metadata: {
+            agentId: target.id,
+            name: target.name,
+            email: target.email,
+            deletedAt: deletedAgent.deletedAt,
+            performedBy: actor.id,
+          },
+        });
+
+        return { deletedAgent, auditActivity };
+      }
+    );
 
     // 2. If Supabase is available, mark deleted in cloud profiles table
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        await supabase
-          .from('profiles')
-          .update({
-            status: 'INACTIVE',
-            deleted_at: deletedAgent.deletedAt,
-            updated_at: deletedAgent.updatedAt,
-          })
-          .eq('id', agentId);
+        const item = (await userRepo.getDatabase().outbox.where('entityId').equals(agentId).toArray())
+          .filter(entry => entry.entityType === 'profiles' && entry.status === 'PENDING')
+          .sort((a,b) => (b.sequence || 0) - (a.sequence || 0))[0];
+        if (item && !item.predecessorId) {
+          // Use the durable operation's UUID/base; the normal outbox retry
+          // acknowledges this exact mutation if the immediate response is lost.
+          const { data, error } = await supabase.rpc('sync_mutate', {
+            entity: 'profiles', operation: 'UPDATE', mutation_id: item.id,
+            expected_revision: item.expectedRevision ?? null,
+            payload: SyncPush.transformToPgRecord('profiles', item.payload, item.organizationId),
+          });
+          if (error || data?.status !== 'APPLIED') throw new Error(error?.message || 'SYNC_CONFLICT: profile edit retained.');
+        }
       } catch (err: any) {
         // Non-fatal: sync will pick this up on next outbox push
         console.warn('Cloud profile delete update failed (will sync later):', err?.message);
       }
     }
-
-    // 3. Log immutable AGENT_DELETED audit activity
-    const activityRepo = this.getActivityRepo();
-    const deviceId = DeviceService.getDeviceId();
-    const auditActivity = await activityRepo.logActivity({
-      leadId: null,
-      userId: actor.id,
-      deviceId,
-      activityType: 'AGENT_DELETED',
-      metadata: {
-        agentId: target.id,
-        name: target.name,
-        email: target.email,
-        deletedAt: deletedAgent.deletedAt,
-        performedBy: actor.id,
-      },
-    });
 
     return { agent: deletedAgent, auditActivity };
   }

@@ -1,60 +1,60 @@
-# 20 - TOOLCHAIN & CLI STATUS
+# 20 — Toolchain and CLI Status
 
-Snapshot of every tool and CLI the project depends on, with login/auth status and what is currently broken.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-11
+**Source of truth:** `package.json`, `package-lock.json`, contributor setup, and dated verification reports
 
-> [!IMPORTANT]
-> Verified live on this machine on 2026-08-23. Re-run the checks in the "How to re-verify" section after any environment change.
+This document records repository requirements and the latest known verification constraints. Machine login state is intentionally not treated as a permanent project fact; re-run the commands below before deployment or release work.
 
-## Status Matrix
+## Repository toolchain
 
-| Tool | Version | Auth / Login Status | Verdict |
-|------|---------|---------------------|---------|
-| Node.js | v26.5.0 | n/a | OK |
-| npm | 11.17.0 | Not logged in (not required) | OK |
-| Vercel CLI | 59.3.0 | Logged in as `amaratvkrishi-india` | OK |
-| GitHub CLI (`gh`) | installed | Active account: `AmaratvKrishi-India` (keyring). Second account `DIVINITY-THE-THIRD-EYE` present but inactive | OK |
-| Git (repo identity) | installed | `AmaratvKrishi-India <296277231+AmaratvKrishi-India@users.noreply.github.com>` (repo-level config) | OK |
-| Git (global identity) | installed | `Divinity <divinity.thethirdeye@gmail.com>` (overridden by repo-level config in this project) | NOTE |
-| Supabase CLI | 2.115.0 (via `npx supabase`) | Authenticated (`projects list` works). Project linked in repo (`linked_project: lahvcodvgubplzfshare`) | OK |
-| Docker | server 29.7.2 | Running | OK |
-| adb | Android SDK platform-tools | Works via full path `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe` (not on PATH). 3 emulators online: 5556, 5558, 5560 | NOTE |
-| Java / `java` | not found | `JAVA_HOME` empty, `java` not on PATH | BROKEN |
-| Android SDK env | n/a | `ANDROID_HOME` empty | BROKEN |
-| Android signing | n/a | [keystore.properties](file:///C:/Users/PC/Documents/AmaratvKrishi-Keys/keystore.properties) present (external, not in Git) | OK |
-| node_modules | n/a | Present (installed) | OK |
-| dist/ | n/a | Present (last `npm run build` output) | OK |
+| Tool | Repository version / expectation |
+|---|---|
+| Node.js | Node 26+ |
+| npm | use the committed lockfile |
+| TypeScript | 6.0.3 |
+| Vite | 8.2.2 |
+| React | 19.2.8 |
+| Capacitor core / Android | 8.5.1 |
+| Playwright | 1.62.1 |
+| Vitest | 4.x |
+| Supabase CLI | use the installed `npx supabase` version; verify before migration work |
+| Docker | required for local Supabase integration tests |
+| Android SDK/JDK | required for emulator and APK work |
 
-## What Is Broken Right Now
+## Current constraints
 
-1. **Android release builds cannot run.** `JAVA_HOME` and `ANDROID_HOME` are unset and `java` is not on PATH, so `gradlew assembleRelease` fails immediately. Fix: set `JAVA_HOME` to the Android Studio JBR (e.g. `C:\Program Files\Android\Android Studio\jbr`) and `ANDROID_HOME` to `%LOCALAPPDATA%\Android\Sdk`, then reopen the shell.
-2. **Phase 3.1 recovery update (2026-09-01).** Clean `npm ci`, TypeScript, the production build, and `npm test` pass. The test command now runs the maintained Node test-runner suite through `tsx`; Vitest is no longer used as an indiscriminate glob runner for incompatible Node suites and obsolete fixtures. See `PHASE_3_RECOVERY_VERIFICATION_2026-09-01.md` for exact current evidence.
-3. **`adb` is not on PATH.** Scripts must call it by full path or add `%LOCALAPPDATA%\Android\Sdk\platform-tools` to PATH.
-4. ~~**Supabase project is not linked.**~~ FIXED on 2026-08-22: `npx supabase link --project-ref lahvcodvgubplzfshare` completed; `npx supabase status` now reports the linked project.
-5. ~~**`.env.staging` is empty.**~~ FIXED on 2026-08-22: `.env.staging` now carries the cloud project URL, anon key, and `VITE_APP_ENV=staging` (see [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md)). `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` remain machine-local and intentionally empty in the file.
+- Docker-backed checks must be rerun from a stable Docker Desktop engine when the named pipe or local stack is unavailable.
+- Android release signing cannot be completed from this workspace because the external release keystore is not present here.
+- `adb`, `JAVA_HOME`, and `ANDROID_HOME` are machine configuration concerns; do not encode one developer's absolute paths in project documentation.
+- The working tree contains pre-existing changes. Preserve them and capture branch/HEAD before a verification run.
+- On the 2026-09-10 Windows audit machine, neither the optional `graft` CLI nor `rg` was on PATH. The local `graft/` directory is ignored and regenerable rather than checked in. When it exists it may be used as a navigation aid; otherwise fall back to `git grep`, PowerShell `Select-String`, or equivalent source search rather than failing solely because those conveniences are absent.
 
-## Login Details (non-secret)
-
-- **Vercel:** `vercel whoami` returns `amaratvkrishi-india`. Projects live in team/scope `amaratv-krishi`.
-- **GitHub:** `gh auth status` shows two accounts; the active one is `AmaratvKrishi-India` over HTTPS with a fine-grained PAT. Git pushes from this repo are attributed to `AmaratvKrishi-India` because the repo-level `user.name`/`user.email` override the global `Divinity` identity.
-- **Supabase:** the CLI token can list projects in org `fyeeutppsgfuhytfaekt`; the only project is `lahvcodvgubplzfshare` ("AmaratvKrishi-India's Project", ap-south-1, ACTIVE_HEALTHY, PostgreSQL 17).
-- **npm registry:** not logged in. All dependencies are public, so this is fine.
-
-## How to Re-verify
+## Re-verify
 
 ```powershell
-node -v; npm -v
-vercel whoami
-gh auth status
-git config user.name; git config user.email
+node -v
+npm -v
 npx supabase --version
-npx supabase projects list
-docker version --format '{{.Server.Version}}'
-& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" devices
+docker version
+git status --short
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-## Related Documents
+For Android, also verify the JDK, SDK, connected emulator serial, WebView version, APK digest, and package identity. For staging, run `npm run verify:staging-config` before starting Vite or applying migrations.
 
-- [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md)
-- [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
-- [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md)
-- [13 - Deployment & Environments](./13_DEPLOYMENT_ENVIRONMENTS.md)
+## Account and secret rules
+
+- Do not record tokens, passwords, service-role keys, JWT secrets, session values, customer data, or keystore passwords.
+- Use the repository-level Git identity only when it is explicitly configured for the task.
+- Confirm Vercel and Supabase project identity before any deployment operation.
+
+## Related documents
+
+- [19 — Environment variables](./19_ENVIRONMENT_VARIABLES.md)
+- [22 — Deployment runbook](./22_DEPLOYMENT_RUNBOOK.md)
+- [23 — Local development setup](./23_LOCAL_DEV_SETUP.md)
+- [24 — Isolated staging environment](./24_STAGING_ENVIRONMENT.md)
+- [GATES.md](../../GATES.md)

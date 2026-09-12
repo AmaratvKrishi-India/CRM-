@@ -74,7 +74,8 @@ BEGIN
 END $$;
 
 UPDATE public.leads
-SET assigned_to = 'a0000000-0000-0000-0000-000000000003', updated_at = now()
+SET assigned_to = 'a0000000-0000-0000-0000-000000000003', updated_at = now(),
+    sync_expected_revision = sync_revision
 WHERE id = 'aa000000-0000-0000-0000-000000000001';
 
 RESET ROLE;

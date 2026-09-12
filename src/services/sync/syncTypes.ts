@@ -42,6 +42,29 @@ export interface OutboxItem {
   nextAttemptAt?: string | null;
   lastError: string | null;
   status: OutboxStatus;
+  /** Captured base; undefined denotes a legacy snapshot that must not be rebased. */
+  expectedRevision?: number;
+  sequence?: number;
+  predecessorId?: string;
+  conflictRemote?: Record<string, unknown> | null;
+}
+
+/** A revision is server metadata, never a wall-clock date or a user-editable version. */
+export function serverRevision(record: Record<string, unknown> | undefined): number | undefined {
+  const value = record?.serverRevision ?? record?.sync_revision;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+export function revisionCursor(revision: number): string {
+  return `revision:1:${revision}`;
+}
+
+export function parseRevisionCursor(cursor: string | null): number {
+  if (!cursor?.startsWith('revision:1:')) return 0; // full rescan of old timestamp cursors
+  if (!/^revision:1:\d+$/.test(cursor)) throw new Error('Invalid sync revision cursor.');
+  const value = Number(cursor.slice('revision:1:'.length));
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error('Invalid sync revision cursor.');
+  return value;
 }
 
 /** Throws when a sync run no longer belongs to the active account generation. */

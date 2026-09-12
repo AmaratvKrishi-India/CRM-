@@ -6,7 +6,7 @@
  * Rewritten for design tokens + aria-live announcements (F1/F2/F11).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   Activity as ActivityIcon,
   PhoneCall,
@@ -41,7 +41,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   const [filterType, setFilterType] = useState<string>('ALL');
   const [newActivityCount, setNewActivityCount] = useState<number>(0);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     try {
       const db = getDatabase();
       const all = await db.activities
@@ -55,7 +55,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit]);
 
   useEffect(() => {
     loadActivities();
@@ -79,7 +79,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
       unsubStatus();
       unsubActivity();
     };
-  }, [limit]);
+  }, [limit, loadActivities]);
 
   const getActivityIcon = (type: ActivityType | string) => {
     switch (type) {

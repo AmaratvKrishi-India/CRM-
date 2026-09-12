@@ -1,102 +1,55 @@
-# 13 - DEPLOYMENT & ENVIRONMENTS
+# 13 — Deployment Environments
 
-This document details the deployment configurations, environment setups, and build processes for the Amaratv Krishi Field Sales CRM project.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `.env.example`, `vite.config.ts`, `vercel.json`, `supabase/config.toml`, `supabase/migrations/`, and [24_STAGING_ENVIRONMENT.md](./24_STAGING_ENVIRONMENT.md)
 
-## Environment Variables
+## Environment matrix
 
-The project uses multiple `.env` files to manage configuration across different environments. 
+| Environment | Client configuration | Backend rule | Use |
+|---|---|---|---|
+| Local | `.env.local` / local Vite mode | Dockerized Supabase on loopback | development and disposable integration tests |
+| Development | `.env.development` | only an explicitly verified non-production target | development when needed |
+| Staging | ignored `.env.staging` | isolated Supabase project with a different reference | release candidate and external verification |
+| Production | Vercel-managed variables / `.env.production` | protected Supabase project `lahvcodvgubplzfshare` | live users and data |
 
-**Environment Files:**
-- [`.env`](file:///c:/Users/PC/Desktop/calling%20app/.env) (400 bytes) — default fallback
-- [`.env.local`](file:///c:/Users/PC/Desktop/calling%20app/.env.local) (323 bytes) — local Docker Supabase
-- [`.env.development`](file:///c:/Users/PC/Desktop/calling%20app/.env.development) (331 bytes) — cloud staging
-- [`.env.staging`](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) (669 bytes) — staging config pointing at the shared Supabase cloud project (see [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md))
-- [`.env.production`](file:///c:/Users/PC/Desktop/calling%20app/.env.production) (400 bytes) — production
-- [`.env.example`](file:///c:/Users/PC/Desktop/calling%20app/.env.example) (462 bytes) — template for new developers
+The staging guard rejects missing values, placeholders, production references, and service-role keys. Do not use the production project as staging.
 
-**Key Variable Names:**
-*(Note: Actual values are omitted for security reasons. Refer to the respective files or cloud console for values.)*
+## Client variables
+
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_APP_ENV`
 - `VITE_APP_VERSION`
 
-> [!CAUTION]
-> The `SERVICE_ROLE_KEY` is highly privileged and is **NEVER** present in client code or frontend environment variables.
+Only the public anon key belongs in Vite client configuration. `SUPABASE_SERVICE_ROLE_KEY`, database passwords, access tokens, JWT secrets, and signing credentials remain server- or machine-local.
 
-## `.gitignore` Security
+## Local stack
 
-The project's [[`.gitignore`](file:///c:/Users/PC/Desktop/calling%20app/.gitignore)] is configured to exclude sensitive files, build artifacts, and local environments from version control:
+`supabase/config.toml` defines the local project and ports. Start it with:
 
-- **Environment Files:** `.env`, `.env.*` (except `.env.example`)
-- **Android Signing Keys:** `*.jks`, `*.keystore`, `keystore.properties`
-- **Build & Dependencies:** `node_modules/`, `dist/`, `android/app/build/`, `android/build/`, `android/.gradle/`
-- **IDE & Logs:** `.idea/`, `.vscode/`, `*.log`
-- **Local State & Agents:** `supabase/.temp/`, `local/`, `.agents/`, `.gemini/`, `.claude/`, `.vercel`
+```powershell
+npx supabase start
+npx supabase migration up --local
+```
 
-## Local Development Environment
+`npx supabase db reset --local` is destructive to local data and must be used only for a disposable stack.
 
-The local development setup relies on Dockerized Supabase and the Vite dev server.
+## Web deployment
 
-- **Database:** Supabase CLI / Docker
-  - Config: [supabase/config.toml](file:///c:/Users/PC/Desktop/calling%20app/supabase/config.toml)
-  - `project_id`: calling_app
-  - Database Port: 15433
-  - API Port: 15432
-  - Studio Port: 15435
-- **Commands:**
-  - Start: `supabase start`
-  - Stop: `supabase stop`
-  - Reset: `supabase db reset` (applies all migrations and [seed.sql](file:///c:/Users/PC/Desktop/calling%20app/supabase/seed.sql))
-- **Frontend:** Vite dev server runs on port 3000
-- **Android:** Capacitor syncs to the built web bundle (run build first)
+The web target is Vercel project `crm` in the `amaratv-krishi` scope at <https://crm-blush-omega.vercel.app>. Build locally with `npm run build`; verify the exact candidate before any production deployment. Environment variables are managed through Vercel, not committed files.
 
-## Production Environment
+## Android deployment
 
-The production stack utilizes Supabase Cloud for backend services and Vercel for web hosting.
+Build the web bundle, sync Capacitor, and build the intended Android variant. Release signing uses an external `keystore.properties` file that must not enter the repository. The current workspace does not contain the release keystore; the published v2.0.0 APK is historical evidence.
 
-- **Backend:** Supabase Cloud (`lahvcodvgubplzfshare.supabase.co`)
-- **Web Host:** Vercel ([https://crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app))
-- **Vercel Project:** `amaratv-krishi/crm` (team `amaratv-krishi`, account `amaratvkrishi-india`)
-- **Configuration:** [[`vercel.json`](file:///c:/Users/PC/Desktop/calling%20app/vercel.json)] (`{"name": "crm"}` — matches the linked Vercel project `crm` in scope `amaratv-krishi`)
-- **Vercel Ignores:** [[`.vercelignore`](file:///c:/Users/PC/Desktop/calling%20app/.vercelignore)] (`android/`, `node_modules/`)
-- **Vercel Env Vars:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, `VITE_APP_VERSION`
-- **Android Production:** Gradle outputs `android/app/build/outputs/apk/release/app-release.apk`; the shipped artifact is [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes)
-- **Supabase Link:** Repo IS linked to project `lahvcodvgubplzfshare` (recorded in `supabase/.temp/linked-project.json` and `supabase/.temp/project-ref`). `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` are not stored in `.env.staging`; supply them before `db push` / `functions deploy`.
+## Database deployment
 
-## Build Commands
+Apply the 14 ordered migrations from `supabase/migrations/` only after:
 
-Defined in [[`package.json`](file:///c:/Users/PC/Desktop/calling%20app/package.json)], the project utilizes the following key commands:
+1. local disposable validation;
+2. verified staging project identity and schema checks;
+3. explicit target confirmation;
+4. review of backup, rollback, RLS, and migration-ledger consequences.
 
-- **Web Dev:** `npm run dev` (starts Vite on port 3000)
-- **Web Build:** `npm run build` (runs `tsc && vite build`)
-- **Web Preview:** `npm run preview`
-- **Android Build:** `cd android && gradlew assembleRelease` (requires `JAVA_HOME` and `ANDROID_HOME` — both currently UNSET, see [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md))
-- **Tests:** `npm test`, `npm run test:e2e`, `npm run verify`
-
-## Configuration Files
-
-### Vite Configuration ([[`vite.config.ts`](file:///c:/Users/PC/Desktop/calling%20app/vite.config.ts)])
-- **Plugins:** `react`, `tailwindcss`
-- **Server:** Port 3000, `host: true`
-- **Build:** `chunkSizeWarningLimit` set to 600
-- **Manual Chunks:** Configured for `xlsx`, `supabase`, `dexie`, `lucide`, `react` to optimize bundle size.
-
-### TypeScript Configuration ([[`tsconfig.json`](file:///c:/Users/PC/Desktop/calling%20app/tsconfig.json)])
-- **Target:** `ES2022`
-- **Module:** `ESNext`
-- **JSX:** `react-jsx`
-- **Strict Mode:** Enabled
-- **Root Directory:** `./src`
-- **Output Directory:** `./dist`
-
-### Capacitor Configuration ([[`capacitor.config.ts`](file:///c:/Users/PC/Desktop/calling%20app/capacitor.config.ts)])
-- **appId:** `com.amaratvkrishi.salescrm`
-- **webDir:** `dist`
-- **androidScheme:** `https`
-
-## Related Documents
-
-- [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md) — step-by-step deploy procedures
-- [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md) — first-run checklist for this machine
-- [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md) — tool health snapshot
+See [14_MIGRATION_HISTORY.md](./14_MIGRATION_HISTORY.md), [22_DEPLOYMENT_RUNBOOK.md](./22_DEPLOYMENT_RUNBOOK.md), and [GATES.md](../../GATES.md).

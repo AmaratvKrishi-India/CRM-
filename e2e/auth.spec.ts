@@ -19,11 +19,11 @@ test.describe('Login & Authentication Flow', () => {
     await expect(page.getByAltText(/Amaratv Krishi Logo/i)).toBeVisible();
 
     // Form fields and buttons
-    const emailInput = page.locator('input[type="email"]');
+    const emailInput = page.getByLabel('Email / Login ID');
     await expect(emailInput).toBeVisible();
     await expect(emailInput).toHaveAttribute('placeholder', 'e.g. rahul@amaratvkrishi.com');
 
-    const passwordInput = page.locator('input[placeholder="Enter your password"]');
+    const passwordInput = page.getByLabel('Password', { exact: true });
     await expect(passwordInput).toBeVisible();
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
@@ -37,21 +37,19 @@ test.describe('Login & Authentication Flow', () => {
   });
 
   test('toggles password visibility between masked and plaintext', async ({ page }) => {
-    const passwordInput = page.locator('input[placeholder="Enter your password"]');
+    const passwordInput = page.getByLabel('Password', { exact: true });
     await passwordInput.fill('SecretPassword123');
 
     // Initially masked
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
-    // Click toggle button
-    const toggleBtn = passwordInput.locator('..').locator('button');
-    await toggleBtn.click();
+    // Accessible toggle contract changes its name with the state.
+    await page.getByRole('button', { name: 'Show password' }).click();
 
     // Now unmasked
     await expect(passwordInput).toHaveAttribute('type', 'text');
 
-    // Click toggle button again
-    await toggleBtn.click();
+    await page.getByRole('button', { name: 'Hide password' }).click();
 
     // Masked again
     await expect(passwordInput).toHaveAttribute('type', 'password');

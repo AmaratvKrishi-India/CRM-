@@ -3,6 +3,9 @@
  * Offline-first schema with future cloud-sync and soft-deletion support.
  */
 
+/** Optional for pre-upgrade cache/backup records; only populated from server responses. */
+export interface ServerSyncMetadata { serverRevision?: number; }
+
 export type LeadStatus =
   | 'NEW'
   | 'CONTACTED'
@@ -48,7 +51,7 @@ export type RemarkType = 'PREDEFINED' | 'CUSTOM';
  * Contains business information, normalized contact points, location,
  * sales workflow status, and system metadata.
  */
-export interface Lead {
+export interface Lead extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   businessName: string; // Normalized business title (e.g. "Skywards Fitness Zone")
   category: string; // Category string (e.g. "Gym", "Fitness center")
@@ -93,7 +96,7 @@ export interface Lead {
 export type UserRole = 'ADMIN' | 'AGENT';
 export type UserStatus = 'ACTIVE' | 'INACTIVE';
 
-export interface User {
+export interface User extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   organizationId?: string | null; // Multi-tenant organization UUID
   name: string; // Full representative name
@@ -141,7 +144,7 @@ export type ActivityType =
   | 'AGENT_DELETED'
   | 'BULK_ASSIGNMENT_EXECUTED';
 
-export interface Activity {
+export interface Activity extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   leadId: string | null; // Foreign Key -> Lead.id (null for admin/system events)
   userId: string; // Foreign Key -> User.id (actor)
@@ -167,7 +170,7 @@ export type CallRecordStatus =
   | 'CANCELLED'
   | 'UNKNOWN';
 
-export interface CallRecord {
+export interface CallRecord extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   leadId: string; // Foreign Key -> Lead.id
   userId: string; // Foreign Key -> User.id (rep/admin)
@@ -193,7 +196,7 @@ export interface CallRecord {
  * Import Audit Entity (Phase 2B)
  * Tracks batch lead imports from Excel or CSV files.
  */
-export interface ImportAudit {
+export interface ImportAudit extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   uploadedBy: string; // User ID who performed import
   deviceId: string | null; // Originating device ID
@@ -216,7 +219,7 @@ export interface ImportAudit {
  * Bulk Assignment Audit Entity (Phase 2K)
  * Tracks batch lead assignment operations executed by administrators.
  */
-export interface BulkAssignmentAudit {
+export interface BulkAssignmentAudit extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   organizationId?: string | null; // Multi-tenant org ID
   performedBy: string; // Admin User ID who executed the bulk assignment
@@ -241,7 +244,7 @@ export interface BulkAssignmentAudit {
  * Remark / Note Entity
  * Tracks timestamped notes, sample feedback, and sales observations for a lead.
  */
-export interface Remark {
+export interface Remark extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   leadId: string; // Foreign Key -> Lead.id
   userId?: string | null; // User ID who authored the remark
@@ -280,7 +283,7 @@ export interface CallHistory {
  * FollowUp Entity
  * Scheduled follow-up reminders and tasks with priorities.
  */
-export interface FollowUp {
+export interface FollowUp extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   leadId: string; // Foreign Key -> Lead.id
   userId?: string | null; // User ID who scheduled this follow-up
@@ -301,7 +304,7 @@ export interface FollowUp {
  * MessageHistory Entity
  * Logs outbound WhatsApp or SMS messages sent to leads.
  */
-export interface MessageHistory {
+export interface MessageHistory extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
   leadId: string; // Foreign Key -> Lead.id
   userId?: string | null; // User ID who sent the message

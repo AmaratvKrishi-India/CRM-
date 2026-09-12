@@ -11,6 +11,7 @@ import type { SalesCRMDatabase} from '../../db/database';
 import { getDatabase } from '../../db/database';
 import { SyncConflictResolver } from '../sync/syncConflictResolver';
 import { SyncPull } from '../sync/syncPull';
+import { serverRevision } from '../sync/syncTypes';
 import type { SyncEngine } from '../sync/syncEngine';
 import { accessScopeFromUser, canAccessLead, sameAccessScope } from '../../db/accessScope';
 import { pruneLeadData } from '../../db/pruning';
@@ -275,9 +276,17 @@ export class RealtimeService {
 
     try {
       const db = this.getDb();
+      await db.transaction('rw', db.tables, async () => {
       const scope = db.requireAccessScope();
+      db.markRemoteSyncWrites();
       if (this.currentUser && !sameAccessScope(accessScopeFromUser(this.currentUser), scope)) return;
       if (row.organization_id !== scope.organizationId) return;
+      const names: Record<string, string> = { leads:'leads',call_records:'callRecords',activities:'activities',
+        remarks:'remarks',follow_ups:'followUps',message_history:'messageHistory',profiles:'users',
+        import_audits:'importAudits',bulk_assignment_audits:'bulkAssignmentAudits' };
+      const current = names[table] ? await db.table(names[table]).get(row.id) : undefined;
+      if (serverRevision(current) !== undefined && serverRevision(row) !== undefined &&
+          serverRevision(current)! > serverRevision(row)!) return;
 
       const transformed = SyncPull.transformFromPgRecord(table as any, row);
       const leadId = transformed.leadId;
@@ -318,8 +327,13 @@ export class RealtimeService {
           import_audits: db.importAudits,
         };
         const deleteTable = deleteTableMap[table];
+        const existing = deleteTable ? await deleteTable.get(row.id) : undefined;
+        // A delayed delete for an older incarnation must not remove a newer
+        // authoritative row already delivered by pull or Realtime.
+        if (serverRevision(existing) !== undefined && serverRevision(row) !== undefined &&
+            serverRevision(existing)! > serverRevision(row)!) return;
         if (table === 'leads') {
-          await pruneLeadData(db, [row.id], scope);
+          await pruneLeadData(db, [row.id], scope, true);
         } else if (deleteTable) {
           await deleteTable.delete(row.id);
         }
@@ -433,6 +447,7 @@ export class RealtimeService {
         } catch (e) {
           console.warn('Entity listener error:', e);
         }
+      });
       });
     } catch (err) {
       console.warn(`Error processing realtime event for ${table}:`, err);

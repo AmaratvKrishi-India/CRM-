@@ -33,6 +33,7 @@ import { useSync } from '../../services/sync/useSync';
 import { Modal } from '../common/Modal';
 import { useToast } from '../common/Toast';
 import { labelFor } from '../../lib/labels';
+import { SyncRecoveryPanel } from '../sync/SyncRecoveryPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -827,6 +828,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           className="space-y-4"
         >
           {/* ── Sync Status Section ── */}
+          <SyncRecoveryPanel key={`${currentUser?.organizationId}:${currentUser?.id}`} />
           <div>
             <h3 className="text-sm font-bold text-ink">Sync Status</h3>
             <p className="text-xs text-soft mt-0.5">

@@ -1,12 +1,14 @@
 /* ============================================================
    APP FONT — Inter (bundled locally via @fontsource/inter, 100% offline-first)
    ============================================================ */
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
-@import "@fontsource/inter/600.css";
-@import "@fontsource/inter/700.css";
-@import "@fontsource/inter/800.css";
-@import "@fontsource/inter/900.css";
+/* English-first product: load only the Latin subsets to avoid shipping unused
+   Greek/Cyrillic/Vietnamese font payloads on the critical path. */
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/inter/latin-800.css";
+@import "@fontsource/inter/latin-900.css";
 @import "tailwindcss";
 
 /* ============================================================
@@ -62,7 +64,8 @@
   --success: #047857;
   --success-text: #047857;
   --warning: #d97706;
-  --warning-text: #b45309;
+  /* Dark enough for WCAG AA text on the light surface. */
+  --warning-text: #92400e;
   --danger: #e11d48;
   --danger-text: #be123c;
   --info: #2563eb;

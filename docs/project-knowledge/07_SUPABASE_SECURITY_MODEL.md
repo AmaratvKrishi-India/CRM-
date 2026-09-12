@@ -1,85 +1,77 @@
-# 07 - SUPABASE SECURITY MODEL
+# 07 — Supabase Security Model
 
-> Phase 3 client defense in depth (2026-09-01): sync pull and realtime now apply explicit organization filters plus local access-scope validation even though RLS remains authoritative. Assignment revocation is reconciled through an authoritative visible-lead snapshot and local graph pruning. Push deletes filter both entity ID and organization ID. No production policy or migration was changed during Phase 3; migrations 1–7 and the RLS scope fixture were validated only on disposable local PostgreSQL.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** all 14 files in `supabase/migrations/`, `src/services/`, and security/RLS tests
 
-This document outlines the comprehensive security architecture and Row Level Security (RLS) model implemented in the Amaratv Krishi Field Sales CRM.
+The security model is organization-scoped, role-aware, and defense-in-depth. The SQL migrations are authoritative for the final policy text; earlier policy definitions can be replaced by later migrations, so no single early migration should be described as the “final” policy set.
 
-## Security Helper Functions (5 total)
+## Identity and access helpers
 
-The security model relies on five core helper functions to efficiently evaluate policies without repeated self-joins or complex subqueries. All helper functions are created as `SECURITY DEFINER`, `STABLE`, and explicitly set `SET search_path = public` to prevent search path hijacking.
+Core current helpers include:
 
-1. `current_user_org_id()` -> `UUID`
-   - Selects `organization_id` from the `profiles` table where `auth_user_id = auth.uid()`.
-   - Used to enforce the primary organization boundary.
-2. `current_user_role()` -> `TEXT`
-   - Selects `role` from the `profiles` table where `auth_user_id = auth.uid()`.
-3. `is_org_admin()` -> `BOOLEAN`
-   - Returns `true` if `current_user_role() = 'ADMIN'`, otherwise `false`.
-4. `is_active_org_user()` -> `BOOLEAN`
-   - Returns `true` if `current_user_org_id() IS NOT NULL`, otherwise `false`.
-5. `current_profile_id()` -> `UUID` *(Introduced in Migration 6)*
-   - Selects `id` from the `profiles` table where `auth_user_id = auth.uid()`.
-   - Used for direct agent isolation checks based on profile UUIDs instead of auth UUIDs.
+- `current_user_org_id()` — active caller organization.
+- `current_user_role()` — caller role.
+- `is_org_admin()` — ADMIN test inside the caller organization.
+- `is_active_org_user()` — active scoped-user test.
+- `current_profile_id()` — authenticated profile UUID.
+- `can_access_lead_for_current_user(p_lead_id)` — migration-14 parent-lead authorization used to harden child-record writes.
 
-## RLS Policy Architecture
+Synchronization and operational-reporting migrations add additional narrowly scoped functions such as `sync_head`, `sync_was_deleted`, `reserve_agent_provisioning`, `can_read_operational_errors`, `report_operational_error`, and `expire_operational_errors`.
 
-Row Level Security (RLS) is strictly **enabled** on ALL 10 application tables. Below are the FINAL active policies, incorporating overrides from Migration 6.
+## Application-table RLS
 
-### leads (3 policies)
+RLS is enabled on the 10 primary application tables. The intended boundary is:
 
-- **leads_select_policy**: Users can select leads where the lead's `organization_id` matches their own AND they are either an `ADMIN`, the lead is assigned to their `current_profile_id()`, or the lead was created by their `current_profile_id()`.
-- **leads_insert_policy**: Users can insert leads into their own organization AND they are either an `ADMIN`, or they are creating the lead themselves (`created_by = current_profile_id()`) and assigning it to themselves (`assigned_to = current_profile_id()` or `NULL`).
-- **leads_update_policy**: Follows the same logic as the select policy (org match AND (admin OR assigned_to=self OR created_by=self)).
+- Organization data never crosses `organization_id` scope.
+- ADMIN users can operate across their own organization subject to table-specific policies.
+- AGENT users can see/update leads they are authorized to access and only child records tied to an accessible parent lead or their own allowed identity.
+- `import_audits` and `bulk_assignment_audits` are administrative/audit surfaces and remain restricted accordingly.
+### Migration-14 child-write hardening
 
-### call_records (3 policies)
+Migration 14 replaces the earlier INSERT/UPDATE policies for `call_records`, `follow_ups`, `remarks`, `activities`, and `message_history` where appropriate. These policies call `can_access_lead_for_current_user()` so a syntactically valid child row cannot be written merely by supplying another lead ID inside the same organization.
 
-- **SELECT**: Org match AND (admin OR `user_id` matches self OR `lead_id` is in the subquery of accessible leads).
-- **INSERT**: Org match AND (admin OR `user_id` matches self).
-- **UPDATE**: Org match AND (admin OR `user_id` matches self).
+This is the current policy layer and supersedes descriptions that stop at Migration 6.
 
-### follow_ups, remarks, activities, message_history
+## Synchronization security
 
-These tables follow the same pattern as `call_records`, relying on a `lead_id` subquery to determine access. Users can access these records if they are in the same organization and either have admin privileges, own the record, or have access to the parent lead.
+Migration 8 adds a server-authoritative revision protocol to the 9 synchronized entities. `sync_mutate` is `SECURITY INVOKER`, so underlying RLS and triggers still evaluate as the authenticated caller.
 
-### import_audits
+Key controls include:
 
-- **SELECT**: Admin-only access within the same organization.
-- **INSERT**: Admin-only access within the same organization.
+- only allowlisted entity and operation names;
+- payload organization must equal `current_user_org_id()`;
+- expected revision is required for existing-row mutation semantics;
+- server-owned sync metadata cannot be supplied by an untrusted client;
+- mutation UUID replay is idempotent and reuse with different data is rejected;
+- deleted identities are remembered in `sync_deleted_keys` so a lost CREATE response cannot resurrect a hard-deleted UUID;
+- conditional delete is protected by the server revision guard;
+- verified call duration is preserved when an unverified mutation races with a verified server record.
 
-### bulk_assignment_audits
+`sync_revision_heads` and `sync_deleted_keys` have RLS enabled and direct privileges revoked from normal client roles; callers use the approved functions instead of direct table access.
+## Agent provisioning security
 
-- **SELECT**: Admin-only access within the same organization.
-- **INSERT**: Admin-only access within the same organization.
+The `create-agent` Edge Function authenticates the caller JWT, verifies an ACTIVE ADMIN profile, inherits the caller organization server-side, forces the new role to `AGENT`, and uses the service-role key only inside the Edge Function. Migration 9 adds durable idempotency and server-side rate/capacity reservation through `reserve_agent_provisioning`.
 
-### organizations
+The client never receives or stores the service-role key. Temporary agent passwords are sent only to the privileged provisioning endpoint and are not persisted in Dexie or activity metadata.
 
-- **SELECT**: Accessible by any active user where `id = current_user_org_id()`.
-- **UPDATE**: Admin-only.
+## Operational reporting boundary
 
-### profiles
+Migration 11 introduces an allowlisted operational-error path. Normal application callers report only bounded fields through `report_operational_error`; raw secrets, headers, sessions, customer payloads, and arbitrary exception bodies are not part of the approved diagnostic schema. Reader access is separately authorized through `operational_error_readers`, and retention cleanup is implemented by `expire_operational_errors`.
 
-- **SELECT**: Accessible by any active user within the same organization.
-- **INSERT**: Admin-only.
-- **UPDATE**: Users can update their own profile; admins can update any profile within their organization.
+Repository implementation does **not** by itself prove a target cloud project has the migration, reader grants, retention process, or ingestion path deployed. Verify those facts per environment before claiming the collector is live.
 
-## Immutability Triggers (2)
+## Client defense in depth
 
-To prevent privilege escalation and unauthorized reassignment, immutability triggers block modification of critical fields.
+In addition to RLS:
 
-1. `protect_profile_immutable_fields()`
-   - Blocks non-admin users from changing `role`, `organization_id`, `status`, or `auth_user_id` on the `profiles` table.
-2. `protect_lead_immutable_fields()`
-   - Blocks non-admin users from changing a lead's `organization_id` or `created_by` field.
-   - Blocks non-admin users from reassigning leads to other agents.
+- sync pull and Realtime apply organization filters and validate the active local access scope;
+- assignment revocation is reconciled through an authoritative visible-lead snapshot and local graph pruning;
+- push/delete paths include organization scope;
+- account data is partitioned locally in Dexie and remains locked until the server profile is verified;
+- Android uses `allowBackup=false`;
+- `SUPABASE_SERVICE_ROLE_KEY` is prohibited from client source/build output and checked by security tests.
 
-## Security Boundaries
+## Environment rule
 
-The CRM architecture enforces strict data silos and operational hierarchies:
-
-- **Organization boundary**: Enforced rigidly by checking `current_user_org_id()` on every policy. Cross-organization data access is impossible (0 rows visible).
-- **Agent isolation**: Enforced by using `current_profile_id()` to check `assigned_to` or `created_by` fields. Agents cannot see or modify leads or activities assigned to other agents.
-- **Admin supremacy**: Enforced by `is_org_admin()`, which explicitly bypasses agent-level restrictions within the same organization, granting full visibility and management capabilities to administrators.
-- **Cross-org**: Complete isolation, 0 rows visible.
-- **Service role key**: The Supabase service role key is NEVER utilized in client-side code, verified statically by `securitySecretScan.test.ts`.
-- **Android**: `allowBackup=false` is enforced to prevent local data extraction.
-- **SQL**: `SET search_path = public` is explicitly defined on all trigger and helper functions to neutralize search path vulnerabilities.
+The checkout contains 14 migrations, but a cloud environment may have applied fewer. Before any staging/production change, verify the exact linked Supabase project and applied migration history. Never infer deployed security posture solely from local SQL files.

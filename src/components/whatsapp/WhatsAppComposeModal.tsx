@@ -55,12 +55,14 @@ export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
 
   // Load templates & default configuration on open
   useEffect(() => {
+    let cancelled = false;
     if (isOpen && lead) {
       setErrorMessage(null);
       setCatalogueWarning(null);
       setIsEditingMessage(false);
 
       crmData.templates.getAllTemplates().then((tpls) => {
+        if (cancelled) return;
         setTemplates(tpls);
 
         if (tpls.length === 0) {
@@ -86,15 +88,21 @@ export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
             setCatalogueWarning('Default catalogue is unavailable. Please select another file.');
           }
         }
+      }).catch(() => {
+        if (!cancelled) setErrorMessage('Could not load message templates. Reopen this window to try again.');
       });
-    } else {
-      // Clean up attachment when closed
-      if (attachment) {
-        AttachmentService.revokeAttachmentUrl(attachment);
-        setAttachment(null);
-      }
     }
+    return () => { cancelled = true; };
   }, [isOpen, lead]);
+
+  useEffect(() => {
+    if (!isOpen) setAttachment(null);
+  }, [isOpen]);
+
+  // Each selected URL is released on replacement, close, or unmount.
+  useEffect(() => () => {
+    if (attachment) AttachmentService.revokeAttachmentUrl(attachment);
+  }, [attachment]);
 
   if (!lead) return null;
 
@@ -142,16 +150,12 @@ export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
 
     setErrorMessage(null);
     setCatalogueWarning(null);
-    if (attachment) {
-      AttachmentService.revokeAttachmentUrl(attachment);
-    }
     const meta = AttachmentService.createAttachmentMetadata(file);
     setAttachment(meta);
   };
 
   const handleRemoveAttachment = () => {
     if (attachment) {
-      AttachmentService.revokeAttachmentUrl(attachment);
       setAttachment(null);
     }
     if (fileInputRef.current) {

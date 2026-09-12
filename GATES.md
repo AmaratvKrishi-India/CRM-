@@ -1,114 +1,44 @@
-# Master Acceptance Gates: Phase 2 Remediation & Production Readiness Audit
+# Current Acceptance Gates
 
-> Refreshed manually on 2026-08-22 by the Final A–Z Master Audit
-> (`docs/FINAL_A_TO_Z_RELEASE_AUDIT.md`). Note: `npm run verify` regenerates this file
-> from hardcoded template text (stale counts), so it was intentionally NOT re-run.
+**Last reviewed:** 2026-09-12
+**Decision:** **NOT RELEASE-APPROVED**
+**Branch:** `codex/release-readiness`
+**Parent HEAD before this verification:** `edc8b3fd3a1169d1f2e3ca4bf19fadbb5844ae7a`
 
-## Environment & Deployment Gates
+This file is the current gate summary for the checkout. It replaces the older v2.0.0 gate snapshot, which remains available in dated evidence reports. A passing local check does not authorize a production deployment.
 
-- [x] GATE_DOCKER_SUPABASE_LOCAL: Fully automated Docker Desktop local Supabase environment, health checks, 6 PostgreSQL migrations, deterministic seed data, and 15 real PostgreSQL integration tests
-  STATUS: PASS
-  EVIDENCE: Docker stack `supabase_db_calling_app` healthy (ports 15432-15438), 6 migrations applied, seed verified, realSupabasePostgres.test.ts 15/15 passing (re-run 2026-08-22)
+## Gate summary
 
-- [x] GATE_LOCAL_VERIFIED: Real Dexie outbox, 22 unit test suites (115 passing tests), 32 Playwright E2E tests, clean Vite build, security scanning
-  STATUS: PASS
-  EVIDENCE: npm test (115 passing / 0 failing, re-run 2026-08-23), npm run test:e2e (32/32 passing), npm run build (clean bundle)
+| Gate | Status | Evidence / reason |
+|---|---|---|
+| TypeScript | PASS | Fresh `npm run typecheck` exit 0 on 2026-09-12 |
+| Lint | PASS WITH WARNINGS | Fresh exit 0; 0 errors and 77 `no-explicit-any` warnings |
+| Production build | PASS | Fresh `npm run build` passed; 2,011 modules transformed |
+| Full required runner | PASS | `npm test -- --runInBand`: 285/285; `npm run test:all`: 10/10 configured suites, 0 failures, every required suite and the quality gate passed |
+| Bundle / performance | PASS | 15 chunks, 1,145,899 bytes total minified JS, no budget warnings; Lighthouse 1.00 performance |
+| Dependency security | PASS AT REQUIRED THRESHOLD | `npm audit --audit-level=high`: 0 high/critical; 4 moderate advisories disclosed |
+| Accessibility | PASS | 11/11 Playwright accessibility checks; 0 reported violations; Lighthouse accessibility 1.00 |
+| Isolated staging | PASS WITH SCOPED EVIDENCE | Auth/RLS, sync, Realtime 16/16, offline reconnect, CRUD/archive/recovery, current call lifecycle, and scheduled expiry passed against `CRM-Staging` only |
+| Android compilation | PASS, SIGNED | Fresh Capacitor sync and Gradle release APK/AAB build succeeded with the verified production signing identity |
+| Emulator smoke | PASS | Exact signed release APK installed and cold-launched successfully on emulators `5554`, `5556`, and `5558`; `5554` also confirmed the app as top resumed activity |
+| Production migration parity | PASS | Intended production project `lahvcodvgubplzfshare` is verified at 14/14 repository migrations after an authorized, backed-up migration window |
+| Current signed release artifact | PASS | Production signing identity recovered externally and matched to historical certificate; APK/AAB signatures verify and exact hashes are recorded in the 2026-09-12 report |
+| Production deployment | PARTIAL | Production database migrations are complete. Application distribution remains blocked pending exact signed-APK physical-device smoke |
+| Documentation | PASS | Duplicate/stale documentation cleanup and CURRENT-doc reconciliation are complete; fresh scan on 2026-09-11 found 0 broken local Markdown links and no targeted stale technical/release claims |
 
-- [ ] GATE_STAGING_SUPABASE_VERIFIED: Dedicated staging Supabase project schema, migrations, RLS, and CRUD verification
-  STATUS: BLOCKED (Dedicated staging project not configured in .env.staging. Production project (lahvcodvgubplzfshare) is protected and not used for staging testing.)
-  EVIDENCE: Production project (lahvcodvgubplzfshare) is protected and not used for destructive testing
+## Release blockers
 
-- [x] GATE_PRODUCTION_SUPABASE_VERIFIED: Safe read-only connectivity and health verification of production project (lahvcodvgubplzfshare)
-  STATUS: PASS (READ-ONLY)
-  EVIDENCE: Production endpoint reachable; strict read-only policy enforced
+1. Connect an authorized physical Android device and install/cold-launch the exact signed APK identified in the 2026-09-12 verification report.
+2. Record the physical-device process/activity smoke evidence, then issue a new dated release decision before distribution.
+3. Repeat artifact-dependent gates after any code/schema/signing change.
 
-- [x] GATE_PRODUCTION_SCHEMA_COMPARED: Read-only local vs cloud Supabase schema comparison and structural synchronization audit
-  STATUS: PASS
-  EVIDENCE: Schema comparison complete and corrected 2026-08-22: SYNCHRONIZED (Migrations 1-6 active on Cloud; Migration 6 verified via read-only RPC probe, `current_profile_id()` HTTP 200). Report: docs/LOCAL_VS_CLOUD_SUPABASE_SCHEMA_REPORT.md
+## Evidence precedence
 
-- [x] GATE_EMULATOR_VERIFIED: Production-signed APK built, installed, launched, and verified on Android Studio AVD/emulator
-  STATUS: PASS
-  EVIDENCE: Release APK v2.0.0 rebuilt 2026-08-23 (SHA-256 A7DD97F61718A7735BE3D0EBD0023F201BEC6B995AA4DD93A3A4E832CD30E0B9, V2-signed), installed and verified on emulator-5556/5558/5560 via ADB
+Use the newest report that tests the exact current checkout and scope. The current authority is [FINAL_RELEASE_VERIFICATION_2026-09-12.md](./docs/project-knowledge/FINAL_RELEASE_VERIFICATION_2026-09-12.md); the [September 9 sign-off](./docs/project-knowledge/FINAL_RELEASE_SIGNOFF_2026-09-09.md) is historical only.
 
-- [x] GATE_MULTI_DEVICE_SYNC_VERIFIED: Real multi-device synchronization across 3 real Android Studio emulators and local Docker Supabase PostgreSQL
-  STATUS: PASS
-  EVIDENCE: tests/multiDeviceSync.test.ts 13/13 passing (re-run 2026-08-23, ~166s) on emulators emulator-5556/5558/5560 (Android 17) against local Docker Supabase; APK v2.0.0 (versionCode 2) installed on all three; admin/agent-A/agent-B isolation, sync, offline recovery and RLS verified
+## Safety rules
 
-- [x] GATE_EMULATOR_DEVICE_VERIFIED: Verification on Android Studio AVD/emulator connected via ADB
-  STATUS: PASS
-  EVIDENCE: adb devices reports 3 active Android Studio emulators (emulator-5556/5558/5560); release APK installed, launched, and verified on all three. Physical devices are not required — Android Studio AVD/emulator is the supported verification target.
-
-- [x] GATE_TWO_DEVICE_VERIFIED: Two-device real-time sync verification on concurrent Android Studio AVDs/emulators
-  STATUS: PASS
-  EVIDENCE: tests/multiDeviceSync.test.ts 13/13 passing across 3 concurrent Android Studio emulators (emulator-5556/5558/5560) against local Docker Supabase; admin/agent-A/agent-B isolation, sync, offline recovery and RLS verified. Physical devices are not required — Android Studio AVD/emulator is the supported verification target.
-
----
-
-## Functional & Regression Master Gates (G1 - G17)
-
-- [x] G1_DEXIE_OUTBOX: Real Dexie repository mutations produce genuine outbox records in Dexie outbox table
-  CHECK: npx tsx --test tests/realDexieRepositoryOutbox.test.ts
-  STATUS: PASS
-
-- [x] G2_PERSISTENCE: Real persistence across application close and IndexedDB reopen
-  CHECK: npx tsx --test tests/backupRestoreIntegrity.test.ts
-  STATUS: PASS
-
-- [x] G3_SUPABASE_MIGRATIONS: Validation of all 6 PostgreSQL migrations and schema definitions in supabase/migrations/
-  CHECK: Verify 6 migration SQL files, search_path=public, and deterministic seed.sql on Docker PostgreSQL
-  STATUS: PASS
-
-- [x] G4_PRODUCTION_SAFETY: Strict guardrails preventing automated destructive actions against production (lahvcodvgubplzfshare)
-  STATUS: PASS (READ-ONLY)
-
-- [x] G5_LEAD_NORMALIZER: Phone (+91, 0, Lucknow 0522 STD) and address/PIN normalizer tests
-  CHECK: npx tsx --test tests/leadNormalizer.test.ts
-  STATUS: PASS
-
-- [x] G6_TELEPHONY_AUDIT: Zero-duration fabricated talk-time prevention and UNVERIFIED status under ACTION_DIAL
-  CHECK: npx tsx --test tests/realCallLifecycle.test.ts
-  STATUS: PASS
-
-- [x] G7_WHATSAPP_AUDIT: WhatsApp template rendering, fallback hierarchy, and safety tag removal
-  CHECK: npx tsx --test tests/realTemplateRenderer.test.ts
-  STATUS: PASS
-
-- [x] G8_EXCEL_IMPORT: Real XLSX buffer parsing, auto-column mapping, and duplicate classification
-  CHECK: npx tsx --test tests/realExcelParser.test.ts
-  STATUS: PASS
-
-- [x] G9_BULK_ASSIGNMENT: Scalability testing of bulk lead assignment at 1, 10, 50, and 100+ records in real Dexie
-  CHECK: npx tsx --test tests/syncOutboxQueue.test.ts
-  STATUS: PASS
-
-- [x] G10_BACKUP_RESTORE: Real backup payload generation, JSON validation, and Last-Write-Wins merge restore
-  CHECK: npx tsx --test tests/realBackupService.test.ts
-  STATUS: PASS
-
-- [x] G11_SECURITY_SCAN: Absence of leaked service role keys in src/dist, allowBackup=false, search_path=public
-  CHECK: npx tsx --test tests/securitySecretScan.test.ts
-  STATUS: PASS
-
-- [x] G12_VITE_BUILD: Production TypeScript compilation and Vite bundling
-  CHECK: npm run build
-  STATUS: PASS
-
-- [x] G13_RELEASE_APK: Signed production release APK built with external release keystore
-  CHECK: cd android && gradlew assembleRelease
-  STATUS: PASS
-
-- [x] G14_EMULATOR_VERIFIED: Release APK successfully installed and verified on Android emulator
-  CHECK: adb install & dumpsys window check
-  STATUS: PASS
-
-- [x] G15_FULL_TEST_SUITE: Complete automated test suite passes with 0 failures
-  CHECK: npm test
-  STATUS: PASS
-
-- [x] G16_REAL_POSTGRES_RLS: Real PostgreSQL triggers, foreign keys, and RLS lead isolation verified on Docker stack
-  CHECK: npx tsx --test tests/realSupabasePostgres.test.ts
-  STATUS: PASS
-
-- [x] G17_MULTI_DEVICE_SYNC: Real multi-device synchronization and role-based lead isolation across 3 Android emulators
-  CHECK: npx tsx --test tests/multiDeviceSync.test.ts
-  STATUS: PASS (13/13, re-run 2026-08-23 on emulator-5556/5558/5560)
+- Never treat a historical v2.0.0 APK as proof for the current working tree.
+- Never point staging commands at the production Supabase reference.
+- Never place service-role keys, database passwords, session tokens, customer exports, or signing material in the repository.
+- Preserve the dirty working tree and record failed attempts; do not filter failures out of a gate summary.

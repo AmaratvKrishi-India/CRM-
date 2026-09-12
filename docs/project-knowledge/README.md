@@ -1,78 +1,54 @@
-# Amaratv Krishi Field Sales CRM - Project Knowledge Base
+# Project Knowledge Base
 
-Welcome to the comprehensive documentation for the Amaratv Krishi CRM. 
+**Document status:** CURRENT INDEX
+**Last reviewed:** 2026-09-11
+**Current-state authority:** [16_CURRENT_STATE.md](./16_CURRENT_STATE.md)
+**Release-gate authority:** [GATES.md](../../GATES.md)
+**Latest completed historical verification evidence:** [FINAL_RELEASE_SIGNOFF_2026-09-09.md](./FINAL_RELEASE_SIGNOFF_2026-09-09.md)
 
-This knowledge base provides an exact, source-verified map of the application's architecture, security model, database schema, and operational workflows.
+This directory contains the living source-verified guides plus retained dated verification evidence. The 2026-09-09 sign-off is historical evidence only and does not approve newer working-tree changes. Older audit, remediation, handoff, phase, and duplicate reports were removed because their conclusions were superseded by the current checkout.
 
-## Master Project Index
+## Product and application
 
-### 1. Architecture & Overview
-- [01 - Project Overview](./01_PROJECT_OVERVIEW.md)
-- [02 - Product Requirements](./02_PRODUCT_REQUIREMENTS.md)
-- [03 - Feature Inventory](./03_FEATURE_INVENTORY.md)
-- [04 - User Roles & Permissions](./03_ROLES_AND_PERMISSIONS.md)
-- [05 - User Workflows](./05_BUSINESS_WORKFLOW.md)
-- [06 - UI/UX Specification](./06_UI_UX_SPECIFICATION.md)
-- [07 - Design System](./07_DESIGN_SYSTEM.md)
-- [08 - Accessibility](./08_ACCESSIBILITY.md)
-- [09 - Architecture](./02_SYSTEM_ARCHITECTURE.md)
-- [10 - Codebase Index](./15_CODEBASE_INDEX.md)
-- [11 - Frontend Architecture](./11_FRONTEND_ARCHITECTURE.md)
-- [12 - Backend Architecture](./12_BACKEND_ARCHITECTURE.md)
+- [01 — Project overview](./01_PROJECT_OVERVIEW.md)
+- [03 — Roles and permissions](./03_ROLES_AND_PERMISSIONS.md)
+- [04 — Navigation map](./04_NAVIGATION_MAP.md)
+- [05 — Business workflow](./05_BUSINESS_WORKFLOW.md)
+- [10 — Android application](./10_ANDROID_APPLICATION.md)
+- [11 — Web/admin application](./11_WEB_ADMIN_APPLICATION.md)
+- [16 — Current state and release decision](./16_CURRENT_STATE.md)
 
-### 2. Data & Security
-- [13 - Database Schema](./06_DATABASE_REFERENCE.md)
-- [14 - Database Relationships](./14_DATABASE_RELATIONSHIPS.md)
-- [15 - Migrations](./14_MIGRATION_HISTORY.md)
-- [16 - RLS Security](./07_SUPABASE_SECURITY_MODEL.md)
-- [Offline-First and Background Sync](./BACKGROUND_SYNC_ARCHITECTURE.md)
-- [08 - Sync and Realtime Architecture](./08_SYNC_REALTIME_ARCHITECTURE.md)
-- [19 - Realtime](./19_REALTIME.md)
-- [20 - Data Contracts](./09_API_DATA_CONTRACTS.md)
-- [21 - Error Handling](./21_ERROR_HANDLING.md)
-- [25 - Security](./25_SECURITY.md)
+## Architecture and data
 
-### 3. Testing & Quality
-- [22 - Testing Strategy](./12_TESTING_VERIFICATION.md)
-- [23 - QA Test Matrix](./23_QA_TEST_MATRIX.md)
-- [24 - Android](./10_ANDROID_APPLICATION.md)
-- [26 - Performance](./26_PERFORMANCE.md)
-- [27 - Backup & Restore](./27_BACKUP_RESTORE.md)
-- [Release Readiness Gates](./GATES.md)
+- [02 — System architecture](./02_SYSTEM_ARCHITECTURE.md)
+- [06 — Database reference](./06_DATABASE_REFERENCE.md)
+- [07 — Supabase security model](./07_SUPABASE_SECURITY_MODEL.md)
+- [08 — Sync and realtime architecture](./08_SYNC_REALTIME_ARCHITECTURE.md)
+- [09 — API and data contracts](./09_API_DATA_CONTRACTS.md)
+- [14 — Migration history](./14_MIGRATION_HISTORY.md)
+- [18 — Edge functions](./18_EDGE_FUNCTIONS.md)
+## Engineering and operations
 
-### 4. Operations & Deployment
-- [28 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
-- [Current State and Known Limitations](./16_CURRENT_STATE.md)
+- [12 — Testing and verification](./12_TESTING_VERIFICATION.md)
+- [13 — Deployment environments](./13_DEPLOYMENT_ENVIRONMENTS.md)
+- [15 — Codebase index](./15_CODEBASE_INDEX.md)
+- [17 — AI agent operating context](./17_AI_AGENT_CONTEXT.md)
+- [19 — Environment variables](./19_ENVIRONMENT_VARIABLES.md)
+- [20 — Toolchain and CLI status](./20_TOOLCHAIN_CLI_STATUS.md)
+- [21 — Account identity map](./21_ACCOUNT_IDENTITY_MAP.md)
+- [22 — Deployment runbook](./22_DEPLOYMENT_RUNBOOK.md)
+- [23 — Local development setup](./23_LOCAL_DEV_SETUP.md)
+- [24 — Isolated staging environment](./24_STAGING_ENVIRONMENT.md)
 
-### 5. Environments & Interfaces
-- [10 - Android Application](./10_ANDROID_APPLICATION.md)
-- [11 - Web / Admin Application](./11_WEB_ADMIN_APPLICATION.md)
-- [13 - Deployment & Environments](./13_DEPLOYMENT_ENVIRONMENTS.md)
-- [18 - Supabase Edge Functions](./18_EDGE_FUNCTIONS.md)
-- [19 - Environment Variables Reference](./19_ENVIRONMENT_VARIABLES.md)
+## Focused current references
 
-### 5. Quality Assurance & History
-- [12 - Testing & Verification](./12_TESTING_VERIFICATION.md)
-- [14 - Migration History](./14_MIGRATION_HISTORY.md)
-- [Final Data Reverification Report](./FINAL_DATA_REVERIFICATION_REPORT.md)
-- [Local vs Cloud Reverification](./LOCAL_VS_CLOUD_REVERIFICATION.md)
+- [Agent lifecycle architecture](./AGENT_LIFECYCLE_ARCHITECTURE.md)
+- [Background sync architecture](./BACKGROUND_SYNC_ARCHITECTURE.md)
+- [Deletion and recovery policy](./DELETION_AND_RECOVERY_POLICY.md)
+- [Import format and phone validation](./IMPORT_FORMAT_AND_PHONE_VALIDATION.md)
+- [Operational error reporting](./OPERATIONAL_ERROR_REPORTING.md)
+- [Theme and typography](./THEME_AND_TYPOGRAPHY.md)
 
-### 6. Strategy & Onboarding
-- [16 - Current State & Next Steps](./16_CURRENT_STATE.md)
-- [17 - AI Agent Operating Context](./17_AI_AGENT_CONTEXT.md) **(Start Here for AI Agents)**
+## Maintenance rule
 
-### 7. Tooling & Operations
-- [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md)
-- [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md)
-- [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
-- [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md)
-
----
-
-## Recommended Reading Order (For a new Engineer or AI Agent)
-
-1. Read **[17 - AI Agent Operating Context](./17_AI_AGENT_CONTEXT.md)** to understand safety rules and boundaries.
-2. Read **[01 - Project Overview](./01_PROJECT_OVERVIEW.md)** to grasp what the app does.
-3. Read **[09 - Architecture](./02_SYSTEM_ARCHITECTURE.md)** to see how React, Dexie, and Supabase connect.
-4. Read **[16 - RLS Security](./07_SUPABASE_SECURITY_MODEL.md)** to understand how data is secured and isolated.
-5. Review **[13 - Database Schema](./06_DATABASE_REFERENCE.md)** as you begin modifying the code.
+Update the relevant living guide when implementation changes. Record durable architecture rationale in [`../decisions/`](../decisions/). New release verification may be added as a dated report only while it remains the newest authority; once superseded, remove it after folding any still-valid conclusions into the living guides and `GATES.md`.

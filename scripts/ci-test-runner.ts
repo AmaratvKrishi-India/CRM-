@@ -63,13 +63,13 @@ function runSuite(suite: string, shardIndex: number, totalShards: number): { suc
   const commands: Record<string, string> = {
     'typecheck': 'npx tsc --noEmit',
     'lint': 'npx eslint src --ext .ts,.tsx --format json',
-    'unit': `npx vitest run --shard=${shardIndex}/${totalShards} --reporter=json --outputFile=test-results/unit-${shardIndex}.json`,
-    'type': 'npx tsd',
+    'unit': `npx vitest run --shard=${shardIndex}/${totalShards} --exclude=tests/integration/** --reporter=json --outputFile=test-results/unit-${shardIndex}.json`,
+    'type': 'npm run test:type',
     'integration': 'npx vitest run tests/integration --reporter=json --outputFile=test-results/integration.json',
-    'e2e': `npx maestro test e2e/maestro --shard=${shardIndex}/${totalShards} --format junit --output test-results/e2e-${shardIndex}.xml`,
-    'visual': 'npx lost-pixel --reporter=junit --output=test-results/visual.xml',
-    'performance': 'npx tsx scripts/load-test.ts --output=test-results/load-test.json',
-    'a11y': 'npx tsx scripts/accessibility-runtime-test.ts --output=test-results/a11y-runtime.json',
+    'e2e': 'npm run test:e2e:chromium',
+    'visual': 'npm run test:e2e:visual',
+    'performance': 'npm run test:perf:bundle',
+    'a11y': 'npm run test:e2e:accessibility',
     'security': 'npx tsx scripts/security-deps-test.ts --output=test-results/security.json',
   };
 

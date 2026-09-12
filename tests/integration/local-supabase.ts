@@ -87,6 +87,10 @@ async function signInSeedUser(client: SupabaseClient, email: string, password: s
   if (error || !data.user || !data.session) {
     throw new Error('Local Supabase seed account authentication failed. Reset or start the local stack with its seed data.');
   }
+  // Supabase auth-state listeners update Realtime asynchronously. Await the
+  // token handoff here so a freshly authenticated secondary client cannot
+  // subscribe before its Realtime socket has the user's JWT.
+  await client.realtime.setAuth(data.session.access_token);
   return data.user.id;
 }
 
@@ -139,6 +143,16 @@ export async function setupLocalSupabase(): Promise<LocalSupabaseContext> {
     cleanupActivityIds: [],
     cleanupOrganizationIds: [],
   };
+}
+
+export async function createAuthenticatedAgentClient(context: LocalSupabaseContext): Promise<SupabaseClient> {
+  const client = browserClient(context.apiUrl, context.anonKey);
+  await signInSeedUser(
+    client,
+    process.env.SUPABASE_TEST_AGENT_EMAIL || 'rahul@amaratvkrishi.com',
+    process.env.SUPABASE_TEST_AGENT_PASSWORD || 'Agent@123',
+  );
+  return client;
 }
 
 export function createUnauthenticatedLocalClient(context: LocalSupabaseContext): SupabaseClient {

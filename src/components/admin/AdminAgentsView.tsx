@@ -4,7 +4,7 @@
  * Rewritten for design tokens + button semantics on stat filters (F1/F2/F3).
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import {
   Users,
   UserPlus,
@@ -34,7 +34,7 @@ export const AdminAgentsView: React.FC = () => {
   const [statusConfirmAgent, setStatusConfirmAgent] = useState<User | null>(null);
   const [deleteTargetAgent, setDeleteTargetAgent] = useState<User | null>(null);
 
-  const fetchAgents = async () => {
+  const fetchAgents = useCallback(async () => {
     setLoading(true);
     try {
       const list = await AgentManagementService.getAgents(currentUser);
@@ -44,11 +44,11 @@ export const AdminAgentsView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     fetchAgents();
-  }, [currentUser]);
+  }, [fetchAgents]);
 
   // Filtered Agents
   const filteredAgents = useMemo(() => {

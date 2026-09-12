@@ -155,9 +155,9 @@ export async function setupAuthMocks(
  * Performs login flow on the Login Screen
  */
 export async function performLogin(page: Page, email: string = MOCK_AGENT.email, password: string = 'SecurePass123') {
-  const emailInput = page.locator('input[type="email"]');
-  const passwordInput = page.locator('input[placeholder="Enter your password"]');
-  const submitButton = page.locator('button[type="submit"]');
+  const emailInput = page.getByLabel('Email / Login ID');
+  const passwordInput = page.getByLabel('Password', { exact: true });
+  const submitButton = page.getByRole('button', { name: 'Sign In' });
 
   await emailInput.fill(email);
   await passwordInput.fill(password);

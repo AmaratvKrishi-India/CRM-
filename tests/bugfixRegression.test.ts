@@ -147,28 +147,14 @@ describe('BUG-1: call extended fields persist end-to-end', () => {
 describe('BUG-8: DELETE outbox operations are pushed as DELETE, never upsert', () => {
   function makeFakeClient(ops: any[], opts: { deleteError?: string } = {}) {
     return {
-      from(table: string) {
-        return {
-          upsert: async (records: any) => {
-            ops.push({ op: 'upsert', table, ids: (Array.isArray(records) ? records : [records]).map((r: any) => r.id) });
-            return { error: null };
-          },
-          delete: () => {
-            let recorded = false;
-            const query: any = {
-              eq: (col: string, val: string) => {
-                if (col === 'id' && !recorded) {
-                  ops.push({ op: 'delete', table, id: val });
-                  recorded = true;
-                }
-                return query;
-              },
-              then: (resolve: (value: unknown) => void) =>
-                resolve({ error: opts.deleteError ? { message: opts.deleteError } : null }),
-            };
-            return query;
-          },
-        };
+      rpc: async (_name: string, args: any) => {
+        if (args.operation === 'DELETE') {
+          if (opts.deleteError) return {data:null,error:{message:opts.deleteError}};
+          ops.push({op:'delete',table:args.entity,id:args.payload.id});
+          return {data:{status:'APPLIED',record:null},error:null};
+        }
+        ops.push({op:'upsert',table:args.entity,ids:[args.payload.id]});
+        return {data:{status:'APPLIED',record:{...args.payload,sync_revision:1}},error:null};
       },
     };
   }
@@ -183,24 +169,29 @@ describe('BUG-8: DELETE outbox operations are pushed as DELETE, never upsert', (
       createdBy: adminUser.id,
     });
 
-    await dataLayer.leads.hardDeleteLead(lead.id);
+    const ops: any[] = [];
+    const push = new SyncPush(dataLayer.syncQueue, db);
+    await push.pushPending(makeFakeClient(ops) as any);
+    await dataLayer.leads.softDeleteLead(lead.id);
+    await push.pushPending(makeFakeClient(ops) as any);
+    await dataLayer.leads.hardDeleteLead(lead.id, { recoveryExportSaved: true, acknowledgePermanentDeletion: true });
     assert.strictEqual(await db.leads.get(lead.id), undefined, 'lead gone locally');
 
     const items = await db.outbox.where('entityId').equals(lead.id).sortBy('createdAt');
     const del = items.find((i) => i.operation === 'DELETE');
     assert.ok(del, 'DELETE outbox item exists');
 
-    const ops: any[] = [];
-    const push = new SyncPush(dataLayer.syncQueue, db);
     const res = await push.pushPending(makeFakeClient(ops) as any);
     assert.strictEqual(res.failedCount, 0, `push errors: ${res.errors.join('; ')}`);
+    await push.pushPending(makeFakeClient(ops) as any); // causal DELETE follows CREATE ACK
 
     // CREATE must flush as upsert first, DELETE must execute as delete after
-    assert.strictEqual(ops[0].op, 'upsert');
-    assert.deepStrictEqual(ops[0].ids, [lead.id]);
-    assert.strictEqual(ops[1].op, 'delete');
-    assert.strictEqual(ops[1].id, lead.id);
-    assert.strictEqual(ops.filter((o) => o.op === 'upsert').length, 1, 'DELETE never became an upsert');
+    const leadOps = ops.filter(o => o.table === 'leads');
+    assert.strictEqual(leadOps[0].op, 'upsert');
+    assert.deepStrictEqual(leadOps[0].ids, [lead.id]);
+    assert.strictEqual(leadOps[2].op, 'delete');
+    assert.strictEqual(leadOps[2].id, lead.id);
+    assert.strictEqual(leadOps.filter((o) => o.op === 'upsert').length, 2, 'only CREATE and archive became upserts');
 
     const after = await db.outbox.toArray();
     assert.ok(after.every((i) => i.status === 'SYNCED'), 'all items marked synced');
@@ -221,9 +212,11 @@ describe('BUG-8: DELETE outbox operations are pushed as DELETE, never upsert', (
       organizationId: 'org-bugfix-01',
       createdBy: adminUser.id,
     });
-    await dataLayer.leads.hardDeleteLead(lead.id);
-
     const push = new SyncPush(dataLayer.syncQueue, db);
+    await push.pushPending(makeFakeClient([]) as any);
+    await dataLayer.leads.softDeleteLead(lead.id);
+    await push.pushPending(makeFakeClient([]) as any);
+    await dataLayer.leads.hardDeleteLead(lead.id, { recoveryExportSaved: true, acknowledgePermanentDeletion: true });
     const res = await push.pushPending(makeFakeClient([], { deleteError: 'simulated 500' }) as any);
     assert.strictEqual(res.failedCount, 1);
 
@@ -461,9 +454,9 @@ describe('BUG-5: LWW tie-break is deterministic (REMOTE wins) and recorded', () 
     assert.strictEqual(res.conflict?.resolution, 'REMOTE_WON');
   });
 
-  it('strictly newer local still wins', () => {
-    const local = { id: 'lead-tie2', businessName: 'Local', updatedAt: '2026-08-20T10:01:00.000Z' };
-    const remote = { id: 'lead-tie2', businessName: 'Remote', updated_at: '2026-08-20T10:00:00.000Z' };
+  it('higher locally observed server revision rejects delayed remote', () => {
+    const local = { id: 'lead-tie2', serverRevision: 2, businessName: 'Local', updatedAt: '2026-08-20T10:01:00.000Z' };
+    const remote = { id: 'lead-tie2', serverRevision: 1, businessName: 'Remote', updated_at: '2026-08-20T10:00:00.000Z' };
     const res = SyncConflictResolver.resolveMutable('leads', local, remote);
     assert.strictEqual(res.winner, 'LOCAL');
   });

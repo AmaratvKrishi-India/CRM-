@@ -50,6 +50,51 @@ export interface CRMBackupPayload {
   data: CRMBackupData;
 }
 
+export interface BackupSerializationOptions {
+  yieldAfterRecords?: number;
+  scheduler?: () => Promise<void>;
+}
+
+const yieldToEventLoop = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/**
+ * Serializes backup collections incrementally so large exports do not create one
+ * unbounded JSON.stringify task on the browser's UI thread.
+ */
+export async function serializeBackupPayload(
+  payload: CRMBackupPayload,
+  options: BackupSerializationOptions = {}
+): Promise<string> {
+  const yieldAfterRecords = Math.max(1, options.yieldAfterRecords ?? 100);
+  const scheduler = options.scheduler ?? yieldToEventLoop;
+  const { data, ...header } = payload;
+  const chunks = [JSON.stringify(header).slice(0, -1), ',"data":{'];
+  let collectionIndex = 0;
+  let recordsSinceYield = 0;
+
+  for (const [name, records] of Object.entries(data)) {
+    if (records === undefined) continue;
+    if (collectionIndex > 0) chunks.push(',');
+    chunks.push(JSON.stringify(name), ':[');
+
+    for (let recordIndex = 0; recordIndex < records.length; recordIndex++) {
+      if (recordIndex > 0) chunks.push(',');
+      chunks.push(JSON.stringify(records[recordIndex]));
+      recordsSinceYield++;
+      if (recordsSinceYield >= yieldAfterRecords) {
+        recordsSinceYield = 0;
+        await scheduler();
+      }
+    }
+
+    chunks.push(']');
+    collectionIndex++;
+  }
+
+  chunks.push('}}');
+  return chunks.join('');
+}
+
 export interface BackupValidationResult {
   isValid: boolean;
   errors: string[];
@@ -101,6 +146,62 @@ export interface BackupAuditLog {
 }
 
 const BACKUP_HISTORY_STORAGE_KEY = 'amaratv_backup_audit_history';
+
+type FieldKind = 'string' | 'number' | 'boolean' | 'object' | 'timestamp' | 'syncFlag';
+type FieldRule = { kind: FieldKind; nullable?: boolean; optional?: boolean };
+type RecordRules = Record<string, FieldRule>;
+
+const SUPPORTED_BACKUP_COLLECTIONS = new Set([
+  'leads', 'remarks', 'callHistory', 'followUps', 'messageHistory', 'messageTemplates',
+  'users', 'activities', 'callRecords', 'importAudits', 'outbox', 'syncState',
+  'bulkAssignmentAudits',
+]);
+
+const COMMON_RECORD_RULES: RecordRules = {
+  id: { kind: 'string' }, createdAt: { kind: 'timestamp' },
+  updatedAt: { kind: 'timestamp' }, isSynced: { kind: 'syncFlag' },
+};
+
+const RECORD_RULES: Record<string, RecordRules> = {
+  leads: { ...COMMON_RECORD_RULES, businessName: { kind: 'string' }, phone: { kind: 'string' }, status: { kind: 'string' }, deletedAt: { kind: 'timestamp', nullable: true }, organizationId: { kind: 'string', nullable: true, optional: true }, createdBy: { kind: 'string', nullable: true, optional: true }, assignedTo: { kind: 'string', nullable: true, optional: true } },
+  remarks: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, content: { kind: 'string' }, author: { kind: 'string' }, type: { kind: 'string' }, deletedAt: { kind: 'timestamp', nullable: true } },
+  callHistory: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, calledNumber: { kind: 'string' }, phoneType: { kind: 'string' }, startedAt: { kind: 'timestamp' }, endedAt: { kind: 'timestamp', nullable: true }, durationSeconds: { kind: 'number' }, outcome: { kind: 'string' }, notes: { kind: 'string', nullable: true }, deletedAt: { kind: 'timestamp', nullable: true } },
+  followUps: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, scheduledAt: { kind: 'timestamp' }, title: { kind: 'string' }, notes: { kind: 'string', nullable: true }, priority: { kind: 'string' }, status: { kind: 'string' }, completedAt: { kind: 'timestamp', nullable: true }, deletedAt: { kind: 'timestamp', nullable: true } },
+  messageHistory: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, channel: { kind: 'string' }, templateId: { kind: 'string', nullable: true }, recipientPhone: { kind: 'string' }, messageContent: { kind: 'string' }, sentStatus: { kind: 'string' }, sentAt: { kind: 'timestamp' }, deletedAt: { kind: 'timestamp', nullable: true } },
+  messageTemplates: { ...COMMON_RECORD_RULES, title: { kind: 'string' }, category: { kind: 'string' }, body: { kind: 'string' }, isDefault: { kind: 'boolean' }, deletedAt: { kind: 'timestamp', nullable: true } },
+  users: { ...COMMON_RECORD_RULES, organizationId: { kind: 'string', nullable: true }, name: { kind: 'string' }, email: { kind: 'string' }, phone: { kind: 'string' }, role: { kind: 'string' }, status: { kind: 'string' }, createdBy: { kind: 'string', nullable: true }, lastLoginAt: { kind: 'timestamp', nullable: true }, deletedAt: { kind: 'timestamp', nullable: true } },
+  activities: { ...COMMON_RECORD_RULES, leadId: { kind: 'string', nullable: true }, userId: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, activityType: { kind: 'string' }, metadata: { kind: 'object' }, deletedAt: { kind: 'timestamp', nullable: true } },
+  callRecords: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, userId: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, startedAt: { kind: 'timestamp' }, answeredAt: { kind: 'timestamp', nullable: true }, endedAt: { kind: 'timestamp', nullable: true }, durationSeconds: { kind: 'number' }, outcome: { kind: 'string' }, remark: { kind: 'string', nullable: true }, verificationStatus: { kind: 'string' }, deletedAt: { kind: 'timestamp', nullable: true } },
+  importAudits: { ...COMMON_RECORD_RULES, uploadedBy: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, filename: { kind: 'string' }, source: { kind: 'string' }, startedAt: { kind: 'timestamp' }, completedAt: { kind: 'timestamp' }, totalRows: { kind: 'number' }, imported: { kind: 'number' }, updated: { kind: 'number' }, duplicates: { kind: 'number' }, invalid: { kind: 'number' } },
+  outbox: { id: { kind: 'string' }, organizationId: { kind: 'string', nullable: true }, userId: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, entityType: { kind: 'string' }, entityId: { kind: 'string' }, operation: { kind: 'string' }, payload: { kind: 'object' }, createdAt: { kind: 'timestamp' }, updatedAt: { kind: 'timestamp' }, retryCount: { kind: 'number' }, lastAttemptAt: { kind: 'timestamp', nullable: true }, lastError: { kind: 'string', nullable: true }, status: { kind: 'string' } },
+  syncState: { id: { kind: 'string' }, organizationId: { kind: 'string' }, userId: { kind: 'string' }, deviceId: { kind: 'string' }, lastSuccessfulSyncAt: { kind: 'timestamp', nullable: true }, lastPullCursor: { kind: 'string', nullable: true }, status: { kind: 'string' } },
+  bulkAssignmentAudits: { ...COMMON_RECORD_RULES, organizationId: { kind: 'string', nullable: true }, performedBy: { kind: 'string' }, targetAgentId: { kind: 'string' }, selectedLeadCount: { kind: 'number' }, successfulCount: { kind: 'number' }, failedCount: { kind: 'number' }, startedAt: { kind: 'timestamp' }, completedAt: { kind: 'timestamp' }, status: { kind: 'string' }, deletedAt: { kind: 'timestamp', nullable: true } },
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function fieldMatches(value: unknown, rule: FieldRule): boolean {
+  if (value === null) return !!rule.nullable;
+  if (rule.kind === 'timestamp') return typeof value === 'string' && value.length > 0 && Number.isFinite(Date.parse(value));
+  if (rule.kind === 'syncFlag') return value === 0 || value === 1;
+  if (rule.kind === 'object') return isPlainObject(value);
+  if (rule.kind === 'number') return typeof value === 'number' && Number.isFinite(value);
+  if (rule.kind === 'string') return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === 'boolean';
+}
+
+function validateRecordShape(table: string, item: Record<string, unknown>, index: number, errors: string[]): void {
+  const rules = RECORD_RULES[table];
+  if (!rules) return;
+  for (const [field, rule] of Object.entries(rules)) {
+    const value = item[field];
+    if (value === undefined && rule.optional) continue;
+    if (value === undefined) errors.push(`Missing required field "${field}" at ${table}[${index}].`);
+    else if (!fieldMatches(value, rule)) errors.push(`Invalid field "${field}" at ${table}[${index}].`);
+  }
+}
 
 export class BackupService {
   constructor(private db: SalesCRMDatabase) {}
@@ -192,7 +293,7 @@ export class BackupService {
     };
 
     // Pre-export validation
-    const validation = this.validateBackupPayload(payload);
+    const validation = this.validateBackupPayload(payload, false);
     if (!validation.isValid) {
       throw new Error(`Database integrity error before export:\n${validation.errors.join('\n')}`);
     }
@@ -204,7 +305,7 @@ export class BackupService {
    * Validates a parsed or generated backup payload for schema structure, UUIDs, and reference consistency.
    * Supports backward compatibility with Schema Version 2.
    */
-  validateBackupPayload(payload: any): BackupValidationResult {
+  validateBackupPayload(payload: any, calculateSize = true): BackupValidationResult {
     const errors: string[] = [];
     const scope = this.db.requireAccessScope();
 
@@ -235,7 +336,7 @@ export class BackupService {
       errors.push('Backup belongs to a different organization or signed-in user.');
     }
 
-    if (!payload.data || typeof payload.data !== 'object') {
+    if (!isPlainObject(payload.data)) {
       errors.push('Missing "data" container object in backup payload.');
       return {
         isValid: false,
@@ -249,6 +350,28 @@ export class BackupService {
           templatesCount: 0,
           totalRecords: 0,
           approxSizeBytes: 0,
+        },
+      };
+    }
+
+    for (const name of Object.keys(payload.data)) {
+      if (!SUPPORTED_BACKUP_COLLECTIONS.has(name)) errors.push(`Unsupported backup collection "${name}".`);
+    }
+    const requiredCollections = ['leads', 'remarks', 'callHistory', 'followUps', 'messageHistory', 'messageTemplates'];
+    for (const name of requiredCollections) {
+      if (!Array.isArray(payload.data[name])) errors.push(`Table "${name}" must be an array.`);
+    }
+    for (const name of SUPPORTED_BACKUP_COLLECTIONS) {
+      if (name in payload.data && !Array.isArray(payload.data[name])) errors.push(`Table "${name}" must be an array.`);
+    }
+    if (errors.some((error) => error.includes('must be an array'))) {
+      return {
+        isValid: false,
+        errors,
+        summary: {
+          leadsCount: 0, remarksCount: 0, callsCount: 0, followUpsCount: 0,
+          messagesCount: 0, templatesCount: 0, totalRecords: 0,
+          approxSizeBytes: calculateSize ? JSON.stringify(payload).length : 0,
         },
       };
     }
@@ -278,13 +401,13 @@ export class BackupService {
       { name: 'messageTemplates', list: messageTemplates },
     ];
 
-    if (Array.isArray(users)) tables.push({ name: 'users', list: users });
-    if (Array.isArray(activities)) tables.push({ name: 'activities', list: activities });
-    if (Array.isArray(callRecords)) tables.push({ name: 'callRecords', list: callRecords });
-    if (Array.isArray(importAudits)) tables.push({ name: 'importAudits', list: importAudits });
-    if (Array.isArray(outbox)) tables.push({ name: 'outbox', list: outbox });
-    if (Array.isArray(syncState)) tables.push({ name: 'syncState', list: syncState });
-    if (Array.isArray(bulkAssignmentAudits)) tables.push({ name: 'bulkAssignmentAudits', list: bulkAssignmentAudits });
+    if (payload.data.users) tables.push({ name: 'users', list: users });
+    if (payload.data.activities) tables.push({ name: 'activities', list: activities });
+    if (payload.data.callRecords) tables.push({ name: 'callRecords', list: callRecords });
+    if (payload.data.importAudits) tables.push({ name: 'importAudits', list: importAudits });
+    if (payload.data.outbox) tables.push({ name: 'outbox', list: outbox });
+    if (payload.data.syncState) tables.push({ name: 'syncState', list: syncState });
+    if (payload.data.bulkAssignmentAudits) tables.push({ name: 'bulkAssignmentAudits', list: bulkAssignmentAudits });
 
     const leadIds = new Set<string>();
 
@@ -302,6 +425,7 @@ export class BackupService {
           errors.push(`Invalid record at ${name}[${i}]: Must be an object.`);
           continue;
         }
+        validateRecordShape(name, item, i, errors);
         if (!item.id || typeof item.id !== 'string') {
           errors.push(`Missing or non-string "id" at ${name}[${i}].`);
           continue;
@@ -377,7 +501,7 @@ export class BackupService {
     // Outbox and sync metadata are intentionally excluded from business
     // record totals but are still structurally and context validated above.
 
-    const approxSizeBytes = JSON.stringify(payload).length;
+    const approxSizeBytes = calculateSize ? JSON.stringify(payload).length : 0;
 
     return {
       isValid: errors.length === 0,
@@ -510,7 +634,8 @@ export class BackupService {
       await mergeTable('followUps', payload.data.followUps, result.details.followUps);
       await mergeTable('messageHistory', payload.data.messageHistory, result.details.messageHistory);
       await mergeTable('messageTemplates', payload.data.messageTemplates, result.details.messageTemplates);
-      if (payload.data.users) await mergeTable('users', payload.data.users, result.details.users!);
+      // Profiles contain authorization state (role/status/organization). They
+      // are validated for diagnostics but never restored from untrusted input.
       if (payload.data.activities) await mergeTable('activities', payload.data.activities, result.details.activities!);
       if (payload.data.callRecords) await mergeTable('callRecords', payload.data.callRecords, result.details.callRecords!);
       if (payload.data.importAudits) await mergeTable('importAudits', payload.data.importAudits, result.details.importAudits!);
@@ -576,7 +701,7 @@ export class BackupService {
     try {
       await this.db.transaction('rw', this.db.tables, async () => {
         // Clear all tables
-        await Promise.all(this.db.tables.map((t) => t.clear()));
+        await Promise.all(this.db.tables.filter((t) => t.name !== 'users').map((t) => t.clear()));
 
         // Insert backup tables
         if (payload.data.leads && payload.data.leads.length > 0) await this.db.leads.bulkAdd(payload.data.leads);
@@ -585,7 +710,7 @@ export class BackupService {
         if (payload.data.followUps && payload.data.followUps.length > 0) await this.db.followUps.bulkAdd(payload.data.followUps);
         if (payload.data.messageHistory && payload.data.messageHistory.length > 0) await this.db.messageHistory.bulkAdd(payload.data.messageHistory);
         if (payload.data.messageTemplates && payload.data.messageTemplates.length > 0) await this.db.messageTemplates.bulkAdd(payload.data.messageTemplates);
-        if (payload.data.users && payload.data.users.length > 0) await this.db.users.bulkAdd(payload.data.users);
+        // Keep locally cached profiles; authenticated server state remains authoritative.
         if (payload.data.activities && payload.data.activities.length > 0) await this.db.activities.bulkAdd(payload.data.activities);
         if (payload.data.callRecords && payload.data.callRecords.length > 0) await this.db.callRecords.bulkAdd(payload.data.callRecords);
         if (payload.data.importAudits && payload.data.importAudits.length > 0) await this.db.importAudits.bulkAdd(payload.data.importAudits);
@@ -606,14 +731,13 @@ export class BackupService {
       console.error('Replace restore failed! Attempting safety rollback...', err);
       try {
         await this.db.transaction('rw', this.db.tables, async () => {
-          await Promise.all(this.db.tables.map((t) => t.clear()));
+          await Promise.all(this.db.tables.filter((t) => t.name !== 'users').map((t) => t.clear()));
           if (safetySnapshot.data.leads.length > 0) await this.db.leads.bulkAdd(safetySnapshot.data.leads);
           if (safetySnapshot.data.remarks.length > 0) await this.db.remarks.bulkAdd(safetySnapshot.data.remarks);
           if (safetySnapshot.data.callHistory.length > 0) await this.db.callHistory.bulkAdd(safetySnapshot.data.callHistory);
           if (safetySnapshot.data.followUps.length > 0) await this.db.followUps.bulkAdd(safetySnapshot.data.followUps);
           if (safetySnapshot.data.messageHistory.length > 0) await this.db.messageHistory.bulkAdd(safetySnapshot.data.messageHistory);
           if (safetySnapshot.data.messageTemplates.length > 0) await this.db.messageTemplates.bulkAdd(safetySnapshot.data.messageTemplates);
-          if (safetySnapshot.data.users && safetySnapshot.data.users.length > 0) await this.db.users.bulkAdd(safetySnapshot.data.users);
           if (safetySnapshot.data.activities && safetySnapshot.data.activities.length > 0) await this.db.activities.bulkAdd(safetySnapshot.data.activities);
           if (safetySnapshot.data.callRecords && safetySnapshot.data.callRecords.length > 0) await this.db.callRecords.bulkAdd(safetySnapshot.data.callRecords);
           if (safetySnapshot.data.importAudits && safetySnapshot.data.importAudits.length > 0) await this.db.importAudits.bulkAdd(safetySnapshot.data.importAudits);

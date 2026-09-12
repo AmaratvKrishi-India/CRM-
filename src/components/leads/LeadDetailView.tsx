@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Phone,
@@ -80,7 +80,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
   // F20 — lead edit flow
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const fetchLeadData = async () => {
+  const fetchLeadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -95,11 +95,11 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [leadId]);
 
   useEffect(() => {
     fetchLeadData();
-  }, [leadId]);
+  }, [fetchLeadData]);
 
   const handleSaveInlineRemark = async (e: React.FormEvent) => {
     e.preventDefault();

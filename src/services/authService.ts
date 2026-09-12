@@ -230,6 +230,7 @@ export class AuthService {
       // Role, status, organization and identity are never inferred locally.
       const localUser: User = {
         id: remoteProfile.id,
+        serverRevision: typeof remoteProfile.sync_revision === 'number' ? remoteProfile.sync_revision : undefined,
         organizationId: remoteProfile.organization_id,
         name: remoteProfile.name || authUser.email || 'Unknown',
         email: (remoteProfile.email || authUser.email || '').trim().toLowerCase(),

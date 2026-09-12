@@ -1,4 +1,8 @@
-# 19 - ENVIRONMENT VARIABLES REFERENCE
+# 19 — Environment Variables Reference
+
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `.env.example`, `src/services/supabaseClient.ts`, Vite mode loading, and staging guard tests
 
 This document outlines the environment configuration files and their structures across the Amaratv Krishi Field Sales CRM.
 
@@ -9,12 +13,14 @@ This document outlines the environment configuration files and their structures 
 | `.env` | 400 | Default fallback |
 | `.env.local` | 323 | Local Docker Supabase |
 | `.env.development` | 331 | Cloud dev/staging |
-| `.env.staging` | 669 | Staging config (shared cloud project) |
+| `.env.staging` | machine-local | Isolated cloud staging only; it must not use the production project reference |
 | `.env.production` | 400 | Production config |
 | `.env.example` | 462 | Template for new developers |
 
-> [!NOTE]
-> As of 2026-08-23, [.env.staging](file:///c:/Users/PC/Desktop/calling%20app/.env.staging) is populated: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` point at the shared Supabase cloud project, `VITE_APP_ENV=staging`, `VITE_APP_VERSION=2.0.0`. Only `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` are intentionally empty — populate them from the Supabase dashboard/CLI on the machine that runs migrations (never commit real values).
+> [!CAUTION]
+> `.env.staging` must contain a different project reference from `.env.production`.
+> `npm run verify:staging-config` checks this before a staging dev server or build
+> starts. See [24 - Isolated Supabase Staging](./24_STAGING_ENVIRONMENT.md).
 
 ## Variable Names
 
@@ -33,16 +39,15 @@ The following environment variables are used in the client-side application:
 - **Secret Scanning**: The `securitySecretScan.test.ts` file automatically verifies that no service role key is accidentally included in the `src/` or `dist/` directories.
 - **Production Variables**: In Vercel, environment variables are set via the Vercel CLI/Dashboard and are not committed to source control.
 
-## Loading Priority (Vite)
+## Loading priority (Vite 8)
 
-Vite uses the following hierarchy for loading environment variables:
-1. `.env.local` (highest priority)
-2. `.env.[mode]` (e.g., `.env.development`, `.env.production`, etc.)
-3. `.env` (lowest priority)
+For a mode such as `staging`, the installed Vite 8 loader reads files in this order and later definitions win: `.env` → `.env.local` → `.env.[mode]` → `.env.[mode].local`. Existing matching `VITE_*` values already present in the process environment override values loaded from these files.
+
+That precedence is why the staging guard must validate the **resolved staging intent**, not assume `.env.staging` automatically beats every other source. Never put a service-role key or private credential in any Vite-visible environment source.
 
 ## The `.env.example` Template
 
-The template used for onboarding new developers is located at [c:\Users\PC\Desktop\calling app\.env.example](file:///c:/Users/PC/Desktop/calling%20app/.env.example):
+The template used for onboarding new developers is located at [`.env.example`](../../.env.example):
 
 ```env
 # Amaratv Krishi Field Sales CRM — Environment Configuration Template

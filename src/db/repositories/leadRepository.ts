@@ -22,6 +22,7 @@ import {
   cleanBusinessName,
 } from '../services/leadNormalizer';
 import { canAccessLead } from '../accessScope';
+import { ActivityRepository } from './activityRepository';
 
 export interface LeadWithHistory {
   lead: Lead;
@@ -536,24 +537,52 @@ export class LeadRepository {
       });
     }
 
-    const allMatched = await collection.toArray();
-    const total = allMatched.length;
+    // Count every match while retaining only the first page window in sorted
+    // order. Search terms and compound filters still require scanning the
+    // matching cursor, but memory stays bounded by offset + limit instead of
+    // growing with the complete result set.
+    const requestedOffset = Number.isFinite(offset) ? Math.max(0, Math.floor(offset)) : 0;
+    const requestedLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : 50;
+    const pageEnd = requestedOffset + requestedLimit;
+    const rankedMatches: Array<{ lead: Lead; ordinal: number }> = [];
+    let total = 0;
 
-    // Sorting
-    allMatched.sort((a, b) => {
-      let valA = a[sortBy] ?? '';
-      let valB = b[sortBy] ?? '';
+    const compareMatches = (
+      left: { lead: Lead; ordinal: number },
+      right: { lead: Lead; ordinal: number },
+    ): number => {
+      let leftValue = left.lead[sortBy] ?? '';
+      let rightValue = right.lead[sortBy] ?? '';
 
-      if (typeof valA === 'string') valA = valA.toLowerCase();
-      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (typeof leftValue === 'string') leftValue = leftValue.toLowerCase();
+      if (typeof rightValue === 'string') rightValue = rightValue.toLowerCase();
 
-      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
+      if (leftValue < rightValue) return sortOrder === 'asc' ? -1 : 1;
+      if (leftValue > rightValue) return sortOrder === 'asc' ? 1 : -1;
+      return left.ordinal - right.ordinal;
+    };
+
+    let ordinal = 0;
+    await collection.each((lead) => {
+      total += 1;
+      const currentOrdinal = ordinal++;
+      if (requestedLimit === 0) return;
+
+      const candidate = { lead, ordinal: currentOrdinal };
+      let low = 0;
+      let high = rankedMatches.length;
+      while (low < high) {
+        const middle = Math.floor((low + high) / 2);
+        if (compareMatches(candidate, rankedMatches[middle]) < 0) high = middle;
+        else low = middle + 1;
+      }
+      rankedMatches.splice(low, 0, candidate);
+      if (rankedMatches.length > pageEnd) rankedMatches.pop();
     });
 
-    // Pagination
-    const paginated = allMatched.slice(offset, offset + limit);
+    const paginated = rankedMatches
+      .slice(requestedOffset, pageEnd)
+      .map(({ lead }) => lead);
 
     return {
       leads: paginated,
@@ -590,11 +619,13 @@ export class LeadRepository {
    */
   async softDeleteLead(id: string): Promise<void> {
     const scope = this.db.requireAccessScope();
-    const lead = await this.getLeadById(id);
+    const lead = await this.getLeadById(id, true);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
+    if (lead.deletedAt) return;
     const now = new Date().toISOString();
     // Data write + outbox enqueue are atomic: either both persist or neither.
-    await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+    await this.db.transaction('rw', [this.db.leads, this.db.activities, this.db.outbox], async () => {
+      if ((await this.db.leads.get(id))?.deletedAt) return;
       await this.db.leads.update(id, {
         deletedAt: now,
         updatedAt: now,
@@ -611,6 +642,7 @@ export class LeadRepository {
           organizationId: scope.organizationId,
         });
       }
+      await this.logDeletionEvent(id, 'ARCHIVED');
     });
   }
 
@@ -621,9 +653,11 @@ export class LeadRepository {
     const scope = this.db.requireAccessScope();
     const lead = await this.getLeadById(id, true);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
+    if (!lead.deletedAt) return;
     const now = new Date().toISOString();
     // Data write + outbox enqueue are atomic: either both persist or neither.
-    await this.db.transaction('rw', [this.db.leads, this.db.outbox], async () => {
+    await this.db.transaction('rw', [this.db.leads, this.db.activities, this.db.outbox], async () => {
+      if (!(await this.db.leads.get(id))?.deletedAt) return;
       await this.db.leads.update(id, {
         deletedAt: null,
         updatedAt: now,
@@ -640,16 +674,32 @@ export class LeadRepository {
           organizationId: scope.organizationId,
         });
       }
+      await this.logDeletionEvent(id, 'RESTORED');
+    });
+  }
+
+  private async logDeletionEvent(leadId: string, action: 'ARCHIVED' | 'RESTORED' | 'PURGED'): Promise<void> {
+    // A system event has no cascading lead FK, so it survives a later purge.
+    await new ActivityRepository(this.db, this.getSyncQueue()).logActivity({
+      leadId: null,
+      userId: this.db.requireAccessScope().userId,
+      activityType: 'LEAD_UPDATED',
+      metadata: { leadId, action },
     });
   }
 
   /**
-   * Hard-deletes a lead and cascades deletion to all child records (Remarks, Calls, Follow-ups, Messages).
+   * Internal maintenance API; not exposed in the application UI.
+   * Requires an admin's explicit acknowledgement after retaining a recovery export.
    * Enqueues a DELETE outbox item so the deletion propagates to the cloud instead of
    * being resurrected by the next pull.
    */
-  async hardDeleteLead(id: string): Promise<void> {
+  async hardDeleteLead(id: string, confirmation?: { recoveryExportSaved: boolean; acknowledgePermanentDeletion: boolean }): Promise<void> {
     const scope = this.db.requireAccessScope();
+    if (scope.role !== 'ADMIN') throw new Error('Only administrators can permanently purge leads.');
+    if (!confirmation?.recoveryExportSaved || !confirmation.acknowledgePermanentDeletion) {
+      throw new Error('Save a recovery export and explicitly acknowledge permanent deletion before purging.');
+    }
     const lead = await this.getLeadById(id, true);
     if (!lead) throw new Error(`Lead with id ${id} not found.`);
 
@@ -663,6 +713,12 @@ export class LeadRepository {
       this.db.messageHistory,
       this.db.outbox,
     ], async () => {
+      const current = await this.db.leads.get(id);
+      if (!current?.deletedAt) throw new Error('Archive the lead before permanently purging it.');
+      const pending = await this.db.outbox.filter(item => item.status !== 'SYNCED' &&
+        (item.entityId === id || item.payload.leadId === id)).count();
+      if (pending) throw new Error('Sync or recover all saved changes for this lead before purging it.');
+      await this.logDeletionEvent(id, 'PURGED');
       await Promise.all([
         this.db.leads.delete(id),
         this.db.remarks.where('leadId').equals(id).delete(),

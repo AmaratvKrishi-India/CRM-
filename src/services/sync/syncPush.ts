@@ -7,16 +7,115 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseClient } from '../supabaseClient';
 import { SyncQueue } from './syncQueue';
-import type { OutboxItem, SyncEntityType} from './syncTypes';
+import { serverRevision, type SyncEntityType } from './syncTypes';
+import { SyncPull } from './syncPull';
 import { SyncCancelledError, type SyncRunGuard } from './syncTypes';
 import type { SalesCRMDatabase } from '../../db/database';
 import { db as defaultDb } from '../../db/database';
 
+export type SyncFailureClassification =
+  | 'TRANSIENT_NETWORK'
+  | 'TIMEOUT'
+  | 'TRANSIENT_SERVER'
+  | 'RATE_LIMITED'
+  | 'AUTH_FAILURE'
+  | 'PERMANENT_CLIENT'
+  | 'CONFLICT'
+  | 'UNKNOWN';
+
+export interface ClassifiedSyncFailure {
+  classification: SyncFailureClassification;
+  message: string;
+  retryable: boolean;
+  retryAfterMs?: number;
+}
+
+class SyncRequestTimeoutError extends Error {
+  constructor() {
+    super('Sync request timed out before a response was received.');
+    this.name = 'SyncRequestTimeoutError';
+  }
+}
+
+class SyncTransportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SyncTransportError';
+  }
+}
+
+class SyncProtocolResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SyncProtocolResponseError';
+  }
+}
+
+function numericStatus(error: Record<string, unknown>): number | undefined {
+  const value = error.status ?? error.statusCode;
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isInteger(parsed) ? parsed : undefined;
+}
+
+export function classifySyncFailure(error: unknown): ClassifiedSyncFailure {
+  const value = error && typeof error === 'object' ? error as Record<string, unknown> : {};
+  const message = error instanceof Error ? error.message :
+    typeof value.message === 'string' ? value.message : 'Sync request failed.';
+  const lower = message.toLowerCase();
+  const messageStatus = /(?:^|\D)([1-5]\d{2})(?:\D|$)/.exec(message)?.[1];
+  const status = numericStatus(value) ?? (messageStatus ? Number(messageStatus) : undefined);
+  const code = typeof value.code === 'string' ? value.code : '';
+  const retryAfter = value.retryAfterMs ?? value.retry_after_ms;
+  const retryAfterMs = typeof retryAfter === 'number' && Number.isFinite(retryAfter) && retryAfter >= 0
+    ? retryAfter : undefined;
+
+  if (error instanceof SyncRequestTimeoutError || value.name === 'AbortError' || /timed? ?out|timeout/.test(lower)) {
+    return { classification: 'TIMEOUT', message, retryable: true };
+  }
+  if (error instanceof SyncProtocolResponseError) {
+    return { classification: 'TRANSIENT_SERVER', message, retryable: true };
+  }
+  if (status === 429) return { classification: 'RATE_LIMITED', message, retryable: true, retryAfterMs };
+  if (status !== undefined && status >= 500) return { classification: 'TRANSIENT_SERVER', message, retryable: true };
+  if (status === 401) return { classification: 'AUTH_FAILURE', message, retryable: false };
+  if (status === 403 || code === '42501' || /permission denied|row.level security|\brls\b/.test(lower)) {
+    return { classification: 'AUTH_FAILURE', message, retryable: false };
+  }
+  if (status === 409 || /sync_conflict|conflict/.test(lower)) {
+    return { classification: 'CONFLICT', message, retryable: false };
+  }
+  if ((status !== undefined && status >= 400 && status < 500) || /^22|^23/.test(code) || /validation|invalid payload|business rule/.test(lower)) {
+    return { classification: 'PERMANENT_CLIENT', message, retryable: false };
+  }
+  if (error instanceof SyncTransportError || error instanceof TypeError || /network|failed to fetch|fetch failed|connection|econn|offline/.test(lower)) {
+    return { classification: 'TRANSIENT_NETWORK', message, retryable: true };
+  }
+  return { classification: 'UNKNOWN', message, retryable: false };
+}
+
 export class SyncPush {
   constructor(
     private queue: SyncQueue = new SyncQueue(),
-    private database?: SalesCRMDatabase
+    private database?: SalesCRMDatabase,
+    private requestTimeoutMs = 15_000
   ) {}
+
+  private async callMutation(client: SupabaseClient, args: Record<string, unknown>) {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        Promise.resolve(client.rpc('sync_mutate', args)).catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Sync transport failed.';
+          throw new SyncTransportError(message);
+        }),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new SyncRequestTimeoutError()), this.requestTimeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
+  }
 
   private getDatabase(): SalesCRMDatabase {
     return this.database || defaultDb;
@@ -36,28 +135,6 @@ export class SyncPush {
       bulk_assignment_audits: db.bulkAssignmentAudits,
     };
     return tableMap[entityType];
-  }
-
-  /**
-   * Detects outbox payloads that are stale relative to the current local record.
-   * If the local record was modified after the payload was captured (e.g. a remote
-   * change won LWW during pull), pushing the older payload would resurrect a
-   * clobbered change on the server. Such payloads are dropped instead of pushed;
-   * the newer local state has (or will have) its own outbox item.
-   */
-  private async isStalePayload(item: OutboxItem): Promise<boolean> {
-    try {
-      const table = this.getLocalTable(item.entityType);
-      if (!table) return false;
-      const local = await table.get(item.entityId);
-      if (!local) return false;
-
-      const payloadTs = new Date(item.payload.updatedAt || item.createdAt).getTime();
-      const localTs = new Date(local.updatedAt || 0).getTime();
-      return Number.isFinite(localTs) && Number.isFinite(payloadTs) && localTs > payloadTs;
-    } catch {
-      return false;
-    }
   }
 
   /**
@@ -233,163 +310,104 @@ export class SyncPush {
   }
 
   /**
-   * Pushes all pending outbox mutations to Supabase.
+   * Each immutable outbox snapshot is sent with its captured server revision.
+   * A missing RPC is an error: never fall back to a blind upsert.
    */
   async pushPending(client: SupabaseClient | null = getSupabaseClient(), guard?: SyncRunGuard): Promise<{
-    pushedCount: number;
-    failedCount: number;
-    errors: string[];
+    pushedCount: number; failedCount: number; errors: string[];
   }> {
-    if (!client) {
-      throw new Error('Supabase client is not initialized or configured.');
-    }
-
-    const scope = this.getDatabase().requireAccessScope();
-    guard?.();
-
+    if (!client) throw new Error('Supabase client is not initialized or configured.');
+    const database = this.getDatabase();
+    const scope = database.requireAccessScope();
     const items = await this.queue.getPendingItems(50);
-    if (items.length === 0) {
-      return { pushedCount: 0, failedCount: 0, errors: [] };
-    }
-
-    // Drop stale payloads before marking anything SYNCING.
-    const freshItems: OutboxItem[] = [];
-    for (const item of items) {
-      guard?.();
-      if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
-        throw new Error('Outbox item escaped its account synchronization context.');
-      }
-      if (await this.isStalePayload(item)) {
-        await this.queue.markSynced([item.id]);
-        continue;
-      }
-      freshItems.push(item);
-    }
-
-    if (freshItems.length === 0) {
-      return { pushedCount: 0, failedCount: 0, errors: [] };
-    }
-
-    const itemIds = freshItems.map((i) => i.id);
-    guard?.();
-    await this.queue.markSyncing(itemIds);
-
     let pushedCount = 0;
     let failedCount = 0;
     const errors: string[] = [];
-
-    // Group items by entityType for efficient batch upserts
-    const byEntity: Record<SyncEntityType, OutboxItem[]> = {} as any;
-    for (const item of freshItems) {
-      if (!byEntity[item.entityType]) {
-        byEntity[item.entityType] = [];
+    for (const snapshot of items) {
+      guard?.();
+      const item = await database.outbox.get(snapshot.id);
+      if (!item || item.status === 'SYNCED' || item.status === 'DEAD_LETTER') continue;
+      if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
+        throw new Error('Outbox item escaped its account synchronization context.');
       }
-      byEntity[item.entityType].push(item);
-    }
-
-    for (const [entityType, entityItems] of Object.entries(byEntity) as [SyncEntityType, OutboxItem[]][]) {
-      // Items are in createdAt order; preserve it. CREATE/UPDATE items are
-      // batched into upserts; DELETE items are executed individually so a
-      // DELETE is never converted into an upsert (which would resurrect the
-      // record). Upserts queued before a DELETE flush first, so a recreated
-      // record queued after a DELETE still lands after the delete.
-      let upsertBatch: OutboxItem[] = [];
-
-      const flushUpserts = async (): Promise<void> => {
-        if (upsertBatch.length === 0) return;
-        const batch = upsertBatch;
-        upsertBatch = [];
-        const records = batch.map((i) => SyncPush.transformToPgRecord(entityType, i.payload, i.organizationId));
-
-        try {
+      try {
+        if (item.payload.id !== item.entityId) throw new Error('Mutation id does not match its outbox context.');
+        await this.queue.markSyncing([item.id]);
+        const payload = item.operation === 'DELETE'
+          ? { id: item.entityId, organization_id: item.organizationId }
+          : SyncPush.transformToPgRecord(item.entityType, {
+            ...item.payload,
+            // Stable defaults also make legacy/incomplete CREATE retries byte-identical.
+            createdAt: item.payload.createdAt || item.payload.created_at || item.createdAt,
+            updatedAt: item.payload.updatedAt || item.payload.updated_at || item.createdAt,
+          }, item.organizationId);
+        const { data, error } = await this.callMutation(client, {
+          entity: item.entityType, operation: item.operation, mutation_id: item.id,
+          expected_revision: item.expectedRevision ?? (item.operation === 'CREATE' ? 0 : null), payload,
+        });
+        guard?.();
+        if (error) throw error;
+        if (!data || !['APPLIED', 'CONFLICT'].includes(data.status)) throw new SyncProtocolResponseError('Invalid sync mutation response.');
+        const row = data.record;
+        if (data.status === 'APPLIED' && ((item.operation === 'DELETE') === !!row)) {
+          throw new SyncProtocolResponseError('Missing or unexpected authoritative mutation record.');
+        }
+        if (row && (row.id !== item.entityId || row.organization_id !== scope.organizationId ||
+            serverRevision(row) === undefined)) throw new SyncProtocolResponseError('Invalid authoritative sync record.');
+        const table = this.getLocalTable(item.entityType);
+        await database.transaction('rw', [table, database.outbox], async () => {
           guard?.();
-          const { error } = await client
-            .from(entityType)
-            .upsert(records, { onConflict: 'id' });
-          guard?.();
-
-          if (error) {
-            // If batch failed, fallback to item-by-item to isolate the failing record
-            for (let idx = 0; idx < batch.length; idx++) {
-              const item = batch[idx];
-              const record = records[idx];
-              try {
-                guard?.();
-                const { error: singleError } = await client
-                  .from(entityType)
-                  .upsert(record, { onConflict: 'id' });
-                guard?.();
-
-                if (singleError) {
-                  await this.queue.markFailed(item.id, singleError.message);
-                  failedCount++;
-                  errors.push(`${entityType} item ${item.entityId}: ${singleError.message}`);
-                } else {
-                  await this.queue.markSynced([item.id]);
-                  pushedCount++;
-                }
-              } catch (err: unknown) {
-                if (err instanceof SyncCancelledError) throw err;
-                const message = err instanceof Error ? err.message : 'Push error';
-                await this.queue.markFailed(item.id, message);
-                failedCount++;
-                errors.push(`${entityType} item ${item.entityId}: ${message}`);
-              }
+          database.markRemoteSyncWrites();
+          const children = await database.outbox.filter(entry => entry.predecessorId === item.id).toArray();
+          const local = await table.get(item.entityId);
+          if (data.status === 'CONFLICT') {
+            // Preserve the exact rejected edit, plus server evidence. Never mark
+            // an unaccepted write SYNCED or infer a newer base for retry.
+            await database.outbox.update(item.id, {
+              status: 'DEAD_LETTER', lastError: 'SYNC_CONFLICT: local edit retained; review before resubmitting.',
+              conflictRemote: row || null, nextAttemptAt: null,
+            });
+            if (row && (serverRevision(local) ?? -1) <= serverRevision(row)!) {
+              await table.put(SyncPull.transformFromPgRecord(item.entityType, row));
             }
           } else {
-            // Entire batch succeeded
-            await this.queue.markSynced(batch.map((i) => i.id));
-            pushedCount += batch.length;
-          }
-        } catch (err: unknown) {
-          if (err instanceof SyncCancelledError) throw err;
-          const message = err instanceof Error ? err.message : 'Push exception';
-          // Network or client exception
-          for (const item of batch) {
-            await this.queue.markFailed(item.id, message);
-          }
-          failedCount += batch.length;
-          errors.push(`${entityType} batch: ${message}`);
-        }
-      };
-
-      for (const item of entityItems) {
-        if (item.operation === 'DELETE') {
-          await flushUpserts();
-          try {
-            guard?.();
-            // DELETE is idempotent: deleting a row that no longer exists
-            // succeeds (0 rows affected), so retries are safe.
-            const { error } = await client
-              .from(entityType)
-              .delete()
-              .eq('id', item.entityId)
-              .eq('organization_id', item.organizationId);
-            guard?.();
-
-            if (error) {
-              await this.queue.markFailed(item.id, error.message);
-              failedCount++;
-              errors.push(`${entityType} DELETE ${item.entityId}: ${error.message}`);
-            } else {
-              await this.queue.markSynced([item.id]);
-              pushedCount++;
+            const revision = row ? serverRevision(row)! : undefined;
+            await database.outbox.update(item.id, { status: 'SYNCED', lastError: null, nextAttemptAt: null });
+            for (const child of children) {
+              // Only causal descendants advance their base after this exact
+              // mutation succeeds; a foreign/newer server write still fails CAS.
+              await database.outbox.update(child.id, {
+                expectedRevision: child.operation === 'CREATE' && item.operation === 'DELETE' ? 0 : revision,
+                predecessorId: undefined,
+              });
             }
-          } catch (err: unknown) {
-            if (err instanceof SyncCancelledError) throw err;
-            const message = err instanceof Error ? err.message : 'Delete push exception';
-            await this.queue.markFailed(item.id, message);
-            failedCount++;
-            errors.push(`${entityType} DELETE ${item.entityId}: ${message}`);
+            if (row && (serverRevision(local) ?? -1) <= revision!) {
+              if (children.length) {
+                // A queued hard delete has already removed the local row.
+                if (local) await table.put({ ...local, serverRevision: revision, isSynced: 0 });
+              } else {
+                await table.put(SyncPull.transformFromPgRecord(item.entityType, row));
+              }
+            }
+            if (!row && item.operation === 'DELETE' && !children.length) await table.delete(item.entityId);
           }
-        } else {
-          upsertBatch.push(item);
-        }
+        });
+        if (data.status === 'CONFLICT') {
+          failedCount++;
+          errors.push(`${item.entityType} ${item.entityId}: SYNC_CONFLICT (edit retained)`);
+        } else pushedCount++;
+      } catch (error: unknown) {
+        if (error instanceof SyncCancelledError) throw error;
+        const failure = classifySyncFailure(error);
+        await this.queue.markFailed(item.id, failure.message, {
+          retryable: failure.retryable,
+          classification: failure.classification,
+          retryAfterMs: failure.retryAfterMs,
+        });
+        failedCount++;
+        errors.push(`${item.entityType} ${item.entityId}: ${failure.classification}: ${failure.message}`);
       }
-
-      await flushUpserts();
     }
-
     return { pushedCount, failedCount, errors };
   }
 }

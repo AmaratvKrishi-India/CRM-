@@ -47,6 +47,7 @@ export class SalesCRMDatabase extends Dexie {
   bulkAssignmentAudits!: Table<BulkAssignmentAudit, string>;
 
   readonly accessScope: AccessScope | null;
+  private readonly remoteSyncTransactions = new WeakSet<object>();
 
   constructor(dbName: string = LOCKED_DATABASE_NAME, accessScope: AccessScope | null = null) {
     super(dbName);
@@ -158,6 +159,21 @@ export class SalesCRMDatabase extends Dexie {
       bulkAssignmentAudits: 'id, organizationId, performedBy, targetAgentId, status, startedAt, isSynced, deletedAt, [targetAgentId+startedAt], [performedBy+startedAt]',
     });
 
+    // Version 7: cursor-friendly outbox ordering for bounded-memory queue scans.
+    this.version(7)
+      .stores({
+        outbox: 'id, organizationId, userId, entityType, entityId, operation, status, retryCount, sequence, createdAt, updatedAt, [organizationId+userId+status], [status+createdAt], [organizationId+userId+sequence], [organizationId+userId+entityType+entityId+sequence]',
+      })
+      .upgrade(async (trans) => {
+        const outbox = trans.table<OutboxItem, string>('outbox');
+        const rows = await outbox.orderBy('createdAt').toArray();
+        let sequence = 0;
+        for (const row of rows) {
+          sequence = Math.max(sequence + 1, row.sequence || 0);
+          if (row.sequence !== sequence) await outbox.update(row.id, { sequence });
+        }
+      });
+
     // Setup Hooks for Automatic Timestamp and Sync Dirty-Flag Management
     this.setupHooks();
   }
@@ -183,6 +199,15 @@ export class SalesCRMDatabase extends Dexie {
       throw new Error(`Lead ${leadId} not found.`);
     }
     return lead;
+  }
+
+  /** Preserve explicit server metadata only inside a verified sync transaction. */
+  markRemoteSyncWrites(): void {
+    const transaction = Dexie.currentTransaction;
+    if (!transaction || transaction.db !== this) {
+      throw new Error('Remote sync writes require an active transaction on this database.');
+    }
+    this.remoteSyncTransactions.add(transaction);
   }
 
   private setupHooks(): void {
@@ -213,6 +238,11 @@ export class SalesCRMDatabase extends Dexie {
       });
 
       table.hook('updating', (modifications, _primKey, _obj) => {
+        // Dexie supplies a diff, so an unchanged explicit isSynced value can
+        // be absent. Server reconciliation must retain the supplied record
+        // instead of applying the defaults intended for local edits.
+        const transaction = Dexie.currentTransaction;
+        if (transaction && this.remoteSyncTransactions.has(transaction)) return;
         const now = new Date().toISOString();
         const mods = modifications as Record<string, any>;
         return {

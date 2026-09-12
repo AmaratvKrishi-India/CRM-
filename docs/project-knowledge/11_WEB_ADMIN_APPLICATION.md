@@ -1,40 +1,60 @@
-# 11 - WEB ADMIN APPLICATION
+# 11 — Web and Admin Application
 
-This document covers the administrative interfaces and capabilities available to the `ADMIN` role in the Amaratv Krishi Field Sales CRM.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `src/App.tsx`, `src/components/admin/`, `src/components/`, and `src/services/`
 
-## Architecture
-- Rendered conditionally via `[AdminShell](file:///c:/Users/PC/Desktop/calling app/src/components/admin/AdminShell.tsx)` in `App.tsx` when `currentUser.role === 'ADMIN'`.
-- Fully responsive (mobile-friendly, but optimized for desktop/tablet analytics).
-- Communicates directly with the local Dexie store. Syncs transparently with Supabase.
-- Leverages Supabase Realtime for live updates across the organization.
+## Shells and roles
 
-## Dashboard (`[AdminDashboardView](file:///c:/Users/PC/Desktop/calling app/src/components/admin/AdminDashboardView.tsx)`)
-- **Top-level KPIs**: Total Leads, Active Agents, Total Calls Today, Verified Talk Time.
-- **Pipeline Funnel**: Visual breakdown of NEW -> CONTACTED -> INTERESTED -> SAMPLE -> CUSTOMER.
-- **Agent Scorecards**: List of online agents, their daily call volume, and talk time.
-- **Live Activity Ticker**: Real-time scrolling feed of calls, updates, and assignments across the organization.
+`src/App.tsx` routes authenticated users by their verified profile role:
 
-## Lead Management (`[AdminLeadsView](file:///c:/Users/PC/Desktop/calling app/src/components/admin/AdminLeadsView.tsx)` & Bulk Operations)
-- Master list of all organization leads.
-- Filtering by Status, Assigned Agent, City.
-- Checkbox multi-select for Bulk Assignment (`[BulkLeadAssignmentModal](file:///c:/Users/PC/Desktop/calling app/src/components/admin/BulkLeadAssignmentModal.tsx)`).
-- Direct reassignment from one agent to another (triggers immutability updates on Supabase).
+- `ADMIN` enters [`AdminShell`](../../src/components/admin/AdminShell.tsx), with organization-wide dashboards, leads, agents, reports, live activity, and data-management tools.
+- `AGENT` enters the field-sales workspace with dashboard, leads, follow-ups, lead detail, import where permitted, call outcome, WhatsApp, backup, and settings flows.
+- Admin preview can enter the agent workspace and provides an explicit return path to the admin shell.
 
-## Agent Management (`[AdminAgentsView](file:///c:/Users/PC/Desktop/calling app/src/components/admin/AdminAgentsView.tsx)`)
-- Full agent lifecycle: Create, Edit, Deactivate, Delete.
-- Creation (`[CreateAgentModal](file:///c:/Users/PC/Desktop/calling app/src/components/admin/CreateAgentModal.tsx)`) creates auth user via `create-agent` Edge Function, bypassing client-side PKCE limitations.
-- Password-less management (admins can create, but passwords are not stored locally).
-- Soft deletion (historical call records/remarks remain intact).
+The UI is not the authorization boundary. Every repository and server request remains account-scoped, and PostgreSQL RLS is authoritative.
 
-## Reports & Analytics (`[AdminReportsView](file:///c:/Users/PC/Desktop/calling app/src/components/admin/AdminReportsView.tsx)`)
-- Multi-dimensional reporting tabs: Leads, Calls, Productivity, Follow-ups, WhatsApp, Imports.
-- Date range filtering (Today, Last 7 Days, This Month, All Time).
-- Agent comparison metrics (Conversion rate, call-to-interest ratio).
-- Export capability: Generates CSV files, sanitizes cell data to prevent spreadsheet formula injection.
+## Admin capabilities
 
-## Data Governance (`[AdminDataManagementView](file:///c:/Users/PC/Desktop/calling app/src/components/admin/AdminDataManagementView.tsx)`)
-- Central hub for data health.
-- Excel Importer wizard.
-- Duplicate detection and cleanup tools.
-- Real-time Sync health inspection.
-- Backup & Restore (`[BackupRestoreModal](file:///c:/Users/PC/Desktop/calling app/src/components/backup/BackupRestoreModal.tsx)`) for generating full-system JSON snapshots.
+### Dashboard and live activity
+
+`AdminDashboardView` and `LiveActivityFeed` provide organization KPIs, lead activity, call outcomes, and live updates. Realtime events are reconciled through the same scoped local data layer.
+
+### Lead management
+
+`AdminLeadsView` supports lead review, create/edit, assignment, filtering, and access-aware detail views. `BulkLeadAssignmentModal` performs bounded bulk assignment and records an audit entry for the operation.
+
+### Agent management
+
+`AdminAgentsView`, `CreateAgentModal`, `EditAgentModal`, `DeleteAgentModal`, and `AgentCard` manage the agent lifecycle. Creation calls the authenticated `create-agent` Edge Function; the service role key never reaches the browser.
+
+### Reporting and data management
+
+`AdminReportsView` and the reporting services provide operational summaries and CSV export. `AdminDataManagementView` exposes backup/restore and controlled data-maintenance actions subject to the documented deletion and recovery policy.
+
+## Agent capabilities
+
+- Dashboard with assigned-lead metrics and pending follow-ups.
+- Lead list, search, bounded pagination, detail, remarks, assignment visibility, and call history.
+- Native dialer launch with outcome logging that distinguishes verified duration from unverified dial attempts.
+- Follow-up scheduling and local notifications.
+- Intent-based WhatsApp message composition and catalogue attachment flow.
+- Offline-first writes, visible sync state, retained failures, conflict/recovery controls, and account-scoped data.
+- Day/night theme and keyboard/mobile accessibility support.
+
+## UI invariants
+
+- A visible error means the write result is not silently presented as successful.
+- Destructive actions require confirmation and preserve the audit/recovery rules.
+- Admin screens show organization-wide data only when the server scope permits it.
+- Agent screens never rely on client filtering alone to hide another agent's data.
+- Call cancellation records no fabricated outcome or talk time.
+
+## Related documents
+
+- [01 — Project overview](./01_PROJECT_OVERVIEW.md)
+- [02 — System architecture](./02_SYSTEM_ARCHITECTURE.md)
+- [03 — Roles and permissions](./03_ROLES_AND_PERMISSIONS.md)
+- [04 — Navigation map](./04_NAVIGATION_MAP.md)
+- [07 — Supabase security model](./07_SUPABASE_SECURITY_MODEL.md)
+- [08 — Sync and realtime architecture](./08_SYNC_REALTIME_ARCHITECTURE.md)

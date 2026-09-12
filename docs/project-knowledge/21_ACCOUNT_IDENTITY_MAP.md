@@ -1,49 +1,42 @@
-# 21 - ACCOUNT & IDENTITY MAP
+# 21 — Account and Identity Map
 
-Which account owns which service, and whether Vercel, Git/GitHub, and Supabase are connected with the same account.
+**Document status:** MACHINE-SPECIFIC REFERENCE
+**Last reviewed:** 2026-09-10
+**Rule:** reverify live account/project state before any deployment; this file is not authorization
 
-> [!IMPORTANT]
-> Verified live on 2026-08-22. All three production services are owned by the same logical identity: **AmaratvKrishi-India**.
+This reference keeps only project-scoped, non-secret identifiers that help prevent deployment to the wrong account. Personal machine identities, inactive personal accounts, credentials, tokens, and unrelated global Git settings do not belong in canonical project documentation.
 
-## Service Ownership Matrix
+## Project ownership matrix
 
-| Service | Account / Identity | Evidence |
-|---------|--------------------|----------|
-| GitHub (repo host) | `AmaratvKrishi-India` (org) | Remote: `https://github.com/AmaratvKrishi-India/CRM-.git` |
-| GitHub CLI (`gh`) | `AmaratvKrishi-India` (active) | `gh auth status` — active account, keyring, HTTPS |
-| Git commit identity (this repo) | `AmaratvKrishi-India <296277231+AmaratvKrishi-India@users.noreply.github.com>` | Repo-level `git config user.name` / `user.email` |
-| Git commit identity (global) | `Divinity <divinity.thethirdeye@gmail.com>` | Global config; overridden inside this repo |
-| Vercel | `amaratvkrishi-india` (user), team/scope `amaratv-krishi` | `vercel whoami`, `vercel project ls` |
-| Supabase | "AmaratvKrishi-India's Project" in org `fyeeutppsgfuhytfaekt` | `npx supabase projects list` |
+| Service | Project-scoped identity | Reverification method |
+|---|---|---|
+| GitHub repository | `AmaratvKrishi-India/CRM-` | `git remote -v` and authenticated GitHub account status |
+| Git commits in this repo | repository-level `AmaratvKrishi-India` identity | `git config --local user.name` and `git config --local user.email` |
+| Vercel | project `crm`, scope `amaratv-krishi` | `vercel whoami` plus project/scope inspection |
+| Supabase production | project ref `lahvcodvgubplzfshare` | `npx supabase projects list` and explicit target confirmation |
+| Supabase staging | project ref `dhoinifpzijqyobcamlv` | staging guard plus explicit target confirmation |
 
-## Are They the Same Account?
+The logical project identity across GitHub, Vercel, and production Supabase is AmaratvKrishi-India, but login state can change. Never infer deployment authorization from a saved username or from this snapshot.
 
-**Yes, effectively.** Vercel, GitHub, and Supabase are all signed in under the AmaratvKrishi-India identity:
+## Deployment identity rules
 
-- **GitHub:** repo lives in the `AmaratvKrishi-India` org; `gh` is authenticated as `AmaratvKrishi-India`; commits from this repo are attributed to `AmaratvKrishi-India` (noreply email).
-- **Vercel:** logged in as `amaratvkrishi-india`, and the CRM project is deployed under the `amaratv-krishi` team scope.
-- **Supabase:** the single project in the org is named "AmaratvKrishi-India's Project" (ref `lahvcodvgubplzfshare`, region ap-south-1).
+- Confirm the repository remote, Vercel scope/project, and Supabase project reference immediately before a deployment or migration.
+- Run `npm run verify:staging-config` before staging Vite/build operations.
+- Never point staging commands at production merely because credentials happen to be available.
+- Use repository-level Git identity for this project; do not document or depend on a developer's machine-global identity.
 
-> [!NOTE]
-> The machine's *global* git identity is `Divinity <divinity.thethirdeye@gmail.com>` (personal account). It does NOT affect this project because the repository sets its own `user.name`/`user.email`. A second `gh` account (`DIVINITY-THE-THIRD-EYE`) is also registered on this machine but is inactive.
+## Non-secret production identifiers
 
-## Known Orphan / Legacy Items
+- GitHub repository: `AmaratvKrishi-India/CRM-`
+- Vercel project/scope: `crm` / `amaratv-krishi`
+- Supabase production ref: `lahvcodvgubplzfshare`
+- Supabase staging ref: `dhoinifpzijqyobcamlv`
 
-| Item | Status |
-|------|--------|
-| Old Vercel project `divinity-thethirdeye/amaratv-krishi-crm` (URL `amaratv-krishi-crm.vercel.app`) | ORPHANED — belongs to the old personal account scope and is not accessible from the current `amaratvkrishi-india` login. The live project is `amaratv-krishi/crm`. |
-| `vercel.json` naming | FIXED on 2026-08-22: now `{"name": "crm"}`, matching the linked project `crm` in scope `amaratv-krishi`. |
-| `gh` account `DIVINITY-THE-THIRD-EYE` | Inactive; kept for other personal repos. Do not switch to it for this project. |
+Do not add service-role keys, access tokens, database passwords, session values, signing credentials, personal email addresses, or unrelated account details to this file.
 
-## Production Identifiers (non-secret)
+## Related documents
 
-- **GitHub repo:** `AmaratvKrishi-India/CRM-` (private since 2026-08-22)
-- **Vercel project:** `crm` in scope `amaratv-krishi` — production URL `https://crm-blush-omega.vercel.app`
-- **Supabase project ref:** `lahvcodvgubplzfshare` — API host `https://lahvcodvgubplzfshare.supabase.co`
-- **Supabase org id:** `fyeeutppsgfuhytfaekt`
-
-## Related Documents
-
-- [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md)
-- [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
-- [16 - Current State](./16_CURRENT_STATE.md)
+- [20 — Toolchain and CLI Status](./20_TOOLCHAIN_CLI_STATUS.md)
+- [22 — Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md)
+- [24 — Isolated Staging Environment](./24_STAGING_ENVIRONMENT.md)
+- [16 — Current State](./16_CURRENT_STATE.md)

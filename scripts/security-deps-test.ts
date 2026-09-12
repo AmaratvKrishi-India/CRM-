@@ -57,13 +57,14 @@ interface Vulnerability {
 }
 
 function runCommand(command: string, args: string[], cwd: string = process.cwd()): ToolResult {
-  console.log(`Running: ${command} ${args.join(' ')}`);
-  const result = spawnSync(command, args, { cwd, encoding: 'utf-8', timeout: 300000 });
+  const executable = process.platform === 'win32' && command === 'npx' ? 'npx.cmd' : command;
+  console.log(`Running: ${executable} ${args.join(' ')}`);
+  const result = spawnSync(executable, args, { cwd, encoding: 'utf-8', timeout: 300000 });
 
   return {
     success: result.status === 0,
     output: result.stdout || '',
-    error: result.stderr || undefined,
+    error: result.error?.message || result.stderr || undefined,
   };
 }
 
@@ -243,7 +244,10 @@ async function main(): Promise<void> {
     }
   }
 
-  result.summary.passed = !shouldFail;
+  const failedTools = Object.entries(result.tools)
+    .filter(([, tool]) => !tool?.success)
+    .map(([name]) => name);
+  result.summary.passed = !shouldFail && failedTools.length === 0;
 
   // Write consolidated results
   const outputFile = join(outputDir, 'security-test-results.json');
@@ -257,6 +261,9 @@ async function main(): Promise<void> {
   console.log(`  High: ${result.summary.high}`);
   console.log(`  Moderate: ${result.summary.moderate}`);
   console.log(`  Low: ${result.summary.low}`);
+  if (failedTools.length > 0) {
+    console.log(`  Tool failures: ${failedTools.join(', ')}`);
+  }
   console.log(`\nOverall: ${result.summary.passed ? '✅ PASSED' : '❌ FAILED'}`);
 
   if (!result.summary.passed) {

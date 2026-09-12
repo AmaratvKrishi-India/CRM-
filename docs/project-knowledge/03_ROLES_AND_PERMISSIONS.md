@@ -1,4 +1,8 @@
-# 03 - ROLES & PERMISSIONS
+# 03 — Roles and Permissions
+
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `src/context/`, `src/db/accessScope.ts`, repositories, and Supabase RLS migrations
 
 ## Identity System
 - Supabase Auth (email/password) -> `auth.users`

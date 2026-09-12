@@ -1,70 +1,77 @@
-# 18 - SUPABASE EDGE FUNCTIONS
+# 18 — Supabase Edge Functions
 
-The project has ONE edge function for server-side agent provisioning.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `supabase/functions/create-agent/index.ts`, `src/services/agentManagementService.ts`, Migration 9, and focused tests
 
-## create-agent Edge Function
-- **Path**: [supabase/functions/create-agent/index.ts](file:///c:/Users/PC/Desktop/calling%20app/supabase/functions/create-agent/index.ts)
-- **Purpose**: Server-side agent provisioning endpoint that creates a new Supabase Auth user and corresponding profile record.
-- **Triggered by**: Admin `CreateAgentModal` component via `agentManagementService`.
-- **Uses**: `SUPABASE_SERVICE_ROLE_KEY` (server-side only, never exposed to client).
+The project currently has one Edge Function: `create-agent`. It is the privileged boundary for provisioning a Supabase Auth user plus the matching CRM profile without exposing service-role credentials to the client.
 
-### Full Function Signature and HTTP Method
-- **HTTP Method**: POST (implicit from Deno standard `serve`)
-- **URL**: `https://<PROJECT_REF>.supabase.co/functions/v1/create-agent`
-- **CORS Support**: Implemented via an `OPTIONS` request handler that responds with standard headers.
+## Endpoint
 
-### Request Body Schema
-The payload must be a JSON object with the following fields:
-- `name` (string): Full name of the agent (Must be at least 2 characters).
-- `email` (string): Valid email format.
-- `phone` (string, optional): Phone number for the agent.
-- `password` (string): Minimum 6 characters in length.
+- Path: `supabase/functions/create-agent/index.ts`
+- Route: `https://<PROJECT_REF>.supabase.co/functions/v1/create-agent`
+- Allowed application method: `POST`
+- `OPTIONS`: CORS preflight returns `200`
+- Other methods: `405 Method Not Allowed`
+- Caller authentication: bearer session in `Authorization`
 
-### Response Schema
-On success, it responds with a 200 OK containing JSON:
+## Required request body
+
 ```json
 {
-  "success": true,
-  "message": "Agent created successfully.",
-  "agent": {
-    "id": "uuid",
-    "authUserId": "uuid",
-    "organizationId": "uuid",
-    "name": "string",
-    "email": "string",
-    "phone": "string",
-    "role": "AGENT",
-    "status": "ACTIVE",
-    "createdBy": "uuid",
-    "createdAt": "ISO-8601 string"
-  }
+  "name": "Agent Name",
+  "email": "agent@example.com",
+  "phone": "+91...",
+  "password": "temporary-password",
+  "idempotencyKey": "uuid"
 }
 ```
 
-### Error Handling
-The edge function returns specific HTTP status codes and JSON error messages:
-- `500`: Server configuration error (missing environment variables) or database error during insert.
-- `401`: Unauthorized (Missing Authorization header or invalid/expired session).
-- `403`: Forbidden (Caller profile not found, deactivated admin, non-admin role, or no organization).
-- `400`: Bad Request (Invalid name, email format, password length, or Auth failure).
-- `409`: Conflict (An account with this email already exists in the organization or Supabase Auth).
-- Compensation/Rollback: If the `profiles` table insertion fails, it automatically calls `supabaseAdmin.auth.admin.deleteUser(newAuthUserId)` to clean up the Auth user and rollback.
+`name` must be at least 2 characters, `email` must pass the function's email-format check, `password` must be at least 6 characters, `phone` is optional, and **`idempotencyKey` is required and must be a UUID**.
+## Authorization and scope
 
-### Security: Validating the Caller
-1. **Authentication**: The function extracts the caller's JWT from the `Authorization` header and verifies it via `callerClient.auth.getUser()`.
-2. **Authorization (Admin Check)**: Using the `SUPABASE_SERVICE_ROLE_KEY`, the function queries the `profiles` table to fetch the caller's profile.
-3. **Role Validation**: It ensures that:
-   - The caller's `status` is `'ACTIVE'`.
-   - The caller's `role` is `'ADMIN'`.
-   - The caller belongs to a valid `organization_id`.
+The function:
 
-### What it Creates
-1. **Auth User**: Creates a new user in the Supabase Auth (`auth.users`) subsystem using `supabaseAdmin.auth.admin.createUser`, marking `email_confirm: true`.
-2. **Profile Record**: Inserts a new record into the `public.profiles` table with:
-   - `role: 'AGENT'` (strictly forced, client input ignored)
-   - `status: 'ACTIVE'`
-   - `organization_id`: Inherited from the Admin caller (client input is ignored).
-3. **Audit Event**: Records an `AGENT_CREATED` event in the `activities` table noting the provisioning by the admin.
+1. verifies the incoming session with the anon/public client;
+2. fetches the caller profile with the server-only service-role client;
+3. requires an ACTIVE `ADMIN` profile with a valid `organization_id`;
+4. inherits that organization server-side and ignores any attempt to choose another organization;
+5. forces the new account role to `AGENT` and initial status to `ACTIVE`.
 
-### Relationship to Client Side
-The edge function handles privileged actions that the client cannot perform itself. The `agentManagementService` on the client-side sends a POST request to this endpoint with the agent details. Since the client only has the anonymous key (`VITE_SUPABASE_ANON_KEY`), it passes its active JWT session token in the Authorization header. This prevents the client from needing elevated admin privileges (like `SUPABASE_SERVICE_ROLE_KEY`) while securely allowing admins to create agents within their organization.
+`SUPABASE_SERVICE_ROLE_KEY` is read only inside the Edge Function environment. It must never be present in Vite/client environment files or client bundles.
+
+## Durable idempotency and abuse controls
+
+Migration 9 adds `profiles.provisioning_key` plus server-side provisioning policy/rate-limit state. Before creating anything, the function checks whether the same organization already has a profile for the supplied idempotency key.
+
+- Same key + same non-secret identity fields: return the existing agent with `replayed: true`.
+- Same key + different identity fields: `409`.
+- Existing AGENT with the same email in the organization: return it as a replayed success.
+- Existing non-agent/profile or conflicting Auth identity: `409`.
+- `reserve_agent_provisioning` serializes capacity/rate decisions per organization/admin; denied requests return `429` with `Retry-After`.
+
+Passwords are deliberately never persisted for idempotency comparison.
+## Success response
+
+A successful response is sanitized and contains the agent profile, including `id`, `authUserId`, `organizationId`, `name`, `email`, `phone`, `role`, `status`, `createdBy`, `createdAt`, `updatedAt`, and `serverRevision` when available. Replayed successes also include `replayed: true`.
+
+No password or server secret is returned.
+
+## Error status summary
+
+- `400` — invalid JSON/body fields or non-conflict Auth creation failure.
+- `401` — missing, invalid, or expired caller authentication.
+- `403` — caller profile missing/not allowed, inactive, non-admin, or without organization scope.
+- `405` — non-POST/non-OPTIONS request.
+- `409` — idempotency key reused for different data or conflicting account identity.
+- `429` — provisioning policy/rate limit denied; includes `Retry-After`.
+- `500` — server configuration/database/compensation failure or an unsafe ambiguous audit outcome requiring reconciliation.
+- `503` — temporary failure while checking idempotency/provisioning reservation.
+
+## Compensation and audit behavior
+
+After Auth creation, the function inserts the CRM profile and an `AGENT_CREATED` activity. If profile insertion fails it attempts to remove both partial profile state and the new Auth user. If audit insertion fails, it first resolves whether the audit row may actually have committed before deciding whether compensation is safe. Ambiguous post-audit state is retained for manual reconciliation instead of deleting an agent that may already have a durable audit event.
+
+## Client relationship
+
+`AgentManagementService.createAgent` is online-only. It supplies a fresh UUID idempotency key, validates the returned organization/role/email/status, caches the server-created profile locally only after success, and records a local append-only audit entry without storing the password.

@@ -1,4 +1,8 @@
-# Background synchronisation architecture
+# Background Synchronization Architecture
+
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `src/services/sync/`, `src/services/realtime/`, and recovery tests
 
 Background synchronization is silent and optional from the user's perspective. Login/session restore, foreground resume, browser visibility, network reconnect, the periodic foreground interval, and the manual Sync Now action all delegate to the current account-scoped `SyncEngine`.
 

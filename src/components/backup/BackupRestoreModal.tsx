@@ -18,7 +18,8 @@ import type {
   MergeRestoreResult,
   BackupAuditLog} from '../../services/backupService';
 import {
-  BackupService
+  BackupService,
+  serializeBackupPayload,
 } from '../../services/backupService';
 import { Modal } from '../common/Modal';
 import { useToast } from '../common/Toast';
@@ -119,7 +120,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     try {
       const payload = await crmData.backup.generateBackupPayload();
       const filename = BackupService.generateBackupFilename();
-      const jsonStr = JSON.stringify(payload, null, 2);
+      const jsonStr = await serializeBackupPayload(payload);
 
       BackupService.downloadJsonFile(filename, jsonStr);
 

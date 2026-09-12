@@ -332,6 +332,12 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
 
   return (
     <div className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans">
+      <a
+        href="#app-main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-3 focus:text-ink focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       {/* Return to Admin Banner if in Admin Sales Mode */}
       {isSalesModeForAdmin && onReturnToAdmin && (
         <aside aria-label="Admin sales mode" className="bg-accent-soft text-accent-text px-4 py-2 text-sm flex items-center justify-between shadow-sm sticky top-0 z-40 border-b border-line">
@@ -350,7 +356,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
       )}
 
       {/* Main Tab Content */}
-      <main className="flex-1 flex flex-col min-h-0" aria-label="Field sales workspace">
+      <main id="app-main-content" tabIndex={-1} className="flex-1 flex flex-col min-h-0" aria-label="Field sales workspace">
         <div
           className="flex-1 flex flex-col min-h-0"
           role="tabpanel"

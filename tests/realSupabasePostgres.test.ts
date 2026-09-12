@@ -318,7 +318,7 @@ describe('Real Supabase Local & PostgreSQL Integration Tests (Docker Stack)', ()
 
     const { error: updateErr } = await agentAClient
       .from('leads')
-      .update({ status: 'INTERESTED', custom_notes: 'Owner interested in gym supply packaging' })
+      .update({ status: 'INTERESTED', custom_notes: 'Owner interested in gym supply packaging', sync_expected_revision: createdLead.sync_revision })
       .eq('id', testLeadId);
 
     assert.strictEqual(updateErr, null);

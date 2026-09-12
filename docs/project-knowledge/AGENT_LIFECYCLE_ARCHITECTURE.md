@@ -1,4 +1,8 @@
-# Agent Lifecycle & Deletion Architecture
+# Agent Lifecycle and Deletion Architecture
+
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** agent management services, profile policies, deletion audits, and recovery tests
 
 ## 1. Overview & Business Requirements
 In Amaratv Krishi Field Sales CRM, sales representatives (AGENTS) engage in direct field operations: calling gym owners, pitching products, sending WhatsApp catalogues, and scheduling follow-ups.

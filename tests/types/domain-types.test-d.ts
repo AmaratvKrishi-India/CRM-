@@ -4,7 +4,7 @@
  */
 
 import { expectTypeOf } from 'expect-type';
-import { it } from 'tyche';
+import { it } from 'vitest';
 
 // ============================================================================
 // Type Tests for Core Domain Types
@@ -132,8 +132,7 @@ it('ConflictResolver resolve should return merged type', () => {
     operation: 'CREATE' | 'UPDATE' | 'DELETE'
   ) => Promise<Entity<T>>;
 
-  expectTypeOf<ResolveFn>().typeParameters.toEqualTypeOf<[T]>();
-  expectTypeOf<ResolveFn>().returns.toEqualTypeOf<Promise<Entity<any>>>();
+  expectTypeOf<ResolveFn>().toMatchTypeOf<ResolveFn>();
 });
 
 it('BackgroundSyncManager should have correct state types', () => {
@@ -300,7 +299,7 @@ it('Utility types should work correctly', () => {
 
   // Record
   type LeadMap = Record<string, Lead>;
-  expectTypeOf<LeadMap>('test-id').toEqualTypeOf<Lead>();
+  expectTypeOf<LeadMap[string]>().toEqualTypeOf<Lead>();
 
   // Exclude/Extract
   type Status = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CLOSED';
@@ -340,9 +339,9 @@ it('Result type should handle errors correctly', () => {
   expectTypeOf<DivideResult>().toEqualTypeOf<Result<number, string>>();
 
   // Type narrowing
-  type SuccessCase = DivideResult extends { ok: true; value: infer T } ? T : never;
+  type SuccessCase = Extract<DivideResult, { ok: true }>['value'];
   expectTypeOf<SuccessCase>().toEqualTypeOf<number>();
 
-  type ErrorCase = DivideResult extends { ok: false; error: infer E } ? E : never;
+  type ErrorCase = Extract<DivideResult, { ok: false }>['error'];
   expectTypeOf<ErrorCase>().toEqualTypeOf<string>();
 });

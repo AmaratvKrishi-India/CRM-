@@ -32,7 +32,7 @@ if (!fs.existsSync(envLocal)) {
     envLocal,
     '# Local Environment Configuration (Docker Supabase Local)\n' +
       'VITE_SUPABASE_URL=http://127.0.0.1:15432\n' +
-      `VITE_SUPABASE_ANON_KEY=${LOCAL_ANON_KEY}\n` +
+      `VITE_SUPABASE_ANON_KEY=${LOCAL_ANON_KEY_FROM_PROCESS || ''}\n` +
       'VITE_APP_ENV=development\n' +
       'VITE_APP_VERSION=2.0.0\n'
   );
@@ -354,7 +354,7 @@ async function runVerificationPipeline() {
   );
 
   // Verify APK File Integrity
-  const apkPath = path.join(
+  const signedApkPath = path.join(
     rootDir,
     'android',
     'app',
@@ -364,20 +364,38 @@ async function runVerificationPipeline() {
     'release',
     'app-release.apk'
   );
-  if (fs.existsSync(apkPath)) {
+  const unsignedApkPath = path.join(
+    rootDir,
+    'android',
+    'app',
+    'build',
+    'outputs',
+    'apk',
+    'release',
+    'app-release-unsigned.apk'
+  );
+  const apkCandidates = [signedApkPath, unsignedApkPath]
+    .filter((candidate) => fs.existsSync(candidate))
+    .sort((left, right) => fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs);
+  const apkPath = apkCandidates[0];
+  if (apkPath) {
     const stats = fs.statSync(apkPath);
+    const isSigned = apkPath === signedApkPath;
     results['apk_integrity'] = {
       name: 'Release APK Verification',
       command: `Verify ${apkPath}`,
-      status: stats.size > 5000000 ? 'PASS' : 'FAIL',
-      output: `Release APK verified: size ${stats.size} bytes (${(stats.size / 1024 / 1024).toFixed(2)} MB)`,
+      status: !isSigned ? 'BLOCKED' : stats.size > 5000000 ? 'PASS' : 'FAIL',
+      reason: !isSigned
+        ? 'The release build completed without a configured release keystore; the available artifact is unsigned.'
+        : undefined,
+      output: `${isSigned ? 'Signed' : 'Unsigned'} release APK verified: size ${stats.size} bytes (${(stats.size / 1024 / 1024).toFixed(2)} MB)`,
     };
   } else {
     results['apk_integrity'] = {
       name: 'Release APK Verification',
-      command: `Verify ${apkPath}`,
+      command: `Verify ${signedApkPath} or ${unsignedApkPath}`,
       status: 'FAIL',
-      output: 'Release APK file not found at expected path.',
+      output: 'No release APK file was found at either the signed or unsigned Gradle output path.',
     };
   }
 

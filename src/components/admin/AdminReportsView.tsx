@@ -6,7 +6,7 @@
  * Rewritten for design tokens + accessible tablist (F1/F2/F14/F15).
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   BarChart3,
   Users,
@@ -143,7 +143,7 @@ export const AdminReportsView: React.FC = () => {
     loadMetadata();
   }, []);
 
-  const loadActiveReportData = async () => {
+  const loadActiveReportData = useCallback(async () => {
     setLoading(true);
     try {
       if (activeTab === 'LEADS') {
@@ -173,7 +173,7 @@ export const AdminReportsView: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, filters, currentUser]);
 
   useEffect(() => {
     loadActiveReportData();
@@ -190,7 +190,7 @@ export const AdminReportsView: React.FC = () => {
       unsubActivity();
       unsubEntity();
     };
-  }, [activeTab, filters, currentUser]);
+  }, [loadActiveReportData]);
 
   const handleExportCSV = async () => {
     setExportLoading(true);

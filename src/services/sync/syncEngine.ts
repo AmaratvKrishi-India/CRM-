@@ -5,6 +5,7 @@
  */
 
 import { getSupabaseClient } from '../supabaseClient';
+import { reportOperationalError } from '../operationalReportingService';
 import { SyncQueue } from './syncQueue';
 import { SyncPush } from './syncPush';
 import { SyncPull } from './syncPull';
@@ -217,6 +218,10 @@ export class SyncEngine {
       guard();
       pushedCount = pushRes.pushedCount;
       failedCount = pushRes.failedCount;
+      if (failedCount > 0) {
+        const pushErrors = Array.isArray(pushRes.errors) ? pushRes.errors.join('; ') : '';
+        void reportOperationalError('sync_push', pushErrors || 'Sync push failed', failedCount, client);
+      }
 
       // Purge successfully-synced outbox rows so the queue does not grow unbounded.
       try {
@@ -254,6 +259,7 @@ export class SyncEngine {
     } catch (err: unknown) {
       syncError = err instanceof Error ? err.message : 'Sync failed';
       if (!(err instanceof SyncCancelledError)) {
+        void reportOperationalError('sync_cycle', err, Math.max(1, failedCount), getSupabaseClient());
         try {
           guard();
           await this.stateRepo.setStatus('ERROR', syncError);

@@ -1,89 +1,78 @@
-# 01 - PROJECT OVERVIEW
+# 01 — Project Overview
 
-## Application Identity
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-11
+**Source of truth:** `package.json`, `src/`, `supabase/`, `tests/`, and `e2e/`
+
+## Application identity
+
 - **Name:** Amaratv Krishi Field Sales CRM
-- **Package:** calling-app v2.0.0
-- **Android:** com.amaratvkrishi.salescrm v2.0.0 (versionCode 2)
-- **Production URL:** https://crm-blush-omega.vercel.app
-- **Supabase Cloud:** lahvcodvgubplzfshare.supabase.co
+- **Package:** `amaratvkrishi-sales-crm` v2.0.0
+- **Android application ID:** `com.amaratvkrishi.salescrm`
+- **Production web URL:** <https://crm-blush-omega.vercel.app>
+- **Production Supabase project:** `lahvcodvgubplzfshare` (protected; never use as staging)
+- **Release decision for this checkout:** not release-approved; see [16_CURRENT_STATE.md](./16_CURRENT_STATE.md)
 
-## Business Purpose
-Field sales CRM for managing leads in the gym/fitness/wellness market in Lucknow, Uttar Pradesh, India. Bridges mobile field agents with office administrators.
+## Business purpose
 
-## Target Users
-1. **Administrators (ADMIN)** - office-based managers: upload leads via Excel, assign to agents, monitor dashboards, manage agents, generate reports
-2. **Field Sales Agents (AGENT)** - mobile users: receive assigned leads, execute phone calls, log outcomes/remarks, schedule follow-ups, send WhatsApp messages
+This is an offline-first field-sales CRM for the gym, fitness, and wellness market in Lucknow, Uttar Pradesh. Administrators manage the lead pool and agents; field agents work assigned leads, place calls, log outcomes, schedule follow-ups, and send WhatsApp messages.
 
-## Technology Stack
-- React 19.2.8 + React DOM 19.2.8
-- Vite 8.2.2 + @vitejs/plugin-react 6.1.0
-- TypeScript 7.0.2
-- Tailwind CSS 4.3.3 + @tailwindcss/vite 4.3.3
-- Capacitor 8.5.0 (Core + CLI + Android)
-- Capacitor plugins: App 8.1.1, Share 8.0.1, Local Notifications 8.3.1
-- Dexie 4.4.5 (IndexedDB)
-- @supabase/supabase-js 2.112.3
-- lucide-react 1.33.0 (icons)
-- xlsx 0.18.5 (Excel parsing)
-- clsx 2.1.1 + tailwind-merge 3.6.0 (class utilities)
-- @fontsource/inter 5.3.0 (offline fonts)
-- Playwright 1.62.1 (E2E)
-- fake-indexeddb 6.2.5 (test mocking)
-- tsx 4.23.12 (test runner)
+## Core workflow
 
-## Main Business Workflow (7 steps)
-1. **Lead Sourcing** - Admins import via Excel (XLSX) or bundled 141-record Lucknow dataset
-2. **Assignment** - Individual or bulk assignment to agents
-3. **Agent Execution** - Call via native dialer, log outcome + remark
-4. **Follow-up** - Schedule callbacks with priority/notifications
-5. **WhatsApp** - Send templated messages with catalogue attachments
-6. **Monitoring** - Admin real-time dashboards, KPIs, reports, CSV exports
-7. **Sync** - Offline-first Dexie -> SyncEngine -> Supabase bidirectional sync
+1. Admin imports or creates leads.
+2. Admin assigns leads individually or in bulk.
+3. Agent opens assigned leads and uses the native dialer.
+4. Agent records a verified or unverified call outcome, notes, and follow-up.
+5. Agent sends intent-based WhatsApp messages when appropriate.
+6. Local writes enter the account-scoped Dexie store and transactional outbox.
+7. The scoped sync engine pushes/pulls with Supabase; Realtime accelerates reconciliation.
+8. Admin monitors dashboards, activity, reports, and assignment history.
 
-## Major Features
-- Offline-first architecture (Dexie IndexedDB + outbox queue)
-- Native Android call integration (Capacitor dialer intent)
-- Excel importer with fuzzy column detection
-- Bidirectional real-time sync (Supabase Realtime + SyncEngine push/pull)
-- Role-Based Access Control with Agent Lead Isolation (RLS)
-- WhatsApp compose with template renderer
-- Day/Night theme with Inter font
-- JSON backup & restore with LWW merge
-- Multi-device sync across 3 emulators
-- Admin: agent management, bulk assignment, reports, live activity feed
+## Technology stack
 
-## Repository Structure (with file counts)
-- `src/` (89 files) - React application
-  - `components/` (39 files) - UI components by feature
-  - `db/` (16 files) - Dexie schema, types, repositories
-  - `services/` (28 files) - Business logic, sync, native platform
-  - `context/` (2 files) - Auth + Theme providers
-- `tests/` (18 files) - Unit/integration tests (119 cases, excl. multi-device)
-- `e2e/` (6 files: 5 specs + 1 helper) - Playwright E2E tests (16 cases x 2 projects = 32 runs)
-- `scripts/` (5 files) - Verify pipeline, schema export, cloud probe, emulator check, prod smoke
-- `supabase/` (12 files) - Migrations, seed, config, edge function
-- `android/` - Capacitor Android project
-- `docs/` (22 root files + 26 project-knowledge files) - Project documentation
-- `public/` (2 files) - Static assets
-- `release/` (1 file) - Shipped APK artifact
+- React 19.2.8, React DOM 19.2.8, Vite 8.2.2, TypeScript 6.0.3
+- Tailwind CSS 4.3.3, Inter, Lucide React
+- Capacitor 8.5.1 core/Android with App, Share, and Local Notifications plugins
+- Dexie 4.4.5 for account-scoped IndexedDB storage
+- Supabase JS 2.112.4, PostgreSQL, Auth, Realtime, and one Edge Function
+- Playwright 1.62.1, Vitest 4, Node test runner via `tsx`, Maestro, and Docker-backed SQL tests
 
-## Important Entry Points
-- [main.tsx](file:///c:/Users/PC/Desktop/calling%20app/src/main.tsx) - React DOM mount
-- [App.tsx](file:///c:/Users/PC/Desktop/calling%20app/src/App.tsx) - Root component, role-based routing (AdminShell vs SalesAppContent)
-- [database.ts](file:///c:/Users/PC/Desktop/calling%20app/src/db/database.ts) - Dexie schema initialization
-- [index.ts](file:///c:/Users/PC/Desktop/calling%20app/src/db/index.ts) - Data layer factory (crmData singleton)
-- [syncEngine.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncEngine.ts) - Bidirectional sync coordinator
-- [supabaseClient.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/supabaseClient.ts) - Supabase client factory
+## Current repository shape
 
-## Current Status
-- **Release Status:** FULLY_RELEASED (v2.0.0)
-- **Release Commit:** 759a81c
-- **Cloud Migration 6:** PASS
-- **Cloud RLS / Agent Lead Isolation:** PASS
-- **All tests:** PASS (119 unit + 32 E2E + 15 PostgreSQL)
-- **Production build:** PASS
-- **Android APK:** PASS - shipped artifact [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB)
-- **Web deployment:** Vercel at https://crm-blush-omega.vercel.app
+File counts are intentionally not hard-coded in living documentation because snapshots, generated evidence, and verification scripts change frequently. For an audit, count the live checkout and record the command and exclusions with the dated evidence.
 
-> [!NOTE]
-> For toolchain health, account ownership, deploy procedures, and local setup see [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md), [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md), [22 - Deployment Runbook](./22_DEPLOYMENT_RUNBOOK.md), and [23 - Local Dev Setup](./23_LOCAL_DEV_SETUP.md).
+| Area | Purpose |
+|---|---|
+| `src/` | React UI, contexts, Dexie repositories, services, sync, realtime |
+| `tests/` | Node/Vitest unit, integration, security, type, and performance coverage |
+| `e2e/` | Playwright browser workflows, helpers, Maestro flows, and generated snapshots/evidence |
+| `scripts/` | Verification, diagnostics, generation, probes, and test runners |
+| `supabase/migrations/` | Ordered schema, RLS, sync, reporting, and hardening changes |
+| `android/` | Capacitor Android build and native lifecycle surface |
+| `docs/` | Living guides, ADRs, reference material, and dated verification evidence |
+
+## Important entry points
+
+- [`src/main.tsx`](../../src/main.tsx) — React mount
+- [`src/App.tsx`](../../src/App.tsx) — role-based routing and agent workspace
+- [`src/components/admin/AdminShell.tsx`](../../src/components/admin/AdminShell.tsx) — admin shell
+- [`src/db/database.ts`](../../src/db/database.ts) — Dexie schema versions 1–7 and access scope
+- [`src/db/index.ts`](../../src/db/index.ts) — repository/data-layer factory
+- [`src/services/sync/syncEngine.ts`](../../src/services/sync/syncEngine.ts) — sync coordinator
+- [`src/services/realtime/realtimeService.ts`](../../src/services/realtime/realtimeService.ts) — Realtime subscriptions
+- [`src/services/supabaseClient.ts`](../../src/services/supabaseClient.ts) — Supabase client factory
+- [`supabase/functions/create-agent/index.ts`](../../supabase/functions/create-agent/index.ts) — admin-only agent provisioning
+
+## Security and data boundaries
+
+PostgreSQL RLS is authoritative. The client also enforces an account-scoped local partition, organization filters, agent visibility checks, generation cancellation, and pruning after revoked access. Service-role credentials are limited to the Edge Function environment and must never appear in client environment files or documentation.
+
+## Related documents
+
+- [02 — System architecture](./02_SYSTEM_ARCHITECTURE.md)
+- [07 — Supabase security model](./07_SUPABASE_SECURITY_MODEL.md)
+- [08 — Sync and realtime architecture](./08_SYNC_REALTIME_ARCHITECTURE.md)
+- [12 — Testing and verification](./12_TESTING_VERIFICATION.md)
+- [16 — Current state](./16_CURRENT_STATE.md)
+- [23 — Local development setup](./23_LOCAL_DEV_SETUP.md)
+- [Documentation guide](../README.md)

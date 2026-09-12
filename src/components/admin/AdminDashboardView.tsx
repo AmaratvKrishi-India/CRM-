@@ -51,17 +51,6 @@ const formatSeconds = (seconds: number) => {
   return `${m}m`;
 };
 
-/** Data-viz colour for each pipeline stage bar. */
-const stageBarColor = (status: LeadStatus) => {
-  if (status === 'CUSTOMER') return 'bg-success';
-  if (status === 'NOT_INTERESTED' || status === 'DO_NOT_CONTACT' || status === 'WRONG_NUMBER')
-    return 'bg-danger';
-  if (status === 'INTERESTED' || status === 'SAMPLE_REQUESTED' || status === 'NEGOTIATION')
-    return 'bg-accent';
-  if (status === 'FOLLOW_UP') return 'bg-warning';
-  return 'bg-info';
-};
-
 const stageBarFillColor = (status: LeadStatus) => {
   if (status === 'CUSTOMER') return 'fill-success';
   if (status === 'NOT_INTERESTED' || status === 'DO_NOT_CONTACT' || status === 'WRONG_NUMBER')

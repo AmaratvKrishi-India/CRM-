@@ -7,9 +7,10 @@
  * active theme; 44px action targets (F6); readable text sizes (F7).
  */
 
-import type { ErrorInfo, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import React, { Component } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import { reportOperationalError } from '../../services/operationalReportingService';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -38,9 +39,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Log error securely without exposing to user UI
-    console.error('ErrorBoundary captured error:', error.message, errorInfo.componentStack);
+  componentDidCatch(error: Error): void {
+    void reportOperationalError('render', error);
   }
 
   handleReset = (): void => {

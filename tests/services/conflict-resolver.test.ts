@@ -23,14 +23,15 @@ describe('SyncConflictResolver', () => {
       expect(resolved.conflict?.resolution).toBe('REMOTE_WON');
     });
 
-    it('should use timestamp LWW for DELETE versus UPDATE conflicts', () => {
+    it('should use server revisions for DELETE versus UPDATE conflicts', () => {
       const local = {
         id: 'lead-1',
         businessName: 'Deleted locally',
+        serverRevision: 2,
         deletedAt: '2024-01-03T00:00:00Z',
         updatedAt: '2024-01-03T00:00:00Z',
       };
-      const remote = { id: 'lead-1', businessName: 'Remote update', updatedAt: '2024-01-02T00:00:00Z' };
+      const remote = { id: 'lead-1', serverRevision: 1, businessName: 'Remote update', updatedAt: '2024-01-02T00:00:00Z' };
 
       const resolved = SyncConflictResolver.resolveMutable('leads', local, remote);
 
@@ -60,9 +61,9 @@ describe('SyncConflictResolver', () => {
       expect(resolved.data).not.toHaveProperty('phone');
     });
 
-    it('should prefer newer local updatedAt for conflicting fields', () => {
-      const local = { id: 'lead-1', businessName: 'Local Gym', updatedAt: '2024-01-01T12:00:00Z' };
-      const remote = { id: 'lead-1', businessName: 'Remote Gym', updatedAt: '2024-01-01T10:00:00Z' };
+    it('should prefer higher locally observed server revision for delayed events', () => {
+      const local = { id: 'lead-1', serverRevision: 2, businessName: 'Local Gym', updatedAt: '2024-01-01T12:00:00Z' };
+      const remote = { id: 'lead-1', serverRevision: 1, businessName: 'Remote Gym', updatedAt: '2024-01-01T10:00:00Z' };
 
       const resolved = SyncConflictResolver.resolveMutable('leads', local, remote);
 
@@ -86,12 +87,12 @@ describe('SyncConflictResolver', () => {
       expect(resolved.data).toEqual(remote);
     });
 
-    it('should keep local if both UNVERIFIED and it is newer', () => {
+    it('should keep local if both UNVERIFIED and its server revision is newer', () => {
       const local = {
-        id: 'call-1', durationSeconds: 150, verificationStatus: 'UNVERIFIED', updatedAt: '2024-01-02T00:00:00Z',
+        id: 'call-1', serverRevision: 2, durationSeconds: 150, verificationStatus: 'UNVERIFIED', updatedAt: '2024-01-02T00:00:00Z',
       };
       const remote = {
-        id: 'call-1', durationSeconds: 120, verificationStatus: 'UNVERIFIED', updatedAt: '2024-01-01T00:00:00Z',
+        id: 'call-1', serverRevision: 1, durationSeconds: 120, verificationStatus: 'UNVERIFIED', updatedAt: '2024-01-01T00:00:00Z',
       };
 
       const resolved = SyncConflictResolver.resolveCallRecord(local, remote);

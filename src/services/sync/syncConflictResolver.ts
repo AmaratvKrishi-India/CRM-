@@ -3,10 +3,10 @@
  * Implements deterministic conflict resolution rules between local Dexie and remote Supabase records:
  * 1. Append-Only Entities (Activity, MessageHistory, ImportAudit): UUID Idempotency.
  * 2. Call Records: VERIFIED duration strictly wins over UNVERIFIED duration.
- * 3. Mutable Entities (Lead, FollowUp, Remark, Profile): Timestamp / Version Last-Write-Wins (LWW).
+ * 3. Mutable entities: server revision order; client dates are business metadata only.
  */
 
-import type { SyncEntityType, SyncConflict } from './syncTypes.ts';
+import { serverRevision, type SyncEntityType, type SyncConflict } from './syncTypes';
 
 export interface ResolutionResult<T = any> {
   winner: 'LOCAL' | 'REMOTE';
@@ -36,10 +36,9 @@ export class SyncConflictResolver {
   }
 
   /**
-   * Resolves mutable entity conflicts using Last-Write-Wins (LWW) timestamp comparisons.
-   * Tie-break rule: when local and remote timestamps are exactly equal, REMOTE wins.
-   * The server is the canonical source and pull reconciliation is the convergence
-   * path; the tie is recorded as a REMOTE_WON conflict for observability.
+   * Server revision order. An equal-revision refresh preserves a pending local
+   * edit until conditional push acknowledges it. A higher server revision wins;
+   * the rejected edit remains in the outbox for explicit recovery.
    */
   static resolveMutable<T extends { id: string; updatedAt?: string; updated_at?: string }>(
     entityType: SyncEntityType,
@@ -50,11 +49,18 @@ export class SyncConflictResolver {
       return { winner: 'REMOTE', data: remote };
     }
 
-    const localTime = new Date(local.updatedAt || (local as any).updated_at || 0).getTime();
-    const remoteTime = new Date((remote as any).updated_at || remote.updatedAt || 0).getTime();
-
-    if (remoteTime >= localTime) {
-      // Remote is newer, or timestamps tie (tie-break: remote/server wins)
+    const localRevision = serverRevision(local);
+    const remoteRevision = serverRevision(remote);
+    if (localRevision !== undefined && remoteRevision === undefined) return { winner: 'LOCAL', data: local };
+    // Never infer ordering from a client's date. Unversioned cache is replaced
+    // by server state; its queued snapshots remain available for conflict recovery.
+    if (localRevision !== undefined && remoteRevision !== undefined &&
+        (localRevision > remoteRevision ||
+         (localRevision === remoteRevision && (local as { isSynced?: number }).isSynced === 0))) {
+      return { winner: 'LOCAL', data: local };
+    }
+    {
+      // Canonical server record, including upgrades from unversioned cache.
       const conflict: SyncConflict = {
         id: `conflict_${entityType}_${local.id}_${Date.now()}`,
         entityType,
@@ -67,14 +73,13 @@ export class SyncConflictResolver {
       return { winner: 'REMOTE', data: remote, conflict };
     }
 
-    // Local is strictly newer
-    return { winner: 'LOCAL', data: local };
   }
 
   /**
    * Resolves CallRecord entity conflicts:
    * VERIFIED duration strictly wins over UNVERIFIED duration.
-   * If verification levels match, timestamp Last-Write-Wins (LWW) is used.
+   * Versioned records use server revision order. Legacy duration precedence is
+   * retained for unversioned data; equal verification uses canonical remote state.
    */
   static resolveCallRecord<T extends { id: string; verificationStatus?: string; verification_status?: string; updatedAt?: string; updated_at?: string }>(
     local: T | undefined,
@@ -84,7 +89,11 @@ export class SyncConflictResolver {
       return { winner: 'REMOTE', data: remote };
     }
 
-    // Deletion/update conflicts use the existing timestamp LWW rule. Duration
+    // Versioned server state determines the complete canonical record. The
+    // server mutation path separately preserves verified duration invariants.
+    if (serverRevision(remote) !== undefined) return this.resolveMutable('call_records', local, remote);
+
+    // Deletion/update conflicts use canonical ordering. Duration
     // verification only decides between two live call records.
     const localDeleted = (local as { deletedAt?: string | null; deleted_at?: string | null }).deletedAt ||
       (local as { deletedAt?: string | null; deleted_at?: string | null }).deleted_at;
@@ -116,7 +125,7 @@ export class SyncConflictResolver {
       return { winner: 'LOCAL', data: local };
     }
 
-    // Both verified or both unverified: fallback to timestamp LWW
+    // Both verified or both unverified: canonical ordering, never client time.
     return this.resolveMutable('call_records', local, remote);
   }
 }

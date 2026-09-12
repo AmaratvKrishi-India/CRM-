@@ -1,4 +1,12 @@
-# 08 - Sync and realtime architecture
+# 08 — Sync and realtime architecture
+
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Source of truth:** `src/services/sync/`, `src/services/realtime/`, `src/db/`, and `supabase/migrations/`
+
+The current release decision is maintained in [16_CURRENT_STATE.md](./16_CURRENT_STATE.md) and [GATES.md](../../GATES.md). Verification statements in this guide are limited to the newest retained release evidence.
+
+The rationale, rejected alternatives, consequences, and recovery implications for the implemented design are recorded in [ADR-0001](../decisions/0001-account-scoped-offline-first-sync.md).
 
 ## Phase 3 context boundary
 
@@ -10,14 +18,14 @@ In-app organization switching is **NOT SUPPORTED — VERIFIED**. A changed serve
 
 - `syncState` is stored inside the account-partitioned Dexie database.
 - The row carries both `organizationId` and `userId`; reads and updates reject mismatches.
-- A pull cursor advances only after every table page and the agent visibility snapshot succeed.
+- The revision cursor advances only after every table page inside a fixed committed-head window and the agent visibility snapshot succeed.
 - A/B/A account switching therefore resumes each account's independent cursor. There is no global cursor or hard-coded organization fallback.
 
 ## Transactional outbox and push
 
 Repository writes and outbox enqueue occur in one Dexie transaction. Each item retains mutation ID, entity ID/type, operation, payload, organization, user, device, timestamps, status, retry count, next-attempt time, error, and original scope across restart.
 
-Push selects only the active database's exact organization/user scope. It rechecks the active engine generation at network and local-state boundaries. `CREATE` and `UPDATE` use idempotent ID upserts; stale queued updates are marked complete without overwriting newer local data. `DELETE` always uses a scoped server delete (`id` plus `organization_id`) and is never converted to an upsert.
+Push selects only the active database's exact organization/user scope. It rechecks the active engine generation at network and local-state boundaries. `CREATE`, `UPDATE`, and `DELETE` use the RLS-preserving `sync_mutate` RPC with stable mutation UUIDs and expected server revisions. Identical accepted retries are idempotent; stale mutations become durable conflicts instead of overwriting newer data. `DELETE` remains scoped to the organization and is never converted to an upsert.
 
 Transient failures use bounded per-item exponential delay (1, 2, 4, 8, 16, then 32 seconds). Ten failed attempts move an item to `DEAD_LETTER`, preserving scope and failure details. Recovery is explicit through `retryDeadLetter`; it is not silently replayed. Items left `SYNCING` by force-stop are reset for the same account when the next single-flight cycle starts.
 
@@ -33,8 +41,8 @@ Realtime subscribes to all published CRM entities, including bulk-assignment aud
 
 ## Conflict and delete policy
 
-- Mutable records: last-write-wins by `updatedAt`; exact ties deterministically choose remote.
-- Call records: timestamp ordering and verified-duration protection prevent newer verified data from being demoted.
+- Mutable records: server `sync_revision` order is authoritative. Equal-revision dirty local edits remain pending until their conditional push is acknowledged; client timestamps do not choose a winner.
+- Call records: server revision ordering and verified-duration protection prevent verified data from being demoted.
 - Append-only records: duplicate IDs are idempotent, while a remote tombstone wins to prevent resurrection.
 - Delete/update and delete/create outcomes are deterministic; remote tombstones are never turned back into local creates by reconciliation.
 
@@ -42,10 +50,6 @@ Realtime subscribes to all published CRM entities, including bulk-assignment aud
 
 Manual, background, reconnect, and realtime recovery share the active engine's single-flight mutex. Login/session restore, foreground/resume, reconnect, and interval triggers use only the current data layer. Logout, failed revalidation, account change, or manager stop removes listeners/timers, unsubscribes realtime, disposes the engine, and locks local access.
 
-## Phase 3 evidence (2026-09-01)
+## Current verification
 
-- Focused synchronization suite: `npx tsx --test tests/phase3Synchronization.test.ts` — 14/14 PASS.
-- Local migrations 1–7: PASS on disposable Docker PostgreSQL.
-- Real RLS transaction: `tests/integration/phase3_sync_rls.sql` — PASS.
-- TypeScript: PASS.
-- Recovery verification: clean install, TypeScript, and production build pass; the dedicated Phase 1–3 Node-runner suite passes 25/25. The aggregate `npm test` gate remains blocked by mixed test-runner topology and stale legacy fixtures, documented in `PHASE_3_RECOVERY_VERIFICATION_2026-09-01.md`. Phase 3 must not be released until that aggregate gate is repaired.
+The newest retained release verification records the F003 Docker-backed ordering/integration gate at **22/22 PASS** and current emulator offline-recovery/reconnect behavior as PASS within their stated scopes. TypeScript, production build, and bundle-budget checks also passed in that evidence. The full runner topology still requires a stable rerun before distribution, and release signing remains pending; see [FINAL_RELEASE_SIGNOFF_2026-09-09.md](./FINAL_RELEASE_SIGNOFF_2026-09-09.md) and [GATES.md](../../GATES.md).

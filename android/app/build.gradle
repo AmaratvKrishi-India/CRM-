@@ -12,6 +12,9 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.amaratvkrishi.salescrm"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures {
+        buildConfig = true
+    }
     defaultConfig {
         applicationId "com.amaratvkrishi.salescrm"
         minSdkVersion rootProject.ext.minSdkVersion

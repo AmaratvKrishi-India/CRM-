@@ -9,7 +9,7 @@
  * Rewritten for design tokens + accessible filter pills (F1/F2/F3).
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   Search,
   UserCheck,
@@ -29,7 +29,7 @@ import { LeadAssignmentService } from '../../services/leadAssignmentService';
 import { AgentManagementService } from '../../services/agentManagementService';
 import { LeadAssignmentModal } from '../leads/LeadAssignmentModal';
 import { BulkLeadAssignmentModal } from './BulkLeadAssignmentModal';
-import type { Lead, User } from '../../db/types';
+import type { Lead, User, LeadFilterParams, LeadStatus } from '../../db/types';
 import { labelFor } from '../../lib/labels';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 
@@ -50,7 +50,7 @@ export const AdminLeadsView: React.FC = () => {
   // keystroke (each keystroke previously triggered agents + stats + leads queries).
   const debouncedSearch = useDebouncedValue(searchTerm, 250);
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string>('ALL'); // 'ALL' | 'UNASSIGNED' | 'ASSIGNED' | agentId
-  const [selectedStatus] = useState<string>('ALL');
+  const [selectedStatus] = useState<LeadStatus | 'ALL'>('ALL');
   const [loading, setLoading] = useState(true);
 
   // NEW-BUG-004 — request-sequence guard: a slow earlier loadData must not
@@ -65,11 +65,7 @@ export const AdminLeadsView: React.FC = () => {
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, [currentUser, selectedAgentFilter, selectedStatus, debouncedSearch]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!currentUser) return;
     const seq = ++requestSeq.current;
     setLoading(true);
@@ -86,12 +82,7 @@ export const AdminLeadsView: React.FC = () => {
       setStats(assignmentStats);
 
       // 3. Search and filter leads
-      const filterParams: {
-        searchTerm?: string;
-        assignedTo?: string;
-        status?: any;
-        limit?: number;
-      } = {
+      const filterParams: LeadFilterParams = {
         searchTerm: debouncedSearch.trim() || undefined,
         limit: 150,
       };
@@ -116,7 +107,11 @@ export const AdminLeadsView: React.FC = () => {
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
-  };
+  }, [currentUser, selectedAgentFilter, selectedStatus, debouncedSearch]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleToggleSelectLead = (leadId: string) => {
     setSelectedLeadIds((prev) =>

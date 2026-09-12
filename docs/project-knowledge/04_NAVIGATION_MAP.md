@@ -1,41 +1,53 @@
-# 04 - NAVIGATION MAP
+# 04 — Navigation Map
 
-## Client-Side Routing Architecture
-- The app is a React Single Page Application (SPA).
-- No react-router-dom is used; navigation is state-based using conditional rendering in [`App.tsx`](file:///c:/Users/PC/Desktop/calling%20app/src/App.tsx), [`AdminShell.tsx`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/AdminShell.tsx), and `SalesAppContent.tsx` to maintain offline capabilities and simplify state.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-11
+**Source of truth:** [`src/App.tsx`](../../src/App.tsx), [`AdminShell.tsx`](../../src/components/admin/AdminShell.tsx), and feature components
 
-## App Root (`App.tsx`)
-- Unauthenticated -> [`<LoginScreen />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/auth/LoginScreen.tsx)
-- Authenticated + ADMIN -> [`<AdminShell />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/AdminShell.tsx)
-- Authenticated + AGENT -> `<SalesAppContent />` *(Rendered in App.tsx)*
+## Routing model
 
-## Admin Shell Navigation (`AdminShell.tsx`)
-Bottom Navigation Bar with 6 main tabs (`AdminTab` type):
-1. **HOME**: [`<AdminDashboardView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/AdminDashboardView.tsx) - Real-time KPIs, pipeline, live activity ticker.
-2. **LEADS**: [`<AdminLeadsView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/AdminLeadsView.tsx) - Organization-wide lead management, assignments.
-3. **AGENTS**: [`<AdminAgentsView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/AdminAgentsView.tsx) - Provisioning, performance table, agent lifecycle.
-4. **DATA**: [`<AdminDataManagementView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/data/AdminDataManagementView.tsx) - Imports, duplicates, data health.
-5. **REPORTS**: [`<AdminReportsView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/AdminReportsView.tsx) - Advanced analytics, agent productivity, CSV exports.
-6. **SETTINGS**: [`<SettingsModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/settings/SettingsModal.tsx) - Theme, backup/restore, device settings.
+The application is a React SPA without `react-router-dom`. Navigation is state-based so the same local data layer and lifecycle state remain available offline.
 
-*Note: Admins can switch to "Sales Mode" to view the agent interface.*
+```text
+Unauthenticated → LoginScreen
+Authenticated ADMIN → AdminShell
+Authenticated AGENT → SalesAppContent
+```
 
-## Sales Agent Navigation (`SalesAppContent.tsx`)
-Bottom Navigation Bar with 3 main tabs (`AppTab` type):
-1. **DASHBOARD**: [`<SalesDashboard />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/dashboard/SalesDashboard.tsx) - Personal metrics, today's tasks.
-2. **LEADS**: [`<MinimalLeadsList />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/leads/MinimalLeadsList.tsx) - My assigned leads, quick actions.
-3. **FOLLOW UPS**: [`<FollowUpsView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/followups/FollowUpsView.tsx) - Overdue, Today, and Upcoming callbacks.
+## Admin shell
 
-Additional Full-Screen Views/Modals:
-- **LEAD DETAIL**: [`<LeadDetailView />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/leads/LeadDetailView.tsx) - Deep dive into a single lead (timeline, info, actions).
-- **IMPORT**: [`<ExcelImporter />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/import/ExcelImporter.tsx) - Excel upload wizard (accessible via Data tab for Admin).
-- **SETTINGS**: [`<SettingsModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/settings/SettingsModal.tsx) - User preferences, manual sync trigger.
+[`AdminShell`](../../src/components/admin/AdminShell.tsx) exposes:
 
-## Action Modals
-List the key modal components that overlay the main views:
-- [`<CallOutcomeModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/leads/CallOutcomeModal.tsx) - Post-call logging screen.
-- [`<WhatsAppComposeModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/whatsapp/WhatsAppComposeModal.tsx) - Template selection and sending.
-- [`<FollowUpModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/followups/FollowUpModal.tsx) - Scheduling reminders.
-- [`<LeadAssignmentModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/leads/LeadAssignmentModal.tsx) & [`<BulkLeadAssignmentModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/BulkLeadAssignmentModal.tsx) - Admin assignment interfaces.
-- [`<CreateAgentModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/CreateAgentModal.tsx), [`<EditAgentModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/EditAgentModal.tsx), [`<DeleteAgentModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/admin/DeleteAgentModal.tsx) - Agent management.
-- [`<BackupRestoreModal />`](file:///c:/Users/PC/Desktop/calling%20app/src/components/backup/BackupRestoreModal.tsx) - Disaster recovery operations.
+1. **HOME** — organization dashboard, KPIs, and live activity
+2. **LEADS** — organization-wide lead management and assignment
+3. **AGENTS** — provisioning, status, performance, and lifecycle actions
+4. **DATA** — import, duplicate review, data health, and backup/restore
+5. **REPORTS** — analytics and CSV exports
+6. **SETTINGS** — shared settings and account actions
+
+Admin preview can enter the agent workspace and has an explicit return action.
+
+## Agent workspace
+
+[`SalesAppContent`](../../src/App.tsx) exposes:
+
+1. **DASHBOARD** — personal metrics and today's work
+2. **LEADS** — assigned leads, search, bounded pagination, and quick actions
+3. **FOLLOW UPS** — overdue, today, and upcoming callbacks
+
+Additional shared state-based views include lead detail, settings, backup/restore, call outcome, and WhatsApp composition. The `IMPORT` state also exists in the shared workspace implementation, but its visible entry points are ADMIN-gated; AGENT users do not receive Excel-import permission.
+
+## Shared flows
+
+- [`CallOutcomeModal`](../../src/components/leads/CallOutcomeModal.tsx) records outcome, note, duration status, and optional follow-up.
+- [`LeadDetailView`](../../src/components/leads/LeadDetailView.tsx) exposes history and scoped lead actions.
+- [`ExcelImporter`](../../src/components/import/ExcelImporter.tsx) handles mapping, preview, duplicate classification, and import audit.
+- [`SyncStatusBadge`](../../src/components/sync/SyncStatusBadge.tsx) and [`SyncRecoveryPanel`](../../src/components/sync/SyncRecoveryPanel.tsx) expose retained sync state and recovery.
+- [`BackupRestoreModal`](../../src/components/backup/BackupRestoreModal.tsx) handles validated JSON backup and restore.
+
+## Navigation invariants
+
+- The server-verified role determines the shell.
+- UI visibility never replaces RLS or repository access checks.
+- Android back navigation closes the topmost modal/view before minimizing the app.
+- Skip links, focus management, tab semantics, and keyboard navigation are part of the current accessibility contract.

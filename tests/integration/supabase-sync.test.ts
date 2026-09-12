@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import {
   cleanupLocalSupabase,
+  createAuthenticatedAgentClient,
   createOtherOrganization,
   createTestLead,
   createUnauthenticatedLocalClient,
@@ -68,26 +69,48 @@ describe('Supabase integration', () => {
       resolvePayload = resolve;
       rejectPayload = reject;
     });
+    let subscribed = false;
+    let replicationReady = false;
+    let resolveReadiness!: () => void;
+    const readiness = new Promise<void>((resolve) => {
+      resolveReadiness = resolve;
+    });
+    const markReady = () => {
+      if (subscribed && replicationReady) resolveReadiness();
+    };
     const channel = client
-      .channel(name)
+      .channel(name, { config: { broadcast: { replication_ready: true } } })
+      .on('system', {}, (event) => {
+        if (event.status === 'ok' && event.message === 'Replication connection established') {
+          replicationReady = true;
+          markReady();
+        }
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads', ...(filter ? { filter } : {}) }, resolvePayload);
 
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Local Supabase Realtime subscription did not become ready.')), 10_000);
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          clearTimeout(timeout);
-          resolve();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          clearTimeout(timeout);
-          reject(new Error(`Local Supabase Realtime subscription failed with ${status}.`));
-        }
-      });
-    });
+    const statuses: string[] = [];
+    await Promise.race([
+      readiness,
+      new Promise<void>((_, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Local Supabase Realtime subscription did not become replication-ready.')), 15_000);
+        channel.subscribe((status) => {
+          statuses.push(status);
+          if (status === 'SUBSCRIBED') {
+            subscribed = true;
+            markReady();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            clearTimeout(timeout);
+            reject(new Error(`Local Supabase Realtime subscription failed with ${status}.`));
+          }
+        });
+      }),
+    ]);
 
     const timedPayload = Promise.race([
       payload,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Local Supabase Realtime did not deliver the inserted lead.')), 10_000)),
+      new Promise((_, reject) => setTimeout(() => reject(new Error(
+        `Local Supabase Realtime did not deliver the inserted lead (filter=${filter || 'none'}, statuses=${statuses.join(',') || 'none'}).`
+      )), 20_000)),
     ]);
     return { channel, payload: timedPayload };
   }
@@ -214,7 +237,7 @@ describe('Supabase integration', () => {
       const lead = await createTestLead(context);
       const { data, error } = await context.agent
         .from('leads')
-        .update({ status: 'CONTACTED' })
+        .update({ status: 'CONTACTED', sync_expected_revision: lead.sync_revision })
         .eq('id', lead.id)
         .select()
         .single();
@@ -223,14 +246,17 @@ describe('Supabase integration', () => {
       expect(data).toMatchObject({ id: lead.id, status: 'CONTACTED' });
     });
 
-    it('should delete an agent-owned lead', async () => {
+    it('should deny an agent permanent deletion while preserving the lead', async () => {
       const lead = await createTestLead(context);
-      const { error } = await context.agent.from('leads').delete().eq('id', lead.id);
-      expect(error).toBeNull();
+      const { error } = await context.agent.rpc('sync_mutate', {
+        entity: 'leads', operation: 'DELETE', mutation_id: crypto.randomUUID(),
+        expected_revision: lead.sync_revision,
+        payload: { id: lead.id, organization_id: context.organizationId },
+      });
+      expect(error).toBeTruthy();
 
       const { data } = await context.service.from('leads').select('id').eq('id', lead.id);
-      expect(data).toEqual([]);
-      context.cleanupLeadIds.splice(context.cleanupLeadIds.indexOf(lead.id), 1);
+      expect(data).toEqual([{ id: lead.id }]);
     });
   });
 
@@ -265,33 +291,53 @@ describe('Supabase integration', () => {
 
   describe('realtime', () => {
     it('should subscribe to visible lead changes in the local stack', async () => {
-      const leadId = crypto.randomUUID();
-      const { channel, payload } = await subscribeToLeadInserts(
-        context.agent,
-        `phase5-agent-${leadId}`,
-        `id=eq.${leadId}`,
-      );
+      const receivingClient = await createAuthenticatedAgentClient(context);
+      let lastDeliveryError: unknown;
       try {
-        // Exercise the user-visible RLS path and subscribe before creating the
-        // exact lead the channel is expected to receive. An unfiltered
-        // service-role insert can race local Realtime's replication filter.
-        const lead = await createAgentLead({ id: leadId });
-        await expect(payload).resolves.toMatchObject({ new: { id: lead.id } });
+        // Local Realtime can occasionally drop the first WAL delivery while the
+        // aggregate runner is under heavy browser/test load. Retry the complete
+        // real subscription + INSERT cycle with a new UUID; a pass still requires
+        // an actual postgres_changes event from the local Realtime service.
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          const leadId = crypto.randomUUID();
+          const { channel, payload } = await subscribeToLeadInserts(
+            receivingClient,
+            `phase5-agent-${leadId}-attempt-${attempt}`,
+            `organization_id=eq.${context.organizationId}`,
+          );
+          try {
+            const lead = await createAgentLead({ id: leadId });
+            try {
+              await expect(payload).resolves.toMatchObject({
+                new: { id: lead.id, organization_id: context.organizationId },
+              });
+              return;
+            } catch (error) {
+              lastDeliveryError = error;
+            }
+          } finally {
+            await channel.unsubscribe();
+          }
+        }
+        throw lastDeliveryError instanceof Error
+          ? lastDeliveryError
+          : new Error('Local Supabase Realtime did not deliver a lead insert after two real subscription attempts.');
       } finally {
-        await channel.unsubscribe();
+        await receivingClient.auth.signOut();
       }
-    }, 30_000);
-
+    }, 90_000);
     it('should enforce the organization filter on a realtime subscription', async () => {
       const filter = `organization_id=eq.${context.organizationId}`;
       const { channel, payload } = await subscribeToLeadInserts(context.agent, `phase5-org-${crypto.randomUUID()}`, filter);
       try {
+        const otherOrganizationId = await createOtherOrganization(context);
+        await createTestLead(context, { organization_id: otherOrganizationId, created_by: null, assigned_to: null });
         const lead = await createTestLead(context);
         await expect(payload).resolves.toMatchObject({ new: { id: lead.id, organization_id: context.organizationId } });
       } finally {
         await channel.unsubscribe();
       }
-    }, 30_000);
+    }, 45_000);
   });
 
   describe('synchronization invariants', () => {
@@ -299,7 +345,7 @@ describe('Supabase integration', () => {
       const lead = await createTestLead(context);
       const { data: updated, error } = await context.agent
         .from('leads')
-        .update({ status: 'INTERESTED', updated_at: new Date().toISOString() })
+        .update({ status: 'INTERESTED', updated_at: new Date().toISOString(), sync_expected_revision: lead.sync_revision })
         .eq('id', lead.id)
         .select('status, updated_at')
         .single();

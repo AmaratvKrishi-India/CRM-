@@ -54,6 +54,9 @@ jobs:
       - name: Production build
         run: npm run build
 
+      - name: Enforce production JavaScript bundle budget
+        run: npm run test:perf:bundle
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 

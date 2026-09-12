@@ -24,16 +24,18 @@ describe('Sync Conflict Resolver & Verified-Duration Protection (Stage 7)', () =
     assert.strictEqual(result.conflict?.resolution, 'REMOTE_WON');
   });
 
-  it('2. Mutable Entity (Lead): Local newer wins LWW', () => {
+  it('2. Mutable Entity (Lead): higher observed server revision rejects an older event', () => {
     const localLead = {
       id: 'lead-101',
       businessName: 'Fit Plus Gym (Local Fresh)',
+      serverRevision: 2,
       status: 'WON',
       updatedAt: '2026-08-20T10:15:00.000Z',
     };
     const remoteLead = {
       id: 'lead-101',
       businessName: 'Fit Plus Gym (Old Remote)',
+      serverRevision: 1,
       status: 'INTERESTED',
       updated_at: '2026-08-20T10:05:00.000Z',
     };

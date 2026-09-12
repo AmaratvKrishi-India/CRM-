@@ -68,6 +68,12 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
       data-role="admin"
       className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans"
     >
+      <a
+        href="#admin-main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-3 focus:text-ink focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       {/* Top Admin Header */}
       <header className="bg-surface/90 border-b border-line px-4 py-3 sticky top-0 z-30 shadow-md flex items-center justify-between backdrop-blur-md">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -104,7 +110,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
       </header>
 
       {/* Main Tab Content */}
-      <main className="flex-1 p-3 sm:p-6 max-w-3xl mx-auto w-full flex flex-col">
+      <main id="admin-main-content" tabIndex={-1} className="flex-1 p-3 sm:p-6 max-w-3xl mx-auto w-full flex flex-col">
         <div
           id="admin-panel-home"
           role="tabpanel"

@@ -25,6 +25,7 @@ class FakeSelectQuery implements PromiseLike<QueryResult> {
   private equals: Array<[string, unknown]> = [];
   private nulls: Array<[string, unknown]> = [];
   private lowerBound: Array<[string, string]> = [];
+  private upperBound: Array<[string, number]> = [];
   private orFilter: string | null = null;
   private maxRows: number | null = null;
   private rangeBounds: [number, number] | null = null;
@@ -39,6 +40,7 @@ class FakeSelectQuery implements PromiseLike<QueryResult> {
   eq(column: string, value: unknown): this { this.equals.push([column, value]); return this; }
   is(column: string, value: unknown): this { this.nulls.push([column, value]); return this; }
   gte(column: string, value: string): this { this.lowerBound.push([column, value]); return this; }
+  lte(column: string, value: number): this { this.upperBound.push([column, value]); return this; }
   or(filter: string): this { this.orFilter = filter; return this; }
   limit(value: number): this { this.maxRows = value; return this; }
   range(from: number, to: number): this { this.rangeBounds = [from, to]; return this; }
@@ -51,8 +53,9 @@ class FakeSelectQuery implements PromiseLike<QueryResult> {
       for (const [column, value] of this.equals) result = result.filter((row) => row[column] === value);
       for (const [column, value] of this.nulls) result = result.filter((row) => row[column] === value);
       for (const [column, value] of this.lowerBound) {
-        result = result.filter((row) => String(row[column] || '') >= value);
+        result = result.filter((row) => column === 'sync_revision' ? Number(row[column] || 0) >= Number(value) : String(row[column] || '') >= value);
       }
+      for (const [column,value] of this.upperBound) result=result.filter(row=>Number(row[column] || 0)<=value);
       if (this.orFilter?.includes('assigned_to.eq.')) {
         const ids = [...this.orFilter.matchAll(/(?:assigned_to|created_by)\.eq\.([^,)]+)/g)].map((m) => m[1]);
         result = result.filter((row) => ids.includes(String(row.assigned_to)) || ids.includes(String(row.created_by)));
@@ -105,7 +108,23 @@ function fakeClient(options: {
   const upserts: Row[] = [];
   const deletes: Row[] = [];
   const tables = options.tables || {};
+  let revision = Math.max(0,...Object.values(tables).flat().map(row=>Number(row.sync_revision || 0)));
   const client = {
+    async rpc(name: string, args: any = {}) {
+      if (name === 'sync_head') return {data:revision,error:null};
+      const table = args.entity, record = args.payload;
+      if (args.operation === 'DELETE') {
+        if(options.deleteError) return {data:null,error:{message:options.deleteError}};
+        deletes.push({table,filters:[['id',record.id],['organization_id',record.organization_id]]});
+        return {data:{status:'APPLIED',record:null},error:null};
+      }
+      if(args.operation === 'UPDATE' && args.expected_revision === null) return {data:{status:'CONFLICT',record:null},error:null};
+      await options.onUpsert?.(table,record);
+      upserts.push({table,records:record});
+      const canonical={...record,sync_revision:++revision};
+      tables[table]=[...(tables[table] || []).filter(row=>row.id!==record.id),canonical];
+      return {data:{status:'APPLIED',record:canonical},error:null};
+    },
     from(table: string) {
       return {
         select: (_columns: string) => new FakeSelectQuery(
@@ -137,6 +156,7 @@ function leadRow(id: string, scope: AccessScope, overrides: Row = {}): Row {
     updated_by: scope.userId,
     created_at: now,
     updated_at: now,
+    sync_revision: 0,
     deleted_at: null,
     ...overrides,
   };
@@ -275,10 +295,9 @@ describe('Phase 3 pull, assignment revocation, and realtime isolation', () => {
     const db = await openDb(scopeA, 'pull');
     const data = createCRMDataLayer(db);
     const server = fakeClient({ tables: { leads: [leadRow('visible-a', scopeA), leadRow('foreign-b', scopeB)] }, ignoreFilters: true });
-    const result = await data.syncPull.pullAllChanges(null, server.client);
-    assert.ok(await db.leads.get('visible-a'));
+    await assert.rejects(data.syncPull.pullAllChanges(null, server.client), /revision-window row/);
+    assert.equal(await db.leads.get('visible-a'), undefined, 'invalid response fails the whole page before applying');
     assert.equal(await db.leads.get('foreign-b'), undefined);
-    assert.equal(result.pulledCount, 1);
     data.syncEngine.dispose();
     db.close();
   });
@@ -364,9 +383,9 @@ describe('Phase 3 retry, conflicts, cursor safety, and restore interaction', () 
     db.close();
   });
 
-  it('keeps conflict outcomes deterministic for timestamps, deletes, calls, and duplicates', () => {
-    const local = { id: 'lead-1', updatedAt: later, deletedAt: null };
-    const olderRemote = { id: 'lead-1', updatedAt: now, deletedAt: null };
+  it('keeps conflict outcomes deterministic for revisions, deletes, calls, and duplicates', () => {
+    const local = { id: 'lead-1', serverRevision: 2, updatedAt: later, deletedAt: null };
+    const olderRemote = { id: 'lead-1', serverRevision: 1, updatedAt: now, deletedAt: null };
     assert.equal(SyncConflictResolver.resolveMutable('leads', local, olderRemote).winner, 'LOCAL');
     assert.equal(SyncConflictResolver.resolveMutable('leads', local, { ...local }).winner, 'REMOTE');
     assert.equal(SyncConflictResolver.resolveMutable('leads', olderRemote, local).winner, 'REMOTE');
@@ -423,7 +442,7 @@ describe('Phase 3 retry, conflicts, cursor safety, and restore interaction', () 
     db.close();
   });
 
-  it('drops a stale queued update instead of overwriting newer local state', async () => {
+  it('retains an unversioned legacy update for review instead of silently dropping it', async () => {
     const adminScope: AccessScope = { organizationId: 'org-stale', userId: 'admin-stale', role: 'ADMIN' };
     const db = await openDb(adminScope, 'stale');
     const data = createCRMDataLayer(db);
@@ -440,7 +459,7 @@ describe('Phase 3 retry, conflicts, cursor safety, and restore interaction', () 
     const result = await data.syncPush.pushPending(server.client);
     assert.equal(result.pushedCount, 0);
     assert.equal(server.upserts.length, 0);
-    assert.equal((await db.outbox.where('entityId').equals('stale-lead').first())?.status, 'SYNCED');
+    assert.equal((await db.outbox.where('entityId').equals('stale-lead').first())?.status, 'DEAD_LETTER');
     data.syncEngine.dispose();
     db.close();
   });

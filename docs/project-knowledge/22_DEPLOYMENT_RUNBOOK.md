@@ -1,116 +1,69 @@
-# 22 - DEPLOYMENT RUNBOOK
+# 22 — Deployment Runbook
 
-Step-by-step procedures for deploying the web app to Vercel, shipping database migrations to Supabase Cloud, deploying the edge function, and building the release APK.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Release authority:** [GATES.md](../../GATES.md) and [16_CURRENT_STATE.md](./16_CURRENT_STATE.md)
 
-> [!CAUTION]
-> Production is LIVE with real data. Never run destructive migrations, never disable RLS, and never put service-role keys or keystore secrets into client env files or docs. The GitHub repo is PRIVATE.
+Production contains real data. This runbook is a controlled procedure, not authorization to deploy.
 
-## Prerequisites (check first)
+## Preflight
 
-See [20 - Toolchain & CLI Status](./20_TOOLCHAIN_CLI_STATUS.md). Minimum for any deploy:
+1. Confirm the branch, HEAD, working tree, candidate build, and intended environment.
+2. Read [GATES.md](../../GATES.md); do not deploy a candidate marked pending or blocked.
+3. Verify Node/npm, Docker, Supabase CLI, Vercel account, Android SDK/JDK, and signing prerequisites as applicable.
+4. Run `npm run verify:staging-config` for staging. Confirm the staging reference differs from `lahvcodvgubplzfshare`.
+5. Ensure no secrets, customer exports, temporary logs, or signing material are in the candidate.
 
-1. `node_modules` present (`npm install` if missing).
-2. `vercel whoami` returns `amaratvkrishi-india`.
-3. `npx supabase projects list` shows `lahvcodvgubplzfshare` ACTIVE_HEALTHY.
-4. For APK builds only: `JAVA_HOME` set to Android Studio JBR, `ANDROID_HOME` set, signing file [keystore.properties](file:///C:/Users/PC/Documents/AmaratvKrishi-Keys/keystore.properties) present.
-
-## Web Deploy (Vercel)
-
-Current live project: `crm` in scope `amaratv-krishi`, production URL `https://crm-blush-omega.vercel.app`.
+## Web deployment
 
 ```powershell
-# 1. Sanity: build must pass locally first
+npm ci
+npm run typecheck
+npm run lint
 npm run build
-
-# 2. Preview deploy (optional but recommended)
 vercel
-
-# 3. Production deploy
 vercel --prod
-
-# 4. Verify
-# open https://crm-blush-omega.vercel.app and log in as admin
 ```
 
-Notes:
-- [.vercelignore](file:///c:/Users/PC/Desktop/calling%20app/.vercelignore) excludes `android/` and `node_modules/` from uploads.
-- Vercel env vars (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, `VITE_APP_VERSION`) are managed in the Vercel dashboard/CLI, not in committed files.
-- The old project `divinity-thethirdeye/amaratv-krishi-crm` is orphaned; do not deploy to it (see [21 - Account & Identity Map](./21_ACCOUNT_IDENTITY_MAP.md)).
+Use the Vercel project `crm` in the `amaratv-krishi` scope. Verify the deployed URL, login, asset loading, CSP, and Supabase connectivity after deployment. Record the deployment ID and smoke results in a dated report.
 
-## Database Migrations (Supabase Cloud)
+## Database migrations
 
-All 6 migrations are already applied to cloud (see [14 - Migration History](./14_MIGRATION_HISTORY.md)). For a NEW migration:
+The checkout contains 14 ordered migrations. Before any cloud operation:
 
-```powershell
-# 1. Link the repo to the cloud project (one-time; already linked as of 2026-08-23)
-npx supabase link --project-ref lahvcodvgubplzfshare
+1. start a disposable local Supabase stack;
+2. apply and test the complete ordered migration set locally;
+3. create or select a dedicated isolated staging project;
+4. confirm the CLI link and project reference;
+5. apply migrations to staging only;
+6. run RLS, sync, Realtime, Edge Function, and rollback/cleanup checks;
+7. obtain explicit production approval and re-confirm the production reference;
+8. apply only the reviewed migration set and record the migration ledger.
 
-# 2. Create the migration file
-npx supabase migration new <name>
-# edit supabase/migrations/<timestamp>_<name>.sql
+Never run `db reset`, seed, destructive SQL, or an unverified `db push` against production.
 
-# 3. Test locally first
-npx supabase db reset   # applies all migrations + seed.sql to local Docker stack
-npm test              # must stay green
+## Edge Function deployment
 
-# 4. Push to cloud
-npx supabase db push
+Deploy `supabase/functions/create-agent/` only to the verified target project. Set service-role and function secrets in the Supabase project settings, never in Vite environment files. Exercise authentication, admin authorization, validation, rate/abuse controls, conflict behavior, and compensation when the profile insert fails.
 
-# 5. Re-verify cloud schema parity
-npx tsx scripts/probeCloudSchema.ts
-```
-
-> [!WARNING]
-> Migration rules: additive changes only in production; no `DROP` of tables/columns holding data; always keep RLS enabled on every table; keep `SET search_path = public` on trigger functions.
-
-## Edge Function Deploy
-
-The only function is `create-agent` ([supabase/functions/create-agent/index.ts](file:///c:/Users/PC/Desktop/calling%20app/supabase/functions/create-agent/index.ts)).
+## Android release
 
 ```powershell
-npx supabase link --project-ref lahvcodvgubplzfshare
-npx supabase functions deploy create-agent
-# confirm secrets are set in the dashboard: SUPABASE_SERVICE_ROLE_KEY (server-side only)
-```
-
-## Android APK Release
-
-```powershell
-# 1. Web bundle
 npm run build
-
-# 2. Sync into the Android project
 npx cap sync android
-
-# 3. Release build (needs JAVA_HOME + ANDROID_HOME, see doc 20)
-cd android; .\gradlew assembleRelease; cd ..
-
-# 4. Copy the artifact to the release folder with the versioned name
-Copy-Item android\app\build\outputs\apk\release\app-release.apk `
-  release\AmaratvKrishi-SalesCRM-v<version>.apk
+cd android
+.\gradlew assembleRelease
 ```
 
-Current shipped artifact: [release/AmaratvKrishi-SalesCRM-v2.0.0.apk](file:///c:/Users/PC/Desktop/calling%20app/release/AmaratvKrishi-SalesCRM-v2.0.0.apk) (6.9 MB / 7,268,429 bytes).
+Verify package identity, version, manifest permissions, `allowBackup=false`, WebView policy, APK signature, checksum, install, launch, login, sync, offline recovery, and relevant Maestro scenarios. The release keystore must be supplied through the approved external path; it must never be copied into the repository.
 
-## Git / GitHub
+## Rollback and incident handling
 
-```powershell
-git status            # review before committing
-npm run verify        # full pipeline must pass before a release commit
-git add -A; git commit -m "<message>"
-git push origin main  # pushes as AmaratvKrishi-India
-```
+- Web: use the Vercel deployment history and verify the rollback target before restoring it.
+- Database: stop, preserve evidence, and follow the migration-specific rollback/forward-fix procedure; do not improvise a production reset.
+- Android: distribute the previously verified signed artifact only if its compatibility and release approval are still valid.
+- Sync/data incident: preserve mutation IDs, server revisions, outbox state, and sanitized logs; follow [DELETION_AND_RECOVERY_POLICY.md](./DELETION_AND_RECOVERY_POLICY.md).
 
-Repo: `AmaratvKrishi-India/CRM-` (PRIVATE — verified via `gh repo view` on 2026-08-22). Local `main` is 1 commit ahead of `origin/main` with a clean working tree as of 2026-08-22; the push is a manual release step.
+## Required record
 
-## Rollback
-
-- **Web:** `vercel rollback` (or select a previous deployment in the Vercel dashboard).
-- **Database:** restore from a Supabase PITR/backup in the dashboard, or write a compensating migration. Never drop-and-recreate production tables.
-- **APK:** keep every versioned APK in `release/`; redistribute the previous file.
-
-## Related Documents
-
-- [13 - Deployment & Environments](./13_DEPLOYMENT_ENVIRONMENTS.md)
-- [19 - Environment Variables](./19_ENVIRONMENT_VARIABLES.md)
-- [12 - Testing & Verification](./12_TESTING_VERIFICATION.md)
+Every deployment report must contain candidate identity, target identity, commands, migration ledger, artifact digest, test results, smoke results, operator/approval, and rollback point. Link it from [16_CURRENT_STATE.md](./16_CURRENT_STATE.md) and update [GATES.md](../../GATES.md).

@@ -39,8 +39,8 @@ describe('App Font & Typography Constraints (Phase 3)', () => {
     const cssContent = fs.readFileSync(cssPath, 'utf8');
 
     assert.ok(
-      cssContent.includes('@import "@fontsource/inter/400.css"') ||
-      cssContent.includes("@import '@fontsource/inter/400.css'"),
+      cssContent.includes('@import "@fontsource/inter/latin-400.css"') ||
+      cssContent.includes("@import '@fontsource/inter/latin-400.css'"),
       'index.css must import @fontsource/inter locally'
     );
     assert.ok(

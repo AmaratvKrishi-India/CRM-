@@ -1,32 +1,53 @@
-# 17 - AI AGENT OPERATING CONTEXT
+# 17 — AI Agent Operating Context
 
-This is a meta-document meant to guide future AI coding agents working on this project.
+**Document status:** CURRENT
+**Last reviewed:** 2026-09-10
+**Repository instructions:** read the root `AGENTS.md` before discovery or edits
 
-## Project Status & Constraints
-- The project is FULLY_RELEASED (v2.0.0).
-- Production is LIVE. The Supabase Cloud and Vercel environments hold production data and configurations.
-- **DO NOT** execute destructive migrations on production.
-- **DO NOT** disable Row Level Security (RLS) policies. Agent Lead Isolation is a P0 security requirement.
-- **DO NOT** introduce non-offline-first features. Everything must write to Dexie first and sync via the outbox queue.
+## Current status and safety
 
-## Architectural Non-Negotiables
-1. **Offline-First Mutability:** Components MUST NOT write directly to Supabase. Call `db.table.add/put` and `syncQueue.enqueue()`. The SyncEngine will handle cloud persistence.
-2. **UUID Primary Keys:** All entities use UUID v4. Never use auto-incrementing integers.
-3. **Compound Indexes:** Use Dexie compound indexes (e.g., `[organization_id+assigned_to]`) for fast local querying.
-4. **Soft Deletes:** Records are marked `deleted_at`, never permanently deleted from local DB, allowing sync to propagate the deletion.
-5. **No Secret Leaks:** Never commit `SERVICE_ROLE_KEY` or `keystore` passwords. Edge functions are the only place service role keys are permitted.
+- The historical v2.0.0 artifact is released, but this working tree is **not release-approved**. Read [16_CURRENT_STATE.md](./16_CURRENT_STATE.md) and [GATES.md](../../GATES.md) before making release claims.
+- Production contains real data. Never run destructive SQL, reset, seed, or unverified migration operations against the production Supabase project.
+- Do not commit, push, deploy, or sign an artifact unless the user explicitly authorizes that action.
+- Preserve existing dirty work and inspect `git status` before overlapping edits.
 
-## Testing Standards
-- **Unit/Integration:** Native Node.js test runner (`tsx --test`). Run via `npm test`. No Jest/Vitest.
-- **E2E:** Playwright. Run via `npm run test:e2e`.
-- **Pipeline:** Master verification script is [scripts/verify.ts](file:///c:/Users/PC/Desktop/calling%20app/scripts/verify.ts) (`npm run verify`). It enforces a 12-stage gating process. Do not commit code that fails this pipeline.
+## Architectural non-negotiables
 
-## Useful Entry Points for AI Analysis
-- Database schema: [src/db/database.ts](file:///c:/Users/PC/Desktop/calling%20app/src/db/database.ts) & [src/db/types.ts](file:///c:/Users/PC/Desktop/calling%20app/src/db/types.ts)
-- Sync logic: [src/services/sync/syncEngine.ts](file:///c:/Users/PC/Desktop/calling%20app/src/services/sync/syncEngine.ts)
-- Security logic: [supabase/migrations/20260820000006_rls_agent_lead_isolation.sql](file:///c:/Users/PC/Desktop/calling%20app/supabase/migrations/20260820000006_rls_agent_lead_isolation.sql)
-- Entry points: [src/App.tsx](file:///c:/Users/PC/Desktop/calling%20app/src/App.tsx)
+1. UI components write to the scoped local data layer, not directly to Supabase.
+2. Data mutation and outbox enqueue are atomic.
+3. Every sync operation carries organization/user/role scope and stable mutation identity.
+4. PostgreSQL RLS remains the authorization authority; client filtering is defense in depth.
+5. Remote revisions, tombstones, and assignment revocations must not be overwritten or resurrected locally.
+6. Service-role keys, database passwords, session tokens, customer exports, and signing secrets never enter source control or documentation.
 
-## Documentation Maintenance
-- The [docs/project-knowledge/](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge) directory contains 26 files: 23 numbered guides, a README master index, and 2 reverification reports.
-- Whenever you add a new table, component, or configuration, you MUST update the corresponding documentation files (e.g., [06_DATABASE_REFERENCE.md](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge/06_DATABASE_REFERENCE.md), [15_CODEBASE_INDEX.md](file:///c:/Users/PC/Desktop/calling%20app/docs/project-knowledge/15_CODEBASE_INDEX.md)). Keep the documentation aligned with the source code.
+## Discovery workflow
+
+1. Read `AGENTS.md` and this document.
+2. Check whether the optional `graft` and `rg` CLIs are installed before invoking them.
+3. Use Graft commands when available; otherwise browse `graft/INDEX.md` and linked nodes directly for symbols, callers, architecture, and coverage.
+4. Use `rg` for literal/exhaustive search when available; otherwise use `git grep -n`, PowerShell `Select-String`, or repository-native search.
+5. Read exact current source ranges before editing or making behavioral claims; do not infer current behavior from historical reports or stale graph text.
+6. Run focused checks proportional to the change and record failures honestly.
+
+## High-value entry points
+
+- [`src/main.tsx`](../../src/main.tsx)
+- [`src/App.tsx`](../../src/App.tsx)
+- [`src/db/database.ts`](../../src/db/database.ts)
+- [`src/db/index.ts`](../../src/db/index.ts)
+- [`src/services/sync/syncEngine.ts`](../../src/services/sync/syncEngine.ts)
+- [`src/services/realtime/realtimeService.ts`](../../src/services/realtime/realtimeService.ts)
+- [`src/services/supabaseClient.ts`](../../src/services/supabaseClient.ts)
+- [`supabase/functions/create-agent/index.ts`](../../supabase/functions/create-agent/index.ts)
+
+## Verification standards
+
+- Distinguish Node, Vitest, browser, emulator, local PostgreSQL, staging, and production evidence.
+- Use `npm run typecheck`, `npm run lint`, `npm run build`, and the relevant test runner for source changes.
+- Use `npm run verify:staging-config` before staging builds or dev servers.
+- Treat `GATES.md` as the current release decision and dated reports as scoped evidence.
+- Do not call a gate green when it is skipped, blocked by environment, or only tested in a different candidate.
+
+## Documentation maintenance
+
+Update the relevant living guide when behavior changes and put durable rationale in `docs/decisions/`. Keep only the newest release-verification report needed to support `GATES.md`; fold still-valid conclusions into the living guides before superseded reports are removed. Follow [docs/README.md](../README.md).

@@ -6,7 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { SyncQueue } from '@/services/sync/syncQueue';
+import { SyncQueue, SyncQueueCapacityError } from '@/services/sync/syncQueue';
 import type { SalesCRMDatabase } from '@/db/database';
 import { agentScope, createVitestDatabase, disposeVitestDatabase } from '../helpers/vitestDatabase';
 
@@ -66,14 +66,14 @@ describe('SyncQueue', () => {
     expect(await database.outbox.where('entityId').equals(entityId).count()).toBe(2);
   });
 
-  it('should return pending operations in created-time order', async () => {
+  it('should return pending operations in enqueue order despite clock changes', async () => {
     const newest = await queue.enqueue(mutation('UPDATE', 'newest'));
     const oldest = await queue.enqueue(mutation('CREATE', 'oldest'));
     await database.outbox.update(newest.id, { createdAt: '2024-01-02T00:00:00.000Z' });
     await database.outbox.update(oldest.id, { createdAt: '2024-01-01T00:00:00.000Z' });
 
     const pending = await queue.getPendingItems();
-    expect(pending.map((item) => item.entityId)).toEqual(['oldest', 'newest']);
+    expect(pending.map((item) => item.entityId)).toEqual(['newest', 'oldest']);
   });
 
   it('should limit pending results', async () => {
@@ -82,6 +82,65 @@ describe('SyncQueue', () => {
     await queue.enqueue(mutation('CREATE', 'three'));
 
     expect(await queue.getPendingItems(2)).toHaveLength(2);
+  });
+
+  it('reports byte capacity and warns without evicting unsynced mutations', async () => {
+    const warningQueue = new SyncQueue(database, { warningBytes: 1, maximumBytes: 100_000 });
+    const first = await warningQueue.enqueue(mutation('CREATE', 'capacity-one'));
+    const second = await warningQueue.enqueue(mutation('UPDATE', 'capacity-two'));
+
+    const stats = await warningQueue.getQueueStats();
+    expect(stats).toMatchObject({
+      pending: 2,
+      unsyncedBytes: expect.any(Number),
+      warningBytes: 1,
+      maximumBytes: 100_000,
+      capacityWarning: true,
+    });
+    expect(stats.unsyncedBytes).toBeGreaterThan(0);
+    expect(await database.outbox.bulkGet([first.id, second.id])).toHaveLength(2);
+  });
+
+  it('rejects an over-capacity atomic mutation without evicting existing work', async () => {
+    const seedQueue = new SyncQueue(database, { warningBytes: 1, maximumBytes: 100_000 });
+    const existing = await seedQueue.enqueue(mutation('CREATE', 'existing-unsynced'));
+    const existingBytes = (await seedQueue.getQueueStats()).unsyncedBytes;
+    const constrainedQueue = new SyncQueue(database, {
+      warningBytes: existingBytes,
+      maximumBytes: existingBytes + 1,
+    });
+
+    await expect(database.transaction('rw', [database.leads, database.outbox], async () => {
+      await database.leads.add({ id: 'rolled-back-lead' } as never);
+      await constrainedQueue.enqueue(mutation('CREATE', 'rolled-back-lead'));
+    })).rejects.toBeInstanceOf(SyncQueueCapacityError);
+
+    expect(await database.leads.get('rolled-back-lead')).toBeUndefined();
+    expect(await database.outbox.get(existing.id)).toBeDefined();
+    expect(await database.outbox.count()).toBe(1);
+  });
+
+  it('returns a bounded batch from a queue larger than its scan page', async () => {
+    const now = new Date().toISOString();
+    await database.outbox.bulkAdd(Array.from({ length: 250 }, (_, index) => ({
+      ...mutation('CREATE', `large-queue-${index}`),
+      id: crypto.randomUUID(),
+      organizationId: agentScope.organizationId,
+      userId: agentScope.userId,
+      createdAt: now,
+      updatedAt: now,
+      retryCount: 0,
+      lastAttemptAt: null,
+      nextAttemptAt: null,
+      lastError: null,
+      status: 'PENDING' as const,
+      sequence: index + 1,
+    })));
+
+    const pending = await queue.getPendingItems(25);
+    expect(pending).toHaveLength(25);
+    expect(pending.map((item) => item.sequence)).toEqual(Array.from({ length: 25 }, (_, index) => index + 1));
+    expect(await database.outbox.count()).toBe(250);
   });
 
   it('should mark an operation as synced', async () => {

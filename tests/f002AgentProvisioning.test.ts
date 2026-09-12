@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createOrderingDatabase, org, otherOrg, actor, quote } from './helpers/f003Postgres.ts';
+import { createOrderingDatabase, org, otherOrg, actor, agent, agentAuthId, quote } from './helpers/f003Postgres.ts';
 
 const edgeSource = readFileSync('supabase/functions/create-agent/index.ts', 'utf8');
 const clientSource = readFileSync('src/services/agentManagementService.ts', 'utf8');
@@ -106,4 +106,41 @@ describe('F002 create-agent abuse controls', { concurrency: 1 }, () => {
     database.raw(`UPDATE public.profiles SET provisioning_key=${quote(key)}::uuid WHERE id=${quote(actor)}::uuid;`);
     assert.throws(() => database.raw(`UPDATE public.profiles SET provisioning_key=${quote(key)}::uuid WHERE id=${quote(secondAdmin)}::uuid;`));
   });
+
+  it('21 agent creator cannot reclaim an admin-assigned lead', () => {
+    const leadId = randomUUID();
+    database.raw(`INSERT INTO public.leads(id,organization_id,business_name,phone,address,locality,created_by,assigned_to)
+      VALUES (${quote(leadId)}::uuid,${quote(org)}::uuid,'Assigned security fixture','9000000091','A','L',${quote(agent)}::uuid,${quote(actor)}::uuid);`);
+    const revision = database.raw(`SELECT sync_revision FROM public.leads WHERE id=${quote(leadId)}::uuid;`).trim();
+    assert.throws(() => database.query(`UPDATE public.leads SET assigned_to=${quote(agent)}::uuid,sync_expected_revision=${revision}
+      WHERE id=${quote(leadId)}::uuid`, agentAuthId));
+  });
+
+  it('22 assigned agent can complete but not rewrite an admin-created follow-up', () => {
+    const leadId = randomUUID(), followUpId = randomUUID();
+    database.raw(`INSERT INTO public.leads(id,organization_id,business_name,phone,address,locality,created_by,assigned_to)
+      VALUES (${quote(leadId)}::uuid,${quote(org)}::uuid,'Follow-up security fixture','9000000092','A','L',${quote(actor)}::uuid,${quote(agent)}::uuid);`);
+    database.raw(`INSERT INTO public.follow_ups(id,organization_id,lead_id,user_id,scheduled_at,title,status)
+      VALUES (${quote(followUpId)}::uuid,${quote(org)}::uuid,${quote(leadId)}::uuid,${quote(actor)}::uuid,NOW()+interval '1 day','Admin task','PENDING');`);
+    let revision = database.raw(`SELECT sync_revision FROM public.follow_ups WHERE id=${quote(followUpId)}::uuid;`).trim();
+    assert.throws(() => database.query(`UPDATE public.follow_ups SET title='Agent rewrite',sync_expected_revision=${revision}
+      WHERE id=${quote(followUpId)}::uuid`, agentAuthId));
+    revision = database.raw(`SELECT sync_revision FROM public.follow_ups WHERE id=${quote(followUpId)}::uuid;`).trim();
+    database.query(`UPDATE public.follow_ups SET status='COMPLETED',completed_at=NOW(),outcome_notes='Done',sync_expected_revision=${revision}
+      WHERE id=${quote(followUpId)}::uuid`, agentAuthId);
+    assert.equal(database.raw(`SELECT status FROM public.follow_ups WHERE id=${quote(followUpId)}::uuid;`).trim(),'COMPLETED');
+  });
+
+});
+
+
+it('F002 exact email lookup does not interpret SQL wildcard characters', () => {
+  assert.match(edgeSource, /\.eq\('email', normalizedEmail\)/);
+  assert.doesNotMatch(edgeSource, /\.ilike\('email', normalizedEmail\)/);
+});
+
+it('F002 replay is returned only after provisioning is durably finalized', () => {
+  assert.match(edgeSource, /provisioning_completed_at/);
+  assert.match(edgeSource, /finalize_agent_provisioning/);
+  assert.match(edgeSource, /keyedProfile\.provisioning_completed_at/);
 });

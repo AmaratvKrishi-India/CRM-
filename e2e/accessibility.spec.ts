@@ -123,7 +123,7 @@ test.describe('Accessibility Tests', () => {
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 15000 });
     
-    await page.getByRole('tab', { name: /Settings/i }).click();
+    await page.getByRole('button', { name: /Admin settings/i }).click();
     await expect(page.locator('#admin-panel-settings')).toBeVisible();
     
     await page.getByRole('button', { name: /Switch to Field Sales Mode/i }).click();
@@ -147,7 +147,7 @@ test.describe('Accessibility Tests', () => {
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 15000 });
     
-    await page.getByRole('tab', { name: /Settings/i }).click();
+    await page.getByRole('button', { name: /Admin settings/i }).click();
     await expect(page.locator('#admin-panel-settings')).toBeVisible();
     
     await page.getByRole('button', { name: /Switch to Field Sales Mode/i }).click();

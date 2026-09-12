@@ -41,3 +41,16 @@ test('F047 child writes require current ownership and a visible parent lead', ()
     assert.match(block, /public\.can_access_lead_for_current_user\(lead_id\)/, policy);
   }
 });
+
+
+test('backend integrity migration blocks agent reassignment and permits assigned-lead follow-up completion', () => {
+  const hardening = readFileSync(
+    resolve('supabase/migrations/20260912000015_backend_integrity_hardening.sql'),
+    'utf8',
+  );
+  assert.match(hardening, /NEW\.assigned_to IS DISTINCT FROM OLD\.assigned_to[\s\S]*RAISE EXCEPTION/);
+  assert.match(hardening, /follow_ups_update_policy[\s\S]*public\.can_access_lead_for_current_user\(lead_id\)/);
+  assert.match(hardening, /protect_follow_up_agent_updates/);
+  assert.match(hardening, /provisioning_completed_at/);
+  assert.match(hardening, /finalize_agent_provisioning/);
+});

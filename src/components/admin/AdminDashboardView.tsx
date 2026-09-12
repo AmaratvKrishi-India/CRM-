@@ -83,6 +83,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   // Modals
   const [selectedAgentDetailId, setSelectedAgentDetailId] = useState<string | null>(null);
   const [isCallHistoryOpen, setIsCallHistoryOpen] = useState<boolean>(false);
+  const [showFullPipelineMobile, setShowFullPipelineMobile] = useState(false);
 
   const loadAgents = useCallback(async () => {
     try {
@@ -336,13 +337,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          {pipeline.map((stage) => (
+          {pipeline.map((stage, index) => (
             <button
               key={stage.status}
               type="button"
               onClick={() => onNavigateToLeads(stage.status, selectedAgentId)}
               aria-label={`View ${stage.label} leads (${stage.count})`}
-              className="w-full p-2.5 bg-inset hover:bg-inset-strong border border-line rounded-2xl transition group text-left"
+              className={`${index >= 4 && !showFullPipelineMobile ? 'hidden sm:block' : ''} w-full min-h-11 p-2.5 bg-inset hover:bg-inset-strong border border-line rounded-2xl transition group text-left`}
             >
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="font-bold text-ink group-hover:text-accent-text transition">
@@ -373,6 +374,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </button>
           ))}
         </div>
+        {pipeline.length > 4 && (
+          <button
+            type="button"
+            onClick={() => setShowFullPipelineMobile((value) => !value)}
+            aria-expanded={showFullPipelineMobile}
+            className="sm:hidden w-full min-h-11 rounded-xl border border-line bg-inset hover:bg-inset-strong text-sm font-semibold text-accent-text transition-colors"
+          >
+            {showFullPipelineMobile ? 'Show fewer pipeline stages' : `Show all ${pipeline.length} pipeline stages`}
+          </button>
+        )}
       </div>
 
       {/* 4. Sales Representative Performance */}

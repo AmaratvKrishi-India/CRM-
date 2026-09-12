@@ -19,7 +19,7 @@ import { CreateLeadModal } from './CreateLeadModal';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { labelFor } from '../../lib/labels';
 
-/** F9 — page size for the leads list; "Load more" appends the next page. */
+/** F9 â€” page size for the leads list; "Load more" appends the next page. */
 const PAGE_SIZE = 150;
 
 interface MinimalLeadsListProps {
@@ -56,10 +56,10 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // F10 — debounce the search so we don't run a full Dexie query per keystroke.
+  // F10 â€” debounce the search so we don't run a full Dexie query per keystroke.
   const debouncedSearch = useDebouncedValue(searchTerm, 250);
 
-  // NEW-BUG-003 — request-sequence guard. Every fresh loadLeads bumps the
+  // NEW-BUG-003 â€” request-sequence guard. Every fresh loadLeads bumps the
   // sequence; in-flight results that resolve after a newer request started are
   // discarded instead of clobbering/appending onto the newer list. loadMore
   // captures the current sequence so a filter/search change mid-flight drops
@@ -106,7 +106,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
     setLoadError(null);
     try {
       const result = await crmData.leads.searchAndFilterLeads(buildFilter(0));
-      if (seq !== requestSeq.current) return; // stale result — a newer load started
+      if (seq !== requestSeq.current) return; // stale result â€” a newer load started
       setLeads(result.leads);
       setTotalCount(result.total);
 
@@ -126,13 +126,13 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
     loadLeads();
   }, [loadLeads]);
 
-  // F9 — append the next page instead of silently capping at 150.
+  // F9 â€” append the next page instead of silently capping at 150.
   const loadMore = async () => {
     const seq = requestSeq.current;
     setLoadingMore(true);
     try {
       const result = await crmData.leads.searchAndFilterLeads(buildFilter(leads.length));
-      // NEW-BUG-003 — if the filter/search changed while this page was in
+      // NEW-BUG-003 â€” if the filter/search changed while this page was in
       // flight, loadLeads has already replaced the list; appending this stale
       // page would mix rows from the old filter into the new list.
       if (seq !== requestSeq.current) return;
@@ -168,7 +168,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
   const hasMore = leads.length < totalCount;
 
   return (
-    <div className="min-h-screen bg-app flex flex-col pb-16 font-sans">
+    <div className="min-h-screen bg-app flex flex-col pb-safe-nav font-sans">
       {/* Top Header */}
       <div className="bg-surface border-b border-line px-4 py-3 sticky top-0 z-30 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -178,7 +178,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
               <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi CRM</h1>
             </div>
             <p className="text-xs text-faint">
-              {currentUser?.role === 'AGENT' ? `Field Sales • ${currentUser.name}` : 'Lucknow Field Sales • Leads Database'}
+              {currentUser?.role === 'AGENT' ? `Field Sales â€¢ ${currentUser.name}` : 'Lucknow Field Sales â€¢ Leads Database'}
             </p>
           </div>
 
@@ -239,7 +239,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
               placeholder="Search by gym name, phone, locality..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm bg-inset border border-line rounded-xl pl-9 pr-3 py-2.5 text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
+              className="min-h-11 w-full text-sm bg-inset border border-line rounded-xl pl-9 pr-3 py-2.5 text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
             />
           </div>
 
@@ -254,7 +254,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
                 type="button"
                 onClick={() => setSelectedStatus(st)}
                 aria-pressed={selectedStatus === st}
-                className={`min-h-9 px-2.5 rounded-lg font-medium text-xs whitespace-nowrap transition-colors ${
+                className={`min-w-11 min-h-11 px-3 rounded-xl font-medium text-xs whitespace-nowrap transition-colors touch-manipulation ${
                   selectedStatus === st
                     ? 'bg-ink text-app'
                     : 'bg-inset text-soft hover:bg-inset-strong'
@@ -276,7 +276,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
                 id="leads-locality"
                 value={selectedLocality}
                 onChange={(e) => setSelectedLocality(e.target.value)}
-                className="text-xs bg-inset border border-line rounded-lg px-2 py-1.5 text-ink font-medium focus:ring-2 focus:ring-focus-ring"
+                className="min-h-11 min-w-0 max-w-full text-xs bg-inset border border-line rounded-xl px-3 py-2 text-ink font-medium focus:ring-2 focus:ring-focus-ring"
               >
                 <option value="ALL">All Lucknow Localities ({localities.length})</option>
                 {localities.map((loc) => (
@@ -351,7 +351,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
                 key={lead.id}
                 className="bg-surface rounded-2xl border border-line p-3.5 shadow-xs hover:border-line-strong transition-all flex flex-col gap-2"
               >
-                {/* F3 — real button opens Lead Detail */}
+                {/* F3 â€” real button opens Lead Detail */}
                 <button
                   type="button"
                   onClick={() => onOpenLead(lead.id)}
@@ -367,8 +367,8 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-soft mt-0.5">
                         <span className="font-medium text-soft">{lead.locality}</span>
-                        {lead.pincode && <span>• PIN {lead.pincode}</span>}
-                        <span>• {lead.category}</span>
+                        {lead.pincode && <span>â€¢ PIN {lead.pincode}</span>}
+                        <span>â€¢ {lead.category}</span>
                       </div>
                     </div>
 
@@ -414,7 +414,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
                     ) : (
                       <span
                         className="text-xs text-faint bg-inset border border-line px-2 py-1.5 rounded-xl font-medium"
-                        aria-label="WhatsApp unavailable — landline"
+                        aria-label="WhatsApp unavailable â€” landline"
                       >
                         WA N/A
                       </span>
@@ -438,7 +438,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
           })}
         </div>
 
-        {/* F9 — Load more pagination */}
+        {/* F9 â€” Load more pagination */}
         {hasMore && !loading && !loadError && (
           <button
             type="button"
@@ -452,7 +452,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
               <ChevronRight className="w-4 h-4 rotate-90" aria-hidden="true" />
             )}
             <span>
-              {loadingMore ? 'Loading…' : `Load More (${totalCount - leads.length} remaining)`}
+              {loadingMore ? 'Loadingâ€¦' : `Load More (${totalCount - leads.length} remaining)`}
             </span>
           </button>
         )}

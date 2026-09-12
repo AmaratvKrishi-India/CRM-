@@ -190,6 +190,8 @@
   .zoom-in-98 { --ui-enter-transform: scale(0.98); }
   .slide-in-from-top { --ui-enter-transform: translateY(-16px); }
   .slide-in-from-bottom { --ui-enter-transform: translateY(16px); }
+  .pb-safe-tabbar { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+  .pb-safe-nav { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
 }
 
 /* F11 / accessibility — respect users who prefer reduced motion */

@@ -156,7 +156,7 @@ test.describe('Visual Regression Tests', () => {
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 10000 });
     
-    await page.getByRole('tab', { name: /Settings/i }).click();
+    await page.getByRole('button', { name: /Admin settings/i }).click();
     
     await expect(page.locator('#admin-panel-settings')).toBeVisible();
     await expect(page.getByText(/Administrator Account/i)).toBeVisible();

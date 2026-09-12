@@ -48,6 +48,59 @@ export class SyncPull {
     return entityType === 'activities' && transformed.userId === scope.userId;
   }
 
+  private tableForEntity(db: SalesCRMDatabase, entityType: SyncEntityType): any {
+    const tableMap: Record<SyncEntityType, any> = {
+      leads: db.leads,
+      call_records: db.callRecords,
+      activities: db.activities,
+      remarks: db.remarks,
+      follow_ups: db.followUps,
+      message_history: db.messageHistory,
+      import_audits: db.importAudits,
+      profiles: db.users,
+      bulk_assignment_audits: db.bulkAssignmentAudits,
+    };
+    return tableMap[entityType];
+  }
+
+  private async applyRemoteRecord(
+    db: SalesCRMDatabase,
+    scope: AccessScope,
+    entityType: SyncEntityType,
+    row: Record<string, any>,
+    allConflicts: SyncConflict[],
+    guard?: SyncRunGuard,
+  ): Promise<boolean> {
+    const table = this.tableForEntity(db, entityType);
+    let applied = false;
+    await db.transaction('rw', db.tables, async () => {
+      guard?.();
+      db.markRemoteSyncWrites();
+      const transformed = SyncPull.transformFromPgRecord(entityType, row);
+      const existingLocal = await table.get(transformed.id);
+      const authorized = await this.isAuthorizedRecord(scope, entityType, row, transformed);
+      if (!authorized) {
+        if (entityType === 'leads' && existingLocal) await pruneLeadData(db, [transformed.id], scope);
+        else if (existingLocal) await table.delete(transformed.id);
+        return;
+      }
+      applied = true;
+      if (entityType === 'call_records') {
+        const res = SyncConflictResolver.resolveCallRecord(existingLocal, transformed);
+        if (res.winner === 'REMOTE') await table.put(res.data);
+        if (res.conflict) allConflicts.push(res.conflict);
+      } else if (['activities', 'message_history', 'import_audits', 'bulk_assignment_audits'].includes(entityType)) {
+        const res = SyncConflictResolver.resolveAppendOnly(existingLocal, transformed);
+        if (res.winner === 'REMOTE') await table.put(res.data);
+      } else {
+        const res = SyncConflictResolver.resolveMutable(entityType, existingLocal, transformed);
+        if (res.winner === 'REMOTE') await table.put(res.data);
+        if (res.conflict) allConflicts.push(res.conflict);
+      }
+    });
+    return applied;
+  }
+
   /**
    * Transforms PostgreSQL snake_case rows to local Dexie camelCase format.
    */
@@ -305,104 +358,74 @@ export class SyncPull {
     if (!Number.isSafeInteger(head) || head < parseRevisionCursor(sinceCursor)) throw new Error('Invalid server revision head.');
     const maxCursor = revisionCursor(head);
 
+    const newlyVisibleLeadIds = new Set<string>();
     for (const entityType of entities) {
       guard?.();
       const { records } = await this.pullEntityChanges(client, entityType, sinceCursor, guard, head);
-      if (records.length === 0) continue;
-
-
-      // Reconcile into Dexie
-      const tableMap: Record<SyncEntityType, any> = {
-        leads: db.leads,
-        call_records: db.callRecords,
-        activities: db.activities,
-        remarks: db.remarks,
-        follow_ups: db.followUps,
-        message_history: db.messageHistory,
-        import_audits: db.importAudits,
-        profiles: db.users,
-        bulk_assignment_audits: db.bulkAssignmentAudits,
-      };
-
-      const table = tableMap[entityType];
-      if (!table) continue;
-
       for (const row of records) {
-        await db.transaction('rw', db.tables, async () => {
-        guard?.();
-        db.markRemoteSyncWrites();
-        const transformed = SyncPull.transformFromPgRecord(entityType, row);
-        const existingLocal = await table.get(transformed.id);
-        const authorized = await this.isAuthorizedRecord(scope, entityType, row, transformed);
-        if (!authorized) {
-          if (entityType === 'leads' && existingLocal) {
-            await pruneLeadData(db, [transformed.id], scope);
-          } else if (existingLocal) {
-            await table.delete(transformed.id);
-          }
-          return;
-        }
-        totalPulled++;
-
-        // An authorized archive remains restorable and keeps its history.
-        // Apply its revision like an ordinary update; revocation and physical
-        // deletion use the separate pruning paths.
-        if (entityType === 'call_records') {
-          const res = SyncConflictResolver.resolveCallRecord(existingLocal, transformed);
-          if (res.winner === 'REMOTE') {
-            await table.put(res.data);
-          }
-          if (res.conflict) {
-            allConflicts.push(res.conflict);
-          }
-        } else if (['activities', 'message_history', 'import_audits', 'bulk_assignment_audits'].includes(entityType)) {
-          const res = SyncConflictResolver.resolveAppendOnly(existingLocal, transformed);
-          if (res.winner === 'REMOTE') {
-            await table.put(res.data);
-          }
-        } else {
-          const res = SyncConflictResolver.resolveMutable(entityType, existingLocal, transformed);
-          if (res.winner === 'REMOTE') {
-            await table.put(res.data);
-          }
-          if (res.conflict) {
-            allConflicts.push(res.conflict);
-          }
-        }
-        });
+        const wasMissing = entityType === 'leads' && !(await db.leads.get(row.id));
+        const applied = await this.applyRemoteRecord(db, scope, entityType, row, allConflicts, guard);
+        if (applied) totalPulled++;
+        if (scope.role === 'AGENT' && applied && wasMissing && sinceCursor !== null) newlyVisibleLeadIds.add(row.id);
       }
     }
 
-    // Incremental RLS results cannot describe a lead that has just been
-    // reassigned away from an agent. Compare against an authoritative,
-    // paginated set of authorized lead IDs, including archives, after each pull.
-    if (scope.role === 'AGENT') {
-      const visibleIds = new Set<string>();
-      const pageSize = 1000;
-      let from = 0;
-      while (true) {
-        guard?.();
-        const { data, error } = await client
-          .from('leads')
-          .select('id, organization_id')
-          .eq('organization_id', scope.organizationId)
-          .or(`assigned_to.eq.${scope.userId},created_by.eq.${scope.userId}`)
-          .range(from, from + pageSize - 1);
-        guard?.();
-        if (error) throw new Error(`Failed to verify lead assignments: ${error.message}`);
-        const rows = data || [];
-        for (const row of rows) {
-          if (row.id && row.organization_id === scope.organizationId) visibleIds.add(row.id);
+    // A newly assigned lead can have child history older than this device's
+    // saved revision cursor. Backfill that lead's complete authorized history.
+    const childEntities: SyncEntityType[] = ['call_records', 'activities', 'remarks', 'follow_ups', 'message_history'];
+    for (const leadId of newlyVisibleLeadIds) {
+      for (const entityType of childEntities) {
+        let from = 0;
+        const pageSize = 500;
+        while (true) {
+          guard?.();
+          const { data, error } = await client.from(entityType).select('*')
+            .eq('organization_id', scope.organizationId).eq('lead_id', leadId)
+            .order('sync_revision', { ascending: true }).order('id', { ascending: true })
+            .range(from, from + pageSize - 1);
+          guard?.();
+          if (error) throw new Error(`Failed to backfill ${entityType}: ${error.message}`);
+          const rows = data || [];
+          for (const row of rows) {
+            if (row.organization_id !== scope.organizationId || serverRevision(row) === undefined) {
+              throw new Error('Invalid lead-history backfill row.');
+            }
+            if (await this.applyRemoteRecord(db, scope, entityType, row, allConflicts, guard)) totalPulled++;
+          }
+          if (rows.length < pageSize) break;
+          from += pageSize;
         }
-        if (rows.length < pageSize) break;
-        from += pageSize;
       }
-
-      const revokedIds = (await db.leads.toArray())
-        .filter((lead) => canAccessLead(scope, lead) && !visibleIds.has(lead.id))
-        .map((lead) => lead.id);
-      await pruneLeadData(db, revokedIds, scope);
     }
+
+    // Compare local leads with the complete server-visible identity set. This
+    // catches both assignment revocation and hard deletes that happened offline.
+    const visibleIds = new Set<string>();
+    const pageSize = 1000;
+    let from = 0;
+    while (true) {
+      guard?.();
+      let query = client.from('leads').select('id, organization_id')
+        .eq('organization_id', scope.organizationId);
+      if (scope.role === 'AGENT') query = query.or(`assigned_to.eq.${scope.userId},created_by.eq.${scope.userId}`);
+      const { data, error } = await query.range(from, from + pageSize - 1);
+      guard?.();
+      if (error) throw new Error(`Failed to verify lead visibility: ${error.message}`);
+      const rows = data || [];
+      for (const row of rows) if (row.id && row.organization_id === scope.organizationId) visibleIds.add(row.id);
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+
+    const unsyncedCreates = new Set((await db.outbox.toArray())
+      .filter(item => item.organizationId === scope.organizationId && item.userId === scope.userId &&
+        item.entityType === 'leads' && item.operation === 'CREATE' && item.status !== 'SYNCED')
+      .map(item => item.entityId));
+    const missingIds = (await db.leads.toArray())
+      .filter(lead => (scope.role === 'ADMIN' || canAccessLead(scope, lead)) &&
+        !visibleIds.has(lead.id) && !unsyncedCreates.has(lead.id))
+      .map(lead => lead.id);
+    await pruneLeadData(db, missingIds, scope, scope.role === 'ADMIN');
 
     return {
       pulledCount: totalPulled,

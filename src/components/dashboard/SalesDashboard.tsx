@@ -78,6 +78,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const [data, setData] = useState<FullDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [showSecondaryMetricsMobile, setShowSecondaryMetricsMobile] = useState(false);
+  const [showFullPipelineMobile, setShowFullPipelineMobile] = useState(false);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -130,7 +132,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   // F4 — visible error state with retry instead of a blank screen.
   if (loadError && !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col">
+      <div className="min-h-screen bg-app flex flex-col pb-safe-nav">
         <div className="bg-surface border-b border-line px-4 py-4 sticky top-0 z-30">
           <div className="max-w-2xl mx-auto flex items-center gap-2">
             <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
@@ -160,7 +162,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col pb-20">
+      <div className="min-h-screen bg-app flex flex-col pb-safe-nav">
         <div className="bg-surface border-b border-line px-4 py-4 sticky top-0 z-30">
           <div className="max-w-2xl mx-auto flex items-center gap-2">
             <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
@@ -176,7 +178,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const { metrics, todayFollowUps, pipeline, localities, recentActivities } = data;
 
   return (
-    <div className="min-h-screen bg-app flex flex-col pb-20">
+    <div className="min-h-screen bg-app flex flex-col pb-safe-nav">
       {/* Top Brand Header */}
       <div className="bg-surface border-b border-line px-4 py-3 sticky top-0 z-30 shadow-sm">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -232,7 +234,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
           <div className="grid grid-cols-3 gap-2">
             {/* Total Leads */}
-            <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
+            <div className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-surface p-3 rounded-2xl border border-line shadow-xs`}>
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Total Leads</span>
                 <Users className="w-3.5 h-3.5 text-info" aria-hidden="true" />
@@ -250,7 +252,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             </div>
 
             {/* WhatsApp Today */}
-            <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
+            <div className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-surface p-3 rounded-2xl border border-line shadow-xs`}>
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">WA Pitches</span>
                 <MessageSquare className="w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
@@ -275,7 +277,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             <button
               type="button"
               onClick={() => onOpenLeadsWithStatus('SAMPLE_REQUESTED')}
-              className="bg-warning-soft hover:bg-warning/20 p-3 rounded-2xl border border-warning/30 shadow-xs transition-colors text-left"
+              className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-warning-soft hover:bg-warning/20 p-3 rounded-2xl border border-warning/30 shadow-xs transition-colors text-left`}
             >
               <div className="flex items-center justify-between text-warning-text mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Samples</span>
@@ -336,6 +338,14 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               <span className="text-xl font-black text-ink">{metrics.notContacted}</span>
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowSecondaryMetricsMobile((value) => !value)}
+            aria-expanded={showSecondaryMetricsMobile}
+            className="sm:hidden w-full min-h-11 rounded-xl border border-line bg-surface hover:bg-inset text-sm font-semibold text-accent-text transition-colors"
+          >
+            {showSecondaryMetricsMobile ? 'Hide secondary metrics' : 'Show 3 more metrics'}
+          </button>
         </section>
 
         {/* SECTION 2: TODAY'S FOLLOW-UPS PROMINENT SECTION */}
@@ -450,12 +460,12 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           </h2>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {pipeline.map((stage) => (
+            {pipeline.map((stage, index) => (
               <button
                 key={stage.status}
                 type="button"
                 onClick={() => onOpenLeadsWithStatus(stage.status)}
-                className="bg-surface hover:bg-inset p-3 rounded-2xl border border-line shadow-xs transition-all flex items-center justify-between group text-left"
+                className={`${index >= 4 && !showFullPipelineMobile ? 'hidden sm:flex' : 'flex'} bg-surface hover:bg-inset p-3 min-h-11 rounded-2xl border border-line shadow-xs transition-all items-center justify-between group text-left`}
               >
                 <div>
                   <span className="text-xs font-bold text-soft block truncate group-hover:text-accent-text">
@@ -467,6 +477,16 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               </button>
             ))}
           </div>
+          {pipeline.length > 4 && (
+            <button
+              type="button"
+              onClick={() => setShowFullPipelineMobile((value) => !value)}
+              aria-expanded={showFullPipelineMobile}
+              className="sm:hidden w-full min-h-11 rounded-xl border border-line bg-surface hover:bg-inset text-sm font-semibold text-accent-text transition-colors"
+            >
+              {showFullPipelineMobile ? 'Show fewer pipeline stages' : `Show all ${pipeline.length} pipeline stages`}
+            </button>
+          )}
         </section>
 
         {/* SECTION 4: LOCALITY SUMMARY */}

@@ -80,6 +80,8 @@ serve(async (req) => {
   let supabaseAdmin: any = null;
   let provisionedAuthUserId: string | null = null;
   let activeAuditId: string | null = null;
+  let activeProvisioningKey: string | null = null;
+  let activeOrganizationId: string | null = null;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -200,13 +202,15 @@ serve(async (req) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     const cleanPhone = phone ? String(phone).trim() : '';
+    activeProvisioningKey = idempotencyKey;
+    activeOrganizationId = callerProfile.organization_id;
 
     // 5. A completed request is replayed from durable server state. Reusing a
     // key for different non-secret identity input is rejected instead of
     // reinterpreted. Passwords are deliberately never persisted for comparison.
     const { data: keyedProfile, error: keyedProfileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision')
+      .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision, provisioning_completed_at')
       .eq('organization_id', callerProfile.organization_id)
       .eq('provisioning_key', idempotencyKey)
       .maybeSingle();
@@ -229,6 +233,12 @@ serve(async (req) => {
           { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      if (!keyedProfile.provisioning_completed_at) {
+        return new Response(
+          JSON.stringify({ error: 'Agent provisioning is still in progress. Retry this request shortly.' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ success: true, replayed: true, message: 'Agent already exists.', agent: agentResponse(keyedProfile) }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -238,9 +248,9 @@ serve(async (req) => {
     // 6. Check for Existing Profile with same Email in the Organization.
     const { data: existingProfile, error: existingProfileError } = await supabaseAdmin
       .from('profiles')
-      .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision')
+      .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision, provisioning_completed_at')
       .eq('organization_id', callerProfile.organization_id)
-      .ilike('email', normalizedEmail)
+      .eq('email', normalizedEmail)
       .is('deleted_at', null)
       .maybeSingle();
 
@@ -254,6 +264,12 @@ serve(async (req) => {
 
     if (existingProfile) {
       if (existingProfile.role === 'AGENT') {
+        if (!existingProfile.provisioning_completed_at) {
+          return new Response(
+            JSON.stringify({ error: 'Agent provisioning is still in progress. Retry this request shortly.' }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         return new Response(
           JSON.stringify({ success: true, replayed: true, message: 'Agent already exists.', agent: agentResponse(existingProfile) }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -367,59 +383,42 @@ serve(async (req) => {
       );
     }
 
-    // 11. Step 3: Record Immutable Append-Only Audit Event
-    // Passwords or secrets are NEVER included in activity metadata
+    // 11. Finalize the profile and immutable audit event in one database transaction.
     const auditId = crypto.randomUUID();
     activeAuditId = auditId;
-    const auditActivity = {
-      id: auditId,
-      organization_id: callerProfile.organization_id,
-      lead_id: null,
-      user_id: callerProfile.id,
-      device_id: req.headers.get('x-device-id') || null,
-      activity_type: 'AGENT_CREATED',
-      metadata: {
-        agentId: insertedProfile.id,
-        agentName: insertedProfile.name,
-        agentEmail: insertedProfile.email,
-        agentPhone: insertedProfile.phone,
-        provisionedByAdmin: callerProfile.name,
-      },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      version: 1,
+    const auditMetadata = {
+      agentId: insertedProfile.id,
+      agentName: insertedProfile.name,
+      agentEmail: insertedProfile.email,
+      agentPhone: insertedProfile.phone,
+      provisionedByAdmin: callerProfile.name,
     };
+    const { data: finalizedProfile, error: finalizeError } = await supabaseAdmin.rpc('finalize_agent_provisioning', {
+      target_organization: callerProfile.organization_id,
+      target_profile: insertedProfile.id,
+      target_provisioning_key: idempotencyKey,
+      audit_id: auditId,
+      administrator: callerProfile.id,
+      audit_device_id: req.headers.get('x-device-id') || null,
+      audit_metadata: auditMetadata,
+    });
 
-    const { error: auditInsertError } = await supabaseAdmin.from('activities').insert(auditActivity);
-
-    if (auditInsertError) {
-      console.error('Audit activity creation failed; initiating rollback:', auditInsertError);
-      // An insert can commit before its response fails. Resolve the audit row
-      // first so compensation cannot leave an append-only event pointing at a
-      // deleted agent.
-      const auditWriteState = await resolveAuditWrite(supabaseAdmin, auditId);
-      if (auditWriteState !== 'absent') {
-        console.error('Audit write state is not safely absent; retaining agent for manual reconciliation:', auditWriteState);
-        return new Response(
-          JSON.stringify({ error: 'Agent provisioning could not be confirmed safely after an audit failure. Manual reconciliation is required.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    if (finalizeError || !finalizedProfile) {
+      const { data: resolvedProfile, error: resolveError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision, provisioning_completed_at')
+        .eq('organization_id', callerProfile.organization_id)
+        .eq('provisioning_key', idempotencyKey)
+        .maybeSingle();
+      if (resolveError) throw new Error('Unable to resolve provisioning finalization state safely.');
+      if (resolvedProfile?.provisioning_completed_at) {
+        return new Response(JSON.stringify({ success: true, replayed: true, message: 'Agent created successfully.', agent: agentResponse(resolvedProfile) }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-
       const rollbackErrors = await rollbackProvisionedAgent(supabaseAdmin, newAuthUserId);
-
-      if (rollbackErrors.length > 0) {
-        console.error('Audit failure rollback was incomplete:', rollbackErrors);
-        return new Response(
-          JSON.stringify({ error: 'Agent provisioning failed and cleanup was incomplete. Manual remediation is required.' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: 'Agent provisioning failed because the audit record could not be created. Auth identity and profile were rolled back.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (rollbackErrors.length) throw new Error('Agent provisioning failed and cleanup was incomplete. Manual remediation is required.');
+      return new Response(JSON.stringify({ error: 'Agent provisioning finalization failed. Auth identity and profile were rolled back.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // 12. Return Sanitized Result (No passwords in response)
@@ -427,12 +426,29 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: 'Agent created successfully.',
-        agent: agentResponse(insertedProfile),
+        agent: agentResponse(finalizedProfile),
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: any) {
     console.error('Unhandled Edge Function error:', err);
+
+    if (supabaseAdmin && activeProvisioningKey && activeOrganizationId) {
+      const { data: completedProfile, error: completedProfileError } = await supabaseAdmin
+        .from('profiles')
+        .select('id, auth_user_id, organization_id, name, email, phone, role, status, created_by, created_at, updated_at, sync_revision, provisioning_completed_at')
+        .eq('organization_id', activeOrganizationId)
+        .eq('provisioning_key', activeProvisioningKey)
+        .maybeSingle();
+      if (completedProfileError) {
+        return new Response(JSON.stringify({ error: 'Agent provisioning state is uncertain. Manual reconciliation is required.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (completedProfile?.provisioning_completed_at) {
+        return new Response(JSON.stringify({ success: true, replayed: true, message: 'Agent created successfully.', agent: agentResponse(completedProfile) }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
 
     if (supabaseAdmin && provisionedAuthUserId) {
       if (activeAuditId) {

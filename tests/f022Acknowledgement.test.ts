@@ -449,3 +449,55 @@ test('F022: an archive event delivered before its RPC response does not make the
   assert.equal((await database.leads.get(lead.id))?.isSynced, 1, 'the duplicate canonical ACK preserves synchronization metadata');
   assert.equal((await database.leads.get(lead.id))?.updatedAt, transport.rows.leads[0].updated_at);
 });
+
+
+test('F022: a failed offline agent CREATE survives authoritative visibility reconciliation', async (t) => {
+  const database = isolatedDatabase(t, 'AGENT');
+  const queue = new SyncQueue(database);
+  const leads = new LeadRepository(database, queue);
+  const transport = controlledTransport();
+  const lead = await leads.createLead({ businessName: 'F022 pending create', phone: '9876543210', address: 'Test address' });
+  const create = (await database.outbox.toArray()).find(item => item.entityId === lead.id && item.operation === 'CREATE')!;
+  await queue.markFailed(create.id, 'offline', { retryable: true, classification: 'TRANSIENT_NETWORK' });
+
+  await new SyncPull(database).pullAllChanges(null, transport.client as never);
+
+  assert.equal((await database.leads.get(lead.id))?.businessName, 'F022 pending create');
+  assert.equal((await database.outbox.get(create.id))?.status, 'FAILED');
+});
+
+test('F022: admin pull removes a lead that was hard-deleted while this device was offline', async (t) => {
+  const database = isolatedDatabase(t, 'ADMIN');
+  const queue = new SyncQueue(database);
+  const leads = new LeadRepository(database, queue);
+  const transport = controlledTransport();
+  const lead = await leads.createLead({ businessName: 'F022 remote purge', phone: '9876543210', address: 'Test address' });
+  await new SyncPush(queue, database).pushPending(transport.client as never);
+  transport.rows.leads = [];
+
+  await new SyncPull(database).pullAllChanges(null, transport.client as never);
+
+  assert.equal(await database.leads.get(lead.id), undefined);
+});
+
+test('F022: newly reassigned lead backfills history older than the saved cursor', async (t) => {
+  const database = isolatedDatabase(t, 'AGENT');
+  const transport = controlledTransport();
+  const leadId = randomUUID();
+  const remarkId = randomUUID();
+  transport.rows.leads = [{
+    id: leadId, organization_id: scope.organizationId, assigned_to: scope.userId, created_by: 'admin-other',
+    business_name: 'Reassigned lead', phone: '9876543210', address: 'Test address', status: 'NEW',
+    created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-12T00:00:00.000Z', deleted_at: null, sync_revision: 200,
+  }];
+  transport.rows.remarks = [{
+    id: remarkId, organization_id: scope.organizationId, lead_id: leadId, user_id: 'admin-other',
+    content: 'Older history must follow assignment', type: 'CUSTOM', author: 'Admin',
+    created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z', deleted_at: null, sync_revision: 10,
+  }];
+
+  await new SyncPull(database).pullAllChanges(revisionCursor(150), transport.client as never);
+
+  assert.equal((await database.leads.get(leadId))?.businessName, 'Reassigned lead');
+  assert.equal((await database.remarks.get(remarkId))?.content, 'Older history must follow assignment');
+});

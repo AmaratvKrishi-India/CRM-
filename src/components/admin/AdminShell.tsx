@@ -28,7 +28,7 @@ import { SyncStatusBadge } from '../sync/SyncStatusBadge';
 
 export type AdminTab = 'HOME' | 'LEADS' | 'AGENTS' | 'DATA' | 'REPORTS' | 'SETTINGS';
 
-const TAB_ORDER: AdminTab[] = ['HOME', 'LEADS', 'AGENTS', 'DATA', 'REPORTS', 'SETTINGS'];
+const PRIMARY_TAB_ORDER: AdminTab[] = ['HOME', 'LEADS', 'AGENTS', 'DATA', 'REPORTS'];
 
 const TAB_META: Record<AdminTab, { label: string; Icon: React.ComponentType<{ className?: string }> }> = {
   HOME: { label: 'Overview', Icon: Home },
@@ -50,12 +50,12 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
 
   // Roving-tabindex keyboard support for the bottom tablist (F14).
   const handleTabKeyDown = (e: React.KeyboardEvent, id: AdminTab) => {
-    const idx = TAB_ORDER.indexOf(id);
+    const idx = PRIMARY_TAB_ORDER.indexOf(id);
     let next: AdminTab | null = null;
-    if (e.key === 'ArrowRight') next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
-    else if (e.key === 'ArrowLeft') next = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
-    else if (e.key === 'Home') next = TAB_ORDER[0];
-    else if (e.key === 'End') next = TAB_ORDER[TAB_ORDER.length - 1];
+    if (e.key === 'ArrowRight') next = PRIMARY_TAB_ORDER[(idx + 1) % PRIMARY_TAB_ORDER.length];
+    else if (e.key === 'ArrowLeft') next = PRIMARY_TAB_ORDER[(idx - 1 + PRIMARY_TAB_ORDER.length) % PRIMARY_TAB_ORDER.length];
+    else if (e.key === 'Home') next = PRIMARY_TAB_ORDER[0];
+    else if (e.key === 'End') next = PRIMARY_TAB_ORDER[PRIMARY_TAB_ORDER.length - 1];
     if (next) {
       e.preventDefault();
       setActiveTab(next);
@@ -99,9 +99,22 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
           <SyncStatusBadge />
           <button
             type="button"
+            onClick={() => setActiveTab('SETTINGS')}
+            aria-label="Admin settings"
+            aria-pressed={activeTab === 'SETTINGS'}
+            className={`w-11 h-11 flex items-center justify-center rounded-xl border transition-colors ${
+              activeTab === 'SETTINGS'
+                ? 'bg-accent-soft border-accent text-accent-text'
+                : 'bg-inset border-line text-soft hover:text-ink hover:bg-inset-strong'
+            }`}
+          >
+            <Settings className="w-5 h-5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
             onClick={signOut}
             aria-label="Sign out"
-            className="min-h-11 flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-inset hover:bg-danger-soft hover:text-danger-text hover:border-danger text-soft text-sm font-semibold border border-line transition-all active:scale-95"
+            className="min-w-11 min-h-11 flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-inset hover:bg-danger-soft hover:text-danger-text hover:border-danger text-soft text-sm font-semibold border border-line transition-all active:scale-95"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">Sign Out</span>
@@ -229,10 +242,10 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
       {/* Bottom Admin Navigation Bar */}
       <nav
         aria-label="Admin sections"
-        className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-2 py-2 shadow-xl"
+        className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-2 pt-2 pb-safe-tabbar shadow-xl"
       >
-        <div role="tablist" aria-label="Admin console sections" className="max-w-md mx-auto grid grid-cols-6 gap-1">
-          {TAB_ORDER.map((tab) => {
+        <div role="tablist" aria-label="Admin console sections" className="max-w-md mx-auto grid grid-cols-5 gap-1">
+          {PRIMARY_TAB_ORDER.map((tab) => {
             const { label, Icon } = TAB_META[tab];
             const isActive = activeTab === tab;
             return (

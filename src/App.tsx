@@ -453,7 +453,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
 
       {/* Bottom Mobile Navigation Bar */}
       {tab !== 'DETAIL' && tab !== 'IMPORT' && (
-        <nav aria-label="Sales sections" className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-3 py-1.5 shadow-lg">
+        <nav aria-label="Sales sections" className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-3 pt-1.5 pb-safe-tabbar shadow-lg">
           <div
             role="tablist"
             aria-label="Main sections"

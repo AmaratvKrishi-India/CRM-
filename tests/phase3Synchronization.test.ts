@@ -302,13 +302,17 @@ describe('Phase 3 pull, assignment revocation, and realtime isolation', () => {
     db.close();
   });
 
-  it('prunes a reassigned lead graph and its pending mutations after authoritative pull', async () => {
+  it('prunes a server-known reassigned lead graph and its pending mutations after authoritative pull', async () => {
     const db = await openDb(scopeA, 'assignment');
     const data = createCRMDataLayer(db);
+    const tables: Record<string, Row[]> = { leads: [] };
+    const server = fakeClient({ tables });
     const lead = await data.leads.createLead({ businessName: 'Revoked', phone: '9000000004', assignedTo: scopeA.userId });
+    assert.equal((await data.syncPush.pushPending(server.client)).failedCount, 0, 'lead must be server-known before revocation');
     await data.remarks.addRemark({ leadId: lead.id, content: 'private history' });
-    const emptyServer = fakeClient({ tables: { leads: [] } });
-    await data.syncPull.pullAllChanges(null, emptyServer.client);
+    assert.ok((await db.outbox.where('entityId').equals(lead.id).count()) > 0, 'revoked lead has pending private work');
+    Object.assign(tables.leads[0], { assigned_to: 'agent-other', created_by: 'admin-other' });
+    await data.syncPull.pullAllChanges(null, server.client);
     assert.equal(await db.leads.get(lead.id), undefined);
     assert.equal(await db.remarks.where('leadId').equals(lead.id).count(), 0);
     assert.equal(await db.outbox.where('entityId').equals(lead.id).count(), 0);

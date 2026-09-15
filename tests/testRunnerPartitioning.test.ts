@@ -65,3 +65,20 @@ test('GitHub unit-test job starts local Supabase before database-backed Node tes
     'local Supabase must be running before npm test executes database-backed tests'
   );
 });
+
+
+test('GitHub Android job avoids the obsolete SDK tools package', () => {
+  const workflow = readFileSync('.github/workflows/test-suite.yml', 'utf8');
+
+  assert.match(
+    workflow,
+    /uses: android-actions\/setup-android@v4[\s\S]*?packages:\s*['"]platform-tools['"]/,
+    'Android CI must use setup-android v4 with an explicit supported package list'
+  );
+  const packages = workflow.match(/packages:\s*['"]([^'"]*)['"]/)?.[1] ?? '';
+  const requestedPackages = packages.split(/\s+/).filter(Boolean);
+  assert.ok(
+    !requestedPackages.includes('tools'),
+    'Android CI must not request the removed SDK tools package'
+  );
+});

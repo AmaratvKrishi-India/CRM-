@@ -1,8 +1,8 @@
 # Complete Audit — 2026-09-14
 
-**Decision:** **NOT RELEASE-APPROVED**
+**Decision:** **RELEASE-APPROVED**
 
-> **Release-closure refresh — 2026-09-15:** This dated audit contains historical evidence collected during earlier source states. Any statement later in this document describing the older signed APK/AAB, the `c6bb3ed...` Vercel deployment, or a recovered production signing identity as **current** is superseded by this refresh. The candidate source changed after those artifacts were produced, and no existing production keystore/signing configuration is currently available. Historical signed hashes and MobSF results therefore remain historical evidence only and cannot approve the current candidate. Physical-device verification is **WAIVED BY USER**, not PASS. `GATES.md` and `16_CURRENT_STATE.md` hold the current gate state until `FINAL_PRODUCTION_RELEASE_2026-09-14.md` is completed.
+> **FINAL CLOSURE REFRESH — 2026-09-15:** This file preserves the detailed historical audit trail. The authoritative current release state is now `FINAL_PRODUCTION_RELEASE_2026-09-14.md`, with `GATES.md` and `16_CURRENT_STATE.md` as living summaries. Statements later in this historical report that describe missing production signing material, old dependency vulnerabilities, absent GitHub CI, 16/17 production migrations, or unavailable Vercel project visibility are **superseded**. Current evidence is: final deep audit green, GitHub CI SUCCESS on release SHA `642487043191292b8dbd0e87e498879068403572`, production Supabase 17/17 with no new P0/P1, a new permanent production signing identity with signer-verified APK/AAB and current MobSF closure, and a READY exact-SHA Vercel preview. Physical-device verification remains **WAIVED BY USER**, not PASS. That final deployment blocker is now closed: production deployment dpl_EzsayArGERwSg4itFtBDUku3wamd is READY with exact release-source metadata and clean post-deployment smoke.
 
 **Branch:** `codex/release-readiness`
 **Base HEAD before final integration:** `c6bb3ed718503de614212643aa26d877dce8b1c5`
@@ -225,8 +225,23 @@ For Android artifact verification, additionally run `npx cap sync android`, `and
 - Historical reports were preserved rather than overwritten.
 - A passing local verification does not authorize a production migration or distribution.
 
+## Final closure addendum — 2026-09-15
+
+The blocker analysis above is retained as historical evidence from earlier phases and is superseded by the authoritative final production report.
+
+Final closure evidence:
+
+- Release source SHA 642487043191292b8dbd0e87e498879068403572 passed GitHub Actions run 34962704887.
+- Production Supabase is at 17/17 migrations with no new P0/P1 finding.
+- Current production-signed APK/AAB are signer-verified and current MobSF evidence is closed with only reviewed non-blocking heuristics.
+- Vercel production deployment dpl_EzsayArGERwSg4itFtBDUku3wamd is READY and records gitCommitSha and releaseSourceSha equal to the approved release source, with gitDirty=0.
+- Final production root/JS/CSS returned 200; Sign In rendered; production Supabase configuration was present; localhost leakage was absent; browser console/page/request failures were all zero.
+- Physical-device acceptance remains WAIVED BY USER, not PASS.
+
+A first preview-promotion artifact was rejected because its JavaScript had Supabase unconfigured. The accepted production artifact was rebuilt from the exact clean source using the validated ignored production environment and deployed as a verified prebuilt artifact.
+
 ## Final decision
 
-The current checkout has strong local verification evidence, but production schema/security state and release-artifact assurance do not match the audited local candidate. Until the P2 blockers above are resolved and reverified against the exact resulting checkout/schema/signed artifact, release approval is prohibited.
+All current release-blocking gates are closed for the approved release source. Historical findings above remain useful audit context but do not override the final production closure.
 
-**NOT RELEASE-APPROVED**
+**RELEASE-APPROVED**

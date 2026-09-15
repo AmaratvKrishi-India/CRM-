@@ -2,65 +2,79 @@
 
 **Document status:** CURRENT
 **Last reviewed:** 2026-09-15
-**Release decision:** **NOT RELEASE-APPROVED**
+**Release decision:** **RELEASE-APPROVED**
 **Branch:** `codex/release-readiness`
+**Release source SHA:** `642487043191292b8dbd0e87e498879068403572`
 **Application version:** `2.0.0`
 **Production Supabase:** `lahvcodvgubplzfshare` — **17/17 migrations**
 **Vercel project:** `crm` / `prj_oQvjAM8zwuJUGwDXDKIhc5IMyJ7W`
+**Production deployment:** `dpl_EzsayArGERwSg4itFtBDUku3wamd`
+**Production URL:** `https://crm-blush-omega.vercel.app`
 
 Physical-device verification is explicitly **WAIVED BY USER** for this release decision. It is not recorded as PASS.
 
-## Current verified source position
+## Verified release state
 
-The release candidate has been deliberately staged while preserving unrelated scratch/generated work. The current candidate includes the synchronization/database/mobile hardening, migration 17, test and audit tooling fixes, removal of confirmed dead files, dependency remediation, and a release-branch GitHub Actions trigger.
+The release source completed local verification, deep audit, signed Android artifact closure, remote Git integration, exact-source GitHub Actions verification, production Supabase verification, Vercel production deployment, and live production smoke.
 
-Latest verified evidence before the final post-trigger freeze:
-
-- `npm run test:all`: **10/10 suites, 0 failed, 0 skipped**.
+- `npm run test:all`: **10/10 suites**, 0 failed, 0 skipped.
+- Core Node suite: **318/318 PASS**.
 - Strict `npm run verify`: **0 command failures**.
-- Full Playwright matrix: **212/212** across Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari, and Tablet.
-- Real PostgreSQL/RLS integration: PASS.
-- Real three-emulator synchronization: PASS on the primary exact-candidate verifier run.
+- Full Playwright matrix: **212/212 PASS**.
+- Real three-emulator synchronization: **13/13 PASS**.
 - Accessibility: **11/11**, zero Axe violations.
-- Mutation score: **81.74%** (94 killed, 19 survived, 2 uncovered, 115 total).
+- Mutation score: **81.74%** (94 killed, 19 survived, 2 uncovered).
 - Semgrep: **0 findings**.
-- Gitleaks tracked-source scan: **no leaks**.
-- Custom secret scan: **0 Critical / 0 High**.
+- Gitleaks tracked-source scan: **no leaks**.- Custom secret scan: **0 Critical / 0 High**.
 - npm audit / OSV / Trivy: **0 current dependency vulnerabilities**.
-- dependency-cruiser: no architecture violations.
-- Supabase local DB lint: no schema errors.
-- Android lint/build and emulator smoke: PASS.
-
-A second back-to-back multi-device run inside `audit:deep` exposed an Agent B login-request timeout; downstream Agent B assertions then cascaded. Because the immediately preceding exact-candidate three-emulator run passed, this was classified as a harness reliability defect. The harness now has a bounded login retry and still requires an observed HTTP 200 auth response. The final exact tree must be reverified after this change.
+- dependency-cruiser: **0 violations**.
+- Local Supabase lint: **no schema errors**.
+- Android lint/build/emulator smoke: PASS.
+- GitHub Actions run `34962704887`: **SUCCESS** on exact release source SHA `642487043191292b8dbd0e87e498879068403572`.
 
 ## Production database
 
-Fresh read-only production evidence confirms all **17/17 migrations**, including `20260913185759_security_definer_helper_execute_hardening`. Fresh production/local comparison matched the public table set, RLS-enabled tables, policies, SECURITY DEFINER function names, and realtime publication membership.
+Production project `lahvcodvgubplzfshare` is at **17/17 migrations**, including `20260913185759_security_definer_helper_execute_hardening`.
 
-Current advisor findings are reviewed debt, not new P0/P1 blockers: 5 RLS-no-policy INFO findings on internal tables, 10 authenticated SECURITY DEFINER WARN findings, leaked-password-protection WARN, 20 unindexed-FK INFO findings, one RLS init-plan WARN, and 28 unused-index INFO findings.
+Reviewed advisor debt remains non-blocking: 5 `rls_enabled_no_policy` INFO findings, 10 authenticated `SECURITY DEFINER` WARN findings, leaked-password-protection WARN, 20 unindexed-FK INFO findings, one RLS init-plan WARN on `profiles_update_policy`, and 28 unused-index INFO findings. No new P0/P1 production database issue was found.
 
-## Android release artifact status
+## Android release artifacts
 
-The current source produces `app-release-unsigned.apk` only. Current unsigned APK SHA-256 is `ACC41B43BDB973E2FC3A67E64601904C8793B5CB3F148F1ECCADC8F9B92CA4AD`, size **6,145,603 bytes**.
+The permanent production signing identity is `crm-production`, RSA 4096 / SHA256withRSA, certificate SHA-256 `3A:58:1C:93:98:F0:77:F9:37:10:94:C5:17:88:D0:40:9F:D4:76:4C:01:84:A9:5F:52:7D:BF:BD:2B:FF:2E:38`, valid through **2054-01-31**.
 
-No production `.jks`, `.keystore`, `keystore.properties`, `ANDROID_KEYSTORE_PROPERTIES`, current signed APK, or current AAB is available in the repository or searched user workspace. Therefore current production signing, signed APK/AAB verification, and exact signed-artifact MobSF closure are **BLOCKED**.
-Historical signed hashes and certificate evidence remain useful historical evidence only and must not be represented as current artifacts after source changes.
+- Signed APK SHA-256: `6FC5638347BE9EA45D65C98F80BE32B91FA1EF4F522F7F76970F00B61C48C9A5` — **6,153,539 bytes**.
+- Signed AAB SHA-256: `685A0923DEBC34890840662D134D17B4069EDBAC5F7D3436B5A319B394CB4AB8` — **5,977,051 bytes**.
+- APK/AAB signer verification: PASS.
+- Current APK MobSF: 0 trackers, 0 secrets, 0 code-analysis highs; two reviewed/non-blocking StrandHogg manifest heuristics.
+- Signing material remains outside Git with a restricted backup under `C:\Users\PC\Desktop\KEYS`.
 
-## Vercel and GitHub state
+## Production deployment
+The authoritative production deployment is `dpl_EzsayArGERwSg4itFtBDUku3wamd` at `https://crm-blush-omega.vercel.app`.
 
-The currently public production deployment `dpl_GbqEsSY9Y3Gi79Z8u2QPRFiX1Fjr` is healthy but carries `gitDirty=1` and points to historical SHA `c6bb3ed718503de614212643aa26d877dce8b1c5`; it does **not** satisfy final exact-SHA provenance.
+Vercel reports `target=production`, `READY`, explicit `gitCommitSha=642487043191292b8dbd0e87e498879068403572`, `releaseSourceSha=642487043191292b8dbd0e87e498879068403572`, and `gitDirty=0`.
 
-The release workflow now includes `codex/release-readiness` in its push trigger so the final release commit can obtain exact-SHA GitHub Actions evidence. Repository rulesets and branch protection are unavailable on the current private-repository plan (GitHub API 403); this is an external governance limitation.
+The first attempt to promote the exact Git preview was rejected as final evidence after smoke testing showed its JavaScript had Supabase unconfigured. The final production artifact was instead built from a clean detached worktree at the exact release source SHA using the validated ignored production environment, verified before upload, and deployed as a Vercel prebuilt production artifact.
 
-## Remaining release closure
+Final production smoke:
 
-1. Reverify the final exact tree after the CI-trigger/login-harness changes.
-2. Create and push the release commit; prove local SHA = remote SHA and ahead/behind 0.
-3. Require GitHub Actions SUCCESS for that exact release SHA.
-4. Produce/promote a clean exact-SHA Vercel deployment and complete production smoke/header/runtime checks.
-5. Update the final production release report and living documentation.
-6. Supply the existing production Android signing material, rebuild/sign APK/AAB, verify certificate/hashes, and run MobSF against the exact signed APK.
+- Root HTTP **200**.
+- Main JS and CSS HTTP **200**.
+- Correct title: `Amaratv Krishi - Field Sales CRM`.
+- Sign In screen renders; `Authentication Setup Required` is absent.
+- Live JS contains the expected production Supabase project and no unconfigured fallback.
+- No localhost/127.0.0.1 endpoint leakage.
+- CSP, HSTS, `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY` are present.
+- Browser console errors: **0**.
+- Page errors: **0**.
+- Failed browser requests: **0**.
+- Production error/fatal runtime log query over the final checked window returned no entries.
 
-Until the existing production signing identity is available and all remaining closure evidence is complete, the authoritative decision is:
+## Git and closure semantics
 
-**NOT RELEASE-APPROVED**
+The deployed application source is SHA `642487043191292b8dbd0e87e498879068403572`, which is also the exact SHA that passed GitHub CI. A later commit containing only release documentation is a post-release documentation closure; it does not alter the web application, Android artifacts, database migrations, or the approved release source.
+
+GitHub rulesets/branch protection remain unavailable on the current private-repository plan and return HTTP 403. This is an external governance limitation, not a P0/P1 product defect.
+
+Current authoritative decision:
+
+**RELEASE-APPROVED**

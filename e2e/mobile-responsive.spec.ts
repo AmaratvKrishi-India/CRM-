@@ -6,11 +6,26 @@ test.describe('Mobile Viewport & Responsive Design Flow', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
 
-    // Verify there is no horizontal scroll on the viewport
-    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    // Measure rendered geometry instead of programmatic scroll position. WebKit's
+    // mobile emulation can intermittently report a small rubber-band scrollX even
+    // when scrollWidth equals clientWidth and no element crosses the viewport.
+    const horizontalOverflow = await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      const viewportWidth = window.innerWidth;
+      let leftOverflow = 0;
+      let rightOverflow = 0;
 
-    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2);
+      for (const element of document.querySelectorAll<HTMLElement>('body *')) {
+        const rect = element.getBoundingClientRect();
+        if (rect.width === 0 && rect.height === 0) continue;
+        leftOverflow = Math.max(leftOverflow, Math.max(0, -rect.left));
+        rightOverflow = Math.max(rightOverflow, Math.max(0, rect.right - viewportWidth));
+      }
+
+      return Math.max(leftOverflow, rightOverflow);
+    });
+
+    expect(horizontalOverflow).toBeLessThanOrEqual(0.5);
   });
 
   test('theme button meets accessibility touch target recommendations (min 44x44px)', async ({ page }) => {

@@ -46,7 +46,8 @@ function parseArgs(): CIConfig {
 
 function runCommand(command: string, options: { cwd?: string; env?: Record<string, string> } = {}): { success: boolean; output: string } {
   try {
-    const output = execSync(command, {
+    // command is selected only from the closed, hard-coded suite allowlist in runSuite().
+    const output = execSync(command, { // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
       encoding: 'utf8',
       stdio: 'pipe',
       cwd: options.cwd || process.cwd(),

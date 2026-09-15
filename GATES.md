@@ -1,44 +1,53 @@
 # Current Acceptance Gates
 
-**Last reviewed:** 2026-09-12
+**Last reviewed:** 2026-09-15
 **Decision:** **NOT RELEASE-APPROVED**
 **Branch:** `codex/release-readiness`
-**Parent HEAD before this verification:** `edc8b3fd3a1169d1f2e3ca4bf19fadbb5844ae7a`
+**Authority:** `docs/project-knowledge/COMPLETE_AUDIT_2026-09-14.md` pending final closure report `docs/project-knowledge/FINAL_PRODUCTION_RELEASE_2026-09-14.md`
+**Historical evidence:** `docs/project-knowledge/FINAL_RELEASE_SIGNOFF_2026-09-09.md` is preserved as superseded historical evidence only and is not current release approval.
 
-This file is the current gate summary for the checkout. It replaces the older v2.0.0 gate snapshot, which remains available in dated evidence reports. A passing local check does not authorize a production deployment.
+Physical-device acceptance is explicitly **WAIVED BY USER** for this release decision. It is not recorded as PASS.
 
 ## Gate summary
 
-| Gate | Status | Evidence / reason |
+| Gate | Status | Current evidence |
 |---|---|---|
-| TypeScript | PASS | Fresh `npm run typecheck` exit 0 on 2026-09-12 |
-| Lint | PASS WITH WARNINGS | Fresh exit 0; 0 errors and 77 `no-explicit-any` warnings |
-| Production build | PASS | Fresh `npm run build` passed; 2,011 modules transformed |
-| Full required runner | PASS | `npm test -- --runInBand`: 285/285; `npm run test:all`: 10/10 configured suites, 0 failures, every required suite and the quality gate passed |
-| Bundle / performance | PASS | 15 chunks, 1,145,899 bytes total minified JS, no budget warnings; Lighthouse 1.00 performance |
-| Dependency security | PASS AT REQUIRED THRESHOLD | `npm audit --audit-level=high`: 0 high/critical; 4 moderate advisories disclosed |
-| Accessibility | PASS | 11/11 Playwright accessibility checks; 0 reported violations; Lighthouse accessibility 1.00 |
-| Isolated staging | PASS WITH SCOPED EVIDENCE | Auth/RLS, sync, Realtime 16/16, offline reconnect, CRUD/archive/recovery, current call lifecycle, and scheduled expiry passed against `CRM-Staging` only |
-| Android compilation | PASS, SIGNED | Fresh Capacitor sync and Gradle release APK/AAB build succeeded with the verified production signing identity |
-| Emulator smoke | PASS | Exact signed release APK installed and cold-launched successfully on emulators `5554`, `5556`, and `5558`; `5554` also confirmed the app as top resumed activity |
-| Production migration parity | PASS | Intended production project `lahvcodvgubplzfshare` is verified at 14/14 repository migrations after an authorized, backed-up migration window |
-| Current signed release artifact | PASS | Production signing identity recovered externally and matched to historical certificate; APK/AAB signatures verify and exact hashes are recorded in the 2026-09-12 report |
-| Production deployment | PARTIAL | Production database migrations are complete. Application distribution remains blocked pending exact signed-APK physical-device smoke |
-| Documentation | PASS | Duplicate/stale documentation cleanup and CURRENT-doc reconciliation are complete; fresh scan on 2026-09-11 found 0 broken local Markdown links and no targeted stale technical/release claims |
+| Core configured test runner | PASS | `npm run test:all` **10/10**, 0 failed, 0 skipped on the exact candidate before final harness/CI-trigger freeze |
+| Strict release verifier | PASS / RE-RUN REQUIRED | Primary exact-candidate verifier completed with 0 command failures; final tree changed only for CI trigger + bounded emulator login retry and must be reverified |
+| Full Playwright matrix | PASS | **212/212** across Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari, and Tablet |
+| Production build | PASS | TypeScript/Vite production build exits 0 |
+| Local Supabase / RLS | PASS | 17 migrations apply; real PostgreSQL/RLS integration passes |
+| Multi-device synchronization | PASS / RE-RUN REQUIRED | Primary exact-candidate three-emulator run passed; a second immediate back-to-back run exposed an Agent B login-request harness timeout; bounded retry added without weakening HTTP 200 assertion |
+| Production Supabase parity | PASS | Fresh live evidence: **17/17 migrations** and local/production catalog parity |
+| Production Supabase advisors | PASS WITH REVIEWED FINDINGS | No new P0/P1; existing security/performance INFO/WARN debt documented |
+| Dependency / supply-chain audit | PASS | npm audit, OSV and Trivy report 0 current vulnerabilities |
+| Semgrep / Gitleaks | PASS | Semgrep 0 findings; tracked-source Gitleaks no leaks |
+| Mutation testing | PASS | **81.74%**, 94 killed / 19 survived / 2 uncovered |
+| Android lint/build/emulator | PASS | Android lint/build and emulator smoke pass |
+| Current production-signed APK/AAB | **BLOCKED** | Existing production signing key/config is unavailable; current source produces an unsigned release APK only |
+| Current signed APK MobSF | **BLOCKED** | Historical MobSF evidence cannot substitute for a newly signed artifact after source changes |
+| Physical-device signed-artifact acceptance | **WAIVED BY USER** | User explicitly waived physical hardware verification |
+| GitHub exact-SHA CI | PENDING | Release-branch push trigger added; final commit must receive successful remote workflow evidence |
+| GitHub rulesets / branch protection | EXTERNAL LIMITATION | Private-repository plan returns HTTP 403; no visibility/plan change authorized |
+| Vercel exact-SHA production provenance | PENDING | Existing READY production deployment is historical `c6bb3ed...` with `gitDirty=1` and cannot count as final proof |
+| Production web smoke | PENDING FINAL DEPLOY | Must be rerun after clean exact-SHA production promotion |
 
-## Release blockers
+## Android artifact evidence
 
-1. Connect an authorized physical Android device and install/cold-launch the exact signed APK identified in the 2026-09-12 verification report.
-2. Record the physical-device process/activity smoke evidence, then issue a new dated release decision before distribution.
-3. Repeat artifact-dependent gates after any code/schema/signing change.
+Current unsigned APK:
 
-## Evidence precedence
+- Path: `android/app/build/outputs/apk/release/app-release-unsigned.apk`
+- SHA-256: `ACC41B43BDB973E2FC3A67E64601904C8793B5CB3F148F1ECCADC8F9B92CA4AD`
+- Size: **6,145,603 bytes**
 
-Use the newest report that tests the exact current checkout and scope. The current authority is [FINAL_RELEASE_VERIFICATION_2026-09-12.md](./docs/project-knowledge/FINAL_RELEASE_VERIFICATION_2026-09-12.md); the [September 9 sign-off](./docs/project-knowledge/FINAL_RELEASE_SIGNOFF_2026-09-09.md) is historical only.
+Historical production signing evidence (certificate `A131697E3CDF7ADE44C5C3DF3563E6CBB9FA54969B5A718CE03DA49A20DC0ED6`, older signed APK/AAB hashes and older MobSF scan) is **historical only** for the changed candidate and must not be used as current final artifact proof.
 
-## Safety rules
+## Remaining hard closure
 
-- Never treat a historical v2.0.0 APK as proof for the current working tree.
-- Never point staging commands at the production Supabase reference.
-- Never place service-role keys, database passwords, session tokens, customer exports, or signing material in the repository.
-- Preserve the dirty working tree and record failed attempts; do not filter failures out of a gate summary.
+1. Reverify the final staged tree after the CI-trigger and emulator-login harness changes.
+2. Commit and push the exact candidate; prove local/remote SHA identity and successful GitHub Actions for that SHA.
+3. Promote/deploy that exact clean SHA to Vercel production and rerun production smoke/headers/runtime checks.
+4. Complete final release documentation.
+5. Recover the existing production Android signing material, create exact signed APK/AAB, verify certificate/hashes, and run MobSF on the exact signed APK.
+
+**NOT RELEASE-APPROVED**

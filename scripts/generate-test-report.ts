@@ -67,7 +67,7 @@ function generateHtmlReport(report: UnifiedReport): string {
 
   const suiteRows = report.suites.map(suite => `
     <tr class="${suite.passed ? 'passed' : 'failed'}">
-      <td>${suite.suite}</td>
+      <td>${escapeHtml(suite.suite)}</td>
       <td class="status">${suite.passed ? '✅ PASSED' : '❌ FAILED'}</td>
       <td>${(suite.duration / 1000).toFixed(1)}s</td>
       <td>${suite.coverage ? `${suite.coverage.lines.pct}%` : 'N/A'}</td>
@@ -206,10 +206,10 @@ function generateHtmlReport(report: UnifiedReport): string {
 
 function escapeHtml(text: string): string {
   return text
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
 
@@ -236,7 +236,8 @@ async function main(): Promise<void> {
   // Load JSON results
   const jsonFiles = readdirSync('test-results', { withFileTypes: true })
     .filter(d => d.isFile() && d.name.endsWith('.json') && d.name !== 'unified-report.json')
-    .map(d => join('test-results', d.name));
+    // d.name originates from readdirSync on the fixed test-results directory, not external input.
+    .map(d => join('test-results', d.name)); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
 
   for (const file of jsonFiles) {
     const result = loadJsonResults(file);

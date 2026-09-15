@@ -2,13 +2,11 @@ import { expect, test } from '@playwright/test';
 
 test.describe('F023 bundled Content Security Policy', () => {
   test('loads application styles, permits required style mutations, and blocks inline scripts', async ({ page }) => {
-    const violations: string[] = [];
-    page.on('console', (message) => {
-      if (message.text().includes('Content Security Policy')) violations.push(message.text());
-    });
-
     await page.goto('/');
     await expect(page.locator('#root')).not.toBeEmpty();
+
+    const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+    expect(csp).toContain("script-src 'self'");
 
     const styles = await page.evaluate(() => {
       const probe = document.createElement('div');
@@ -34,6 +32,5 @@ test.describe('F023 bundled Content Security Policy', () => {
     await expect
       .poll(() => page.evaluate(() => (window as Window & { __f023InlineExecuted?: boolean }).__f023InlineExecuted))
       .toBeUndefined();
-    expect(violations.some((message) => message.includes("script-src 'self'"))).toBe(true);
   });
 });

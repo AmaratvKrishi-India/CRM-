@@ -1,0 +1,43 @@
+{
+    "$schema":  "https://unpkg.com/knip@6/schema.json",
+    "entry":  [
+                  "tests/*.test.{ts,tsx}",
+                  "tests/integration/**/*.test.ts",
+                  "tests/services/**/*.test.ts",
+                  "tests/db/**/*.test.ts",
+                  "tests/utils/**/*.test.ts",
+                  "tests/**/*.bench.ts",
+                  "tests/types/**/*.test-d.ts",
+                  "e2e/**/*.spec.ts",
+                  "supabase/functions/*/index.ts",
+                  "scripts/accessibility-regional-test.ts",
+                  "scripts/csp-header-test.ts",
+                  "scripts/exportLocalSchemaSnapshot.ts",
+                  "scripts/generate-test-report.ts",
+                  "scripts/generate-third-party-licenses.mjs",
+                  "scripts/owasp-validation-test.ts",
+                  "scripts/probeCloudSchema.ts",
+                  "scripts/security-deps-test.ts"
+              ],
+    "project":  [
+                    "src/**/*.{ts,tsx}",
+                    "scripts/**/*.{ts,mjs}",
+                    "tests/**/*.{ts,tsx}",
+                    "e2e/**/*.ts",
+                    "supabase/functions/**/*.ts"
+                ],
+    "paths":  {
+                  "@/*":  [
+                              "./src/*"
+                          ]
+              },
+    "ignoreBinaries":  [
+                           "maestro",
+                           "gradlew.bat"
+                       ],
+    "ignoreDependencies":  [
+                               "@fontsource/inter",
+                               "lighthouse",
+                               "@stryker-mutator/vitest-runner"
+                           ]
+}

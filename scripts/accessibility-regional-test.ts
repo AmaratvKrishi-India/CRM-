@@ -6,9 +6,9 @@
  */
 
 import { program } from 'commander';
-import { writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import { execSync } from 'child_process';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { dirname, join } from 'path';
+import { spawnSync } from 'child_process';
 
 program
   .option('-p, --pattern <glob>', 'File pattern to analyze', 'src/**/*.tsx')
@@ -71,13 +71,41 @@ async function runA11yGuard(region: string, pattern: string, outputDir: string):
   const standardArg = standards.join(',');
 
   try {
-    const outputFile = join(outputDir, `a11y-guard-${region.toLowerCase()}.sarif`);
+    // region is validated against REGION_STANDARDS in main(); outputDir is an explicit local CLI destination.
+    const outputFile = join(outputDir, `a11y-guard-${region.toLowerCase()}.sarif`); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     
-    // Run a11y-guard CLI
-    const cmd = `npx a11y-guard scan "${pattern}" --region=${region} --standard=${standardArg} --format=sarif --output=${outputFile}`;
-    
-    console.log(`Running: ${cmd}`);
-    execSync(cmd, { stdio: 'pipe', timeout: 120000 });
+    // Run a11y-guard without a shell so CLI-controlled values remain literal arguments.
+    const npmExecPath = process.env.npm_execpath;
+    const candidates = [
+      npmExecPath ? join(dirname(npmExecPath), 'npx-cli.js') : '',
+      join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js'),
+      join(dirname(dirname(process.execPath)), 'lib', 'node_modules', 'npm', 'bin', 'npx-cli.js'),
+    ].filter(Boolean);
+    const npxCli = candidates.find((candidate) => existsSync(candidate));
+    if (!npxCli) throw new Error('Unable to locate npm npx-cli.js');
+
+    const args = [
+      npxCli,
+      'a11y-guard',
+      'scan',
+      pattern,
+      `--region=${region}`,
+      `--standard=${standardArg}`,
+      '--format=sarif',
+      `--output=${outputFile}`,
+    ];
+
+    console.log(`Running a11y-guard for ${region}`);
+    const child = spawnSync(process.execPath, args, {
+      stdio: 'pipe',
+      timeout: 120000,
+      encoding: 'utf8',
+      shell: false,
+    });
+    if (child.error) throw child.error;
+    if (child.status !== 0) {
+      throw new Error(child.stderr?.trim() || `a11y-guard exited with status ${child.status}`);
+    }
 
     // Parse SARIF output
     const sarifContent = require('fs').readFileSync(outputFile, 'utf-8');
@@ -108,7 +136,7 @@ async function runA11yGuard(region: string, pattern: string, outputDir: string):
 
     return violations;
   } catch (error) {
-    console.warn(`a11y-guard failed for region ${region}:`, error instanceof Error ? error.message : String(error));
+    console.warn('a11y-guard failed for region %s: %s', region, error instanceof Error ? error.message : String(error));
     return [{
       ruleId: 'execution-error',
       message: `Failed to run a11y-guard for ${region}: ${error instanceof Error ? error.message : String(error)}`,
@@ -125,6 +153,10 @@ async function runA11yGuard(region: string, pattern: string, outputDir: string):
 async function main(): Promise<void> {
   const pattern = options.pattern;
   const regions = options.regions.split(',').map((r: string) => r.trim().toUpperCase());
+  const invalidRegions = regions.filter((region: string) => !Object.prototype.hasOwnProperty.call(REGION_STANDARDS, region));
+  if (invalidRegions.length > 0) {
+    throw new Error(`Unsupported accessibility region(s): ${invalidRegions.join(', ')}`);
+  }
   const outputDir = options.output;
 
   console.log(`Starting regional accessibility compliance test`);

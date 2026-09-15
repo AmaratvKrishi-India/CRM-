@@ -169,7 +169,7 @@ export const AdminReportsView: React.FC = () => {
         setActivityReport(data);
       }
     } catch (err) {
-      console.warn(`Failed to load ${activeTab} report:`, err);
+      console.warn('Failed to load report tab %s:', activeTab, err);
     } finally {
       setLoading(false);
     }

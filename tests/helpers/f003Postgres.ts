@@ -49,7 +49,7 @@ export function createOrderingDatabase() {
     // below; its follow-up conflict/index migrations depend on the same objects.
     for (const file of migrations.filter(p => !p.startsWith('20260905000008') &&
       !p.startsWith('20260907000012') && !p.startsWith('20260907000013') &&
-      !p.startsWith('20260913000016'))) raw(readFileSync('supabase/migrations/' + file, 'utf8'));
+      !p.startsWith('20260913000016') && !p.startsWith('20260913185759'))) raw(readFileSync('supabase/migrations/' + file, 'utf8'));
     raw(`GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO authenticated,anon;
       INSERT INTO auth.users VALUES (${quote(authId)}),(${quote(agentAuthId)});
       INSERT INTO public.organizations(id,name) VALUES (${quote(org)},'F003 A'),(${quote(otherOrg)},'F003 B');
@@ -62,6 +62,7 @@ export function createOrderingDatabase() {
     raw(readFileSync('supabase/migrations/20260907000012_sync_conflict_http_status.sql','utf8'));
     raw(readFileSync('supabase/migrations/20260907000013_call_record_attempt_identity.sql','utf8'));
     raw(readFileSync('supabase/migrations/20260913000016_security_definer_surface_hardening.sql','utf8'));
+    raw(readFileSync('supabase/migrations/20260913185759_security_definer_helper_execute_hardening.sql','utf8'));
   } catch (error) { close(); throw error; }
 
   function client(user = authId) {

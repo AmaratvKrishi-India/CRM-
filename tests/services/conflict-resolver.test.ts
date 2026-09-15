@@ -202,4 +202,79 @@ describe('SyncConflictResolver', () => {
       expect(resolved.data.tags).toEqual(['remote']);
     });
   });
+
+  describe('mutation-strength regression coverage', () => {
+    it('returns remote append-only records when absent locally and honors tombstones', () => {
+      const remote = { id: 'activity-new', deletedAt: null };
+      expect(SyncConflictResolver.resolveAppendOnly(undefined, remote)).toEqual({ winner: 'REMOTE', data: remote });
+
+      const local = { id: 'activity-deleted', payload: 'local' };
+      const camelTombstone = { id: 'activity-deleted', deletedAt: '2026-09-14T00:00:00Z' };
+      const snakeTombstone = { id: 'activity-deleted', deleted_at: '2026-09-14T00:00:00Z' };
+      expect(SyncConflictResolver.resolveAppendOnly(local, camelTombstone)).toEqual({ winner: 'REMOTE', data: camelTombstone });
+      expect(SyncConflictResolver.resolveAppendOnly(local, snakeTombstone)).toEqual({ winner: 'REMOTE', data: snakeTombstone });
+    });
+
+    it('uses revision rules for every mutable tie state and records complete remote-win metadata', () => {
+      const localOnlyRevision = { id: 'lead-r', serverRevision: 3, isSynced: 1 };
+      expect(SyncConflictResolver.resolveMutable('leads', localOnlyRevision, { id: 'lead-r' }).winner).toBe('LOCAL');
+
+      const pending = { id: 'lead-p', serverRevision: 4, isSynced: 0 };
+      expect(SyncConflictResolver.resolveMutable('leads', pending, { id: 'lead-p', serverRevision: 4 }).winner).toBe('LOCAL');
+
+      const synced = { id: 'lead-s', serverRevision: 4, isSynced: 1, value: 'local' };
+      const remote = { id: 'lead-s', serverRevision: 4, value: 'remote' };
+      const result = SyncConflictResolver.resolveMutable('leads', synced, remote);
+      expect(result.winner).toBe('REMOTE');
+      expect(result.data).toBe(remote);
+      expect(result.conflict).toMatchObject({
+        entityType: 'leads',
+        entityId: 'lead-s',
+        localData: synced,
+        remoteData: remote,
+        resolution: 'REMOTE_WON',
+      });
+      expect(result.conflict?.id).toMatch(/^conflict_leads_lead-s_\d+$/);
+      expect(Number.isNaN(Date.parse(result.conflict?.resolvedAt ?? ''))).toBe(false);
+    });
+
+    it('covers call-record absence, versioned routing, deletion routing, and both verification directions', () => {
+      const remoteOnly = { id: 'call-new', verificationStatus: 'UNVERIFIED' };
+      expect(SyncConflictResolver.resolveCallRecord(undefined, remoteOnly)).toEqual({ winner: 'REMOTE', data: remoteOnly });
+
+      const versionedLocal = { id: 'call-v', serverRevision: 5, verificationStatus: 'UNVERIFIED' };
+      const versionedRemote = { id: 'call-v', serverRevision: 6, verificationStatus: 'UNVERIFIED' };
+      expect(SyncConflictResolver.resolveCallRecord(versionedLocal, versionedRemote).data).toBe(versionedRemote);
+
+      const deletedLocal = { id: 'call-d1', serverRevision: 7, deletedAt: '2026-09-14T00:00:00Z', verificationStatus: 'VERIFIED' };
+      const liveRemote = { id: 'call-d1', serverRevision: 6, verificationStatus: 'UNVERIFIED' };
+      expect(SyncConflictResolver.resolveCallRecord(deletedLocal, liveRemote).winner).toBe('LOCAL');
+
+      const liveLocal = { id: 'call-d2', serverRevision: 6, verificationStatus: 'VERIFIED' };
+      const deletedRemote = { id: 'call-d2', serverRevision: 7, deleted_at: '2026-09-14T00:00:00Z', verificationStatus: 'UNVERIFIED' };
+      expect(SyncConflictResolver.resolveCallRecord(liveLocal, deletedRemote).winner).toBe('REMOTE');
+
+      const verifiedLocal = { id: 'call-local', verificationStatus: 'VERIFIED', durationSeconds: 90 };
+      const unverifiedRemote = { id: 'call-local', verification_status: 'UNVERIFIED', durationSeconds: 180 };
+      expect(SyncConflictResolver.resolveCallRecord(verifiedLocal, unverifiedRemote)).toEqual({ winner: 'LOCAL', data: verifiedLocal });
+    });
+
+    it('records complete conflict metadata when remote verification wins', () => {
+      const local = { id: 'call-meta', verification_status: 'FAILED', durationSeconds: 0 };
+      const remote = { id: 'call-meta', verification_status: 'VERIFIED', durationSeconds: 42 };
+      const result = SyncConflictResolver.resolveCallRecord(local, remote);
+      expect(result.winner).toBe('REMOTE');
+      expect(result.data).toBe(remote);
+      expect(result.conflict).toMatchObject({
+        entityType: 'call_records',
+        entityId: 'call-meta',
+        localData: local,
+        remoteData: remote,
+        resolution: 'REMOTE_WON',
+      });
+      expect(result.conflict?.id).toMatch(/^conflict_call_records_call-meta_\d+$/);
+      expect(Number.isNaN(Date.parse(result.conflict?.resolvedAt ?? ''))).toBe(false);
+    });
+  });
+
 });

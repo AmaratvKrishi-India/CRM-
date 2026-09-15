@@ -59,7 +59,11 @@ interface Vulnerability {
 function runCommand(command: string, args: string[], cwd: string = process.cwd()): ToolResult {
   const executable = process.platform === 'win32' && command === 'npx' ? 'npx.cmd' : command;
   console.log(`Running: ${executable} ${args.join(' ')}`);
-  const result = spawnSync(executable, args, { cwd, encoding: 'utf-8', timeout: 300000 });
+  if (command !== 'npx') {
+    throw new Error(`Unsupported security tool launcher: ${command}`);
+  }
+  // Launcher is explicitly restricted above and spawnSync does not invoke a shell.
+  const result = spawnSync(executable, args, { cwd, encoding: 'utf-8', timeout: 300000 }); // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
 
   return {
     success: result.status === 0,

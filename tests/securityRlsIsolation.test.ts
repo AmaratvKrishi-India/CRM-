@@ -219,7 +219,7 @@ describe('Supabase RLS Agent & Admin Lead Isolation Tests (Stage 5 / P0 Security
       assigned_to: 'prof-agent-b',
     },
     {
-      id: 'lead-unassigned-org1',
+      id: 'lead-pool',
       organization_id: ORG_1,
       business_name: 'Gym Delta (Unassigned Pool)',
       phone: '9876543213',
@@ -252,7 +252,7 @@ describe('Supabase RLS Agent & Admin Lead Isolation Tests (Stage 5 / P0 Security
     assert.ok(ids.includes('lead-assigned-a'));
     assert.ok(ids.includes('lead-created-a'));
     assert.ok(ids.includes('lead-assigned-b'));
-    assert.ok(ids.includes('lead-unassigned-org1'));
+    assert.ok(ids.includes('lead-pool'));
     assert.ok(!ids.includes('lead-org2')); // Org 2 excluded
   });
 
@@ -265,7 +265,7 @@ describe('Supabase RLS Agent & Admin Lead Isolation Tests (Stage 5 / P0 Security
     assert.ok(ids.includes('lead-assigned-a'));
     assert.ok(ids.includes('lead-created-a'));
     assert.ok(!ids.includes('lead-assigned-b'), 'Agent A must NOT see Agent B leads');
-    assert.ok(!ids.includes('lead-unassigned-org1'), 'Agent A must NOT see unassigned Admin leads');
+    assert.ok(!ids.includes('lead-pool'), 'Agent A must NOT see unassigned Admin leads');
     assert.ok(!ids.includes('lead-org2'), 'Agent A must NOT see other org leads');
   });
 
@@ -284,7 +284,7 @@ describe('Supabase RLS Agent & Admin Lead Isolation Tests (Stage 5 / P0 Security
     assert.strictEqual(resB.success, false);
     assert.match(resB.error!, /RLS violation/);
 
-    const resUnassigned = engine.updateLead('auth-agent-a', 'lead-unassigned-org1', { status: 'CONTACTED' });
+    const resUnassigned = engine.updateLead('auth-agent-a', 'lead-pool', { status: 'CONTACTED' });
     assert.strictEqual(resUnassigned.success, false);
     assert.match(resUnassigned.error!, /RLS violation/);
   });
@@ -323,11 +323,11 @@ describe('Supabase RLS Agent & Admin Lead Isolation Tests (Stage 5 / P0 Security
   it('ADMIN: can assign and reassign leads across the organization', () => {
     const engine = new RlsPolicyEngine({ profiles, leads: [...leads] });
 
-    const res = engine.updateLead('auth-admin-1', 'lead-unassigned-org1', { assigned_to: 'prof-agent-b' });
+    const res = engine.updateLead('auth-admin-1', 'lead-pool', { assigned_to: 'prof-agent-b' });
     assert.strictEqual(res.success, true);
 
     const visibleB = engine.selectLeads('auth-agent-b');
-    const assigned = visibleB.find((l) => l.id === 'lead-unassigned-org1');
+    const assigned = visibleB.find((l) => l.id === 'lead-pool');
     assert.ok(assigned !== undefined);
     assert.strictEqual(assigned?.assigned_to, 'prof-agent-b');
   });

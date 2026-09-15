@@ -1,7 +1,7 @@
 {
   "name": "amaratvkrishi-sales-crm",
   "version": "2.0.0",
-  "description": "Amaratv Krishi Field Sales CRM — offline-first mobile CRM (React + Capacitor + Supabase)",
+  "description": "Amaratv Krishi Field Sales CRM \u2014 offline-first mobile CRM (React + Capacitor + Supabase)",
   "private": true,
   "scripts": {
     "dev": "vite",
@@ -31,7 +31,22 @@
     "test:e2e:visual": "playwright test e2e/visual-regression.spec.ts --project=chromium",
     "test:e2e:api": "playwright test e2e/api.spec.ts --project=chromium",
     "test:native:android": "maestro test e2e/maestro",
-    "test:lighthouse": "npm run build && tsx scripts/lighthouse-test.ts"
+    "test:lighthouse": "npm run build && tsx scripts/lighthouse-test.ts",
+    "audit:security": "tsx scripts/audit-semgrep.ts",
+    "audit:dependencies": "npm audit --audit-level=high",
+    "audit:osv": "docker run --rm -v \"%cd%:/repo\" ghcr.io/google/osv-scanner:v2.5.1 scan source --lockfile=/repo/package-lock.json",
+    "audit:secrets": "tsx scripts/secret-scanner-test.ts",
+    "audit:gitleaks": "tsx scripts/audit-gitleaks.ts",
+    "audit:trivy": "tsx scripts/audit-trivy.ts",
+    "audit:deadcode": "knip --files --dependencies",
+    "audit:architecture": "depcruise src --no-config --output-type err",
+    "audit:database": "supabase db lint --local",
+    "audit:mutation": "stryker run --mutate src/services/sync/syncConflictResolver.ts --testFiles tests/services/conflict-resolver.test.ts --testRunner vitest --reporters clear-text,json --concurrency 2 --cleanTempDir always",
+    "audit:android": "tsx scripts/audit-android.ts",
+    "audit:accessibility": "npm run test:e2e:accessibility",
+    "audit:performance": "npm run test:perf:bundle",
+    "audit:release": "npm run verify",
+    "audit:deep": "tsx scripts/audit-deep.ts"
   },
   "keywords": [
     "crm",
@@ -51,18 +66,18 @@
     "@capacitor/share": "^8.0.1",
     "@fontsource/inter": "^5.3.0",
     "@supabase/supabase-js": "^2.112.3",
-    "clsx": "^2.1.1",
     "dexie": "^4.4.5",
     "lucide-react": "^1.33.0",
     "papaparse": "^5.7.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "read-excel-file": "^9.3.10",
-    "tailwind-merge": "^3.6.0"
+    "read-excel-file": "^9.3.10"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
     "@playwright/test": "^1.62.1",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.0.0",
@@ -75,31 +90,35 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.0.0",
-    "autoprefixer": "^10.5.4",
     "axe-playwright": "^2.2.2",
     "commander": "^15.0.0",
+    "dependency-cruiser": "18.2.0",
     "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "exceljs": "^4.4.0",
     "expect-type": "^1.0.0",
     "fake-indexeddb": "^6.2.5",
+    "glob": "^13.0.6",
     "happy-dom": "^20.0.0",
+    "knip": "^6.35.1",
     "lighthouse": "^13.4.1",
-    "postcss": "^8.5.26",
     "rollup-plugin-visualizer": "^6.0.0",
     "supabase": "^2.116.0",
     "tailwindcss": "^4.3.3",
-    "tsd": "^0.31.0",
     "tsx": "^4.23.12",
     "typescript": "^6.0.3",
     "vite": "^8.2.2",
     "vitest": "^4.0.0"
   },
-  "tsd": {
-    "spec": "tests/types/**/*.test-d.ts",
-    "compilerOptions": {
-      "strict": true,
-      "noEmit": true
+  "overrides": {
+    "typed-rest-client": {
+      "qs": "6.16.0"
+    },
+    "exceljs": {
+      "uuid": "11.1.1"
+    },
+    "xcode": {
+      "uuid": "11.1.1"
     }
   }
 }

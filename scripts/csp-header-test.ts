@@ -150,7 +150,7 @@ function parseCSPHeader(header: string): CSPDirectives {
 
   for (const part of parts) {
     const [directive, ...values] = part.split(/\s+/);
-    const key = directive.toLowerCase().replace(/-/g, '-');
+    const key = directive.toLowerCase();
     if (values.length > 0) {
       directives[key] = values;
     } else {

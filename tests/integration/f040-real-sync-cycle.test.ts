@@ -91,9 +91,10 @@ describe('F040 actual outbox → local Supabase → second client pull', () => {
     expect((await b.db.leads.get(lead.id))?.businessName).toBe('Server accepted newer revision');
     expect((await b.db.outbox.get(pending.id))?.payload.businessName).toBe('Retain rejected offline edit');
   });
-  it('unauthenticated pull cannot populate the second device', async () => {
+  it('unauthenticated pull is denied before it can populate the second device', async () => {
     const a = device('ADMIN'); const b = device('AGENT'); const lead = await create(a); await push(a);
-    expect((await b.pull.pullAllChanges(null, createUnauthenticatedLocalClient(context))).pulledCount).toBe(0);
+    await expect(b.pull.pullAllChanges(null, createUnauthenticatedLocalClient(context)))
+      .rejects.toThrow(/permission denied for function sync_head/i);
     expect(await b.db.leads.count()).toBe(0);
     expect((await context.service.from('leads').select('id').eq('id', lead.id).single()).data?.id).toBe(lead.id);
   });

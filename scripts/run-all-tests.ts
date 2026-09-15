@@ -7,7 +7,7 @@
 import { program } from 'commander';
 import { spawn, execSync } from 'child_process';
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 
 interface TestSuite {
   name: string;
@@ -138,14 +138,25 @@ const TEST_SUITES: TestSuite[] = [
   },
 ];
 
+function resolveSpawnCommand(suite: TestSuite): { command: string; args: string[] } {
+  if (process.platform === 'win32' && (suite.command === 'npm' || suite.command === 'npx')) {
+    // suite.command is constrained to the static TestSuite definitions above (npm/npx here).
+    const cli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', `${suite.command}-cli.js`); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
+    return { command: process.execPath, args: [cli, ...suite.args] };
+  }
+  return { command: suite.command, args: suite.args };
+}
+
 async function runTestSuite(suite: TestSuite): Promise<TestResult> {
   const startTime = Date.now();
   console.log(`\n🧪 Running ${suite.name}...`);
 
   return new Promise((resolve) => {
-    const child = spawn(suite.command, suite.args, {
+    const resolved = resolveSpawnCommand(suite);
+    // resolved command/args come exclusively from the static TestSuite table; no shell is used.
+    const child = spawn(resolved.command, resolved.args, { // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: true,
+      shell: false,
       timeout: suite.timeout,
     });
 

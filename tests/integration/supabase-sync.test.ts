@@ -63,56 +63,69 @@ describe('Supabase integration', () => {
     channel: RealtimeChannel;
     payload: Promise<any>;
   }> {
-    let resolvePayload!: (value: any) => void;
-    let rejectPayload!: (reason: Error) => void;
-    const payload = new Promise<any>((resolve, reject) => {
-      resolvePayload = resolve;
-      rejectPayload = reject;
-    });
-    let subscribed = false;
-    let replicationReady = false;
-    let resolveReadiness!: () => void;
-    const readiness = new Promise<void>((resolve) => {
-      resolveReadiness = resolve;
-    });
-    const markReady = () => {
-      if (subscribed && replicationReady) resolveReadiness();
-    };
-    const channel = client
-      .channel(name, { config: { broadcast: { replication_ready: true } } })
-      .on('system', {}, (event) => {
-        if (event.status === 'ok' && event.message === 'Replication connection established') {
-          replicationReady = true;
-          markReady();
-        }
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads', ...(filter ? { filter } : {}) }, resolvePayload);
+    const deadline = Date.now() + 30_000;
+    let lastError: unknown;
 
-    const statuses: string[] = [];
-    await Promise.race([
-      readiness,
-      new Promise<void>((_, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Local Supabase Realtime subscription did not become replication-ready.')), 15_000);
-        channel.subscribe((status) => {
-          statuses.push(status);
-          if (status === 'SUBSCRIBED') {
-            subscribed = true;
+    for (let attempt = 1; Date.now() < deadline; attempt += 1) {
+      let resolvePayload!: (value: any) => void;
+      const payload = new Promise<any>((resolve) => {
+        resolvePayload = resolve;
+      });
+      let subscribed = false;
+      let replicationReady = false;
+      let resolveReadiness!: () => void;
+      const readiness = new Promise<void>((resolve) => {
+        resolveReadiness = resolve;
+      });
+      const markReady = () => {
+        if (subscribed && replicationReady) resolveReadiness();
+      };
+      const channel = client
+        .channel(`${name}-handshake-${attempt}`, { config: { broadcast: { replication_ready: true } } })
+        .on('system', {}, (event) => {
+          if (event.status === 'ok' && event.message === 'Replication connection established') {
+            replicationReady = true;
             markReady();
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            clearTimeout(timeout);
-            reject(new Error(`Local Supabase Realtime subscription failed with ${status}.`));
           }
-        });
-      }),
-    ]);
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads', ...(filter ? { filter } : {}) }, resolvePayload);
 
-    const timedPayload = Promise.race([
-      payload,
-      new Promise((_, reject) => setTimeout(() => reject(new Error(
-        `Local Supabase Realtime did not deliver the inserted lead (filter=${filter || 'none'}, statuses=${statuses.join(',') || 'none'}).`
-      )), 20_000)),
-    ]);
-    return { channel, payload: timedPayload };
+      const statuses: string[] = [];
+      try {
+        await Promise.race([
+          readiness,
+          new Promise<void>((_, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Local Supabase Realtime subscription did not become replication-ready.')), 15_000);
+            channel.subscribe((status) => {
+              statuses.push(status);
+              if (status === 'SUBSCRIBED') {
+                subscribed = true;
+                markReady();
+              } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                clearTimeout(timeout);
+                reject(new Error(`Local Supabase Realtime subscription failed with ${status}.`));
+              }
+            });
+          }),
+        ]);
+
+        const timedPayload = Promise.race([
+          payload,
+          new Promise((_, reject) => setTimeout(() => reject(new Error(
+            `Local Supabase Realtime did not deliver the inserted lead (filter=${filter || 'none'}, statuses=${statuses.join(',') || 'none'}).`
+          )), 20_000)),
+        ]);
+        return { channel, payload: timedPayload };
+      } catch (error) {
+        lastError = error;
+        await client.removeChannel(channel);
+        if (Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Local Supabase Realtime subscription did not become ready within the retry deadline.');
   }
 
   describe('authentication', () => {

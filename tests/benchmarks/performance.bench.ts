@@ -1,13 +1,13 @@
-/**
+﻿/**
  * Performance Benchmark Tests
  * Uses vitest bench for micro-benchmarks with statistical rigor
  */
 
 import { describe, bench, expect } from 'vitest';
-import { normalizePhoneNumber, formatPhoneNumber, isValidIndianPhoneNumber } from '@/utils/phone';
+import { normalizePhoneNumber } from '@/db/services/leadNormalizer';
 import { formatDate, formatRelativeTime, parseISODate } from '@/utils/date';
 import { validateEmail, validateRequired, validateObject } from '@/utils/validation';
-import { ConflictResolver } from '@/services/sync/ConflictResolver';
+import { SyncConflictResolver } from '@/services/sync/syncConflictResolver';
 
 const conflictResolver = new ConflictResolver();
 
@@ -69,13 +69,13 @@ describe('Phone Utilities Benchmarks', () => {
 
   bench('formatPhoneNumber', () => {
     for (const phone of phoneNumbers) {
-      formatPhoneNumber(phone);
+      normalizePhoneNumber(phone).displayFormatted;
     }
   });
 
   bench('isValidIndianPhoneNumber', () => {
     for (const phone of phoneNumbers) {
-      isValidIndianPhoneNumber(phone);
+      normalizePhoneNumber(phone).isValid;
     }
   });
 });
@@ -136,11 +136,11 @@ describe('Conflict Resolver Benchmarks', () => {
   const remoteCall = { id: '1', duration: 120, status: 'VERIFIED', verified_duration: 120, direction: 'INBOUND' };
 
   bench('resolve (lead)', () => {
-    conflictResolver.resolve(localLead, remoteLead, 'UPDATE');
+    SyncConflictResolver.resolveMutable('leads', localLead, remoteLead);
   });
 
   bench('resolveCallRecord', () => {
-    conflictResolver.resolveCallRecord(localCall, remoteCall);
+    SyncConflictResolver.resolveCallRecord(localCall, remoteCall);
   });
 
   bench('resolveLead', () => {

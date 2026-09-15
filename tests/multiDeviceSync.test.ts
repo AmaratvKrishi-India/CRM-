@@ -8,33 +8,38 @@
  * DEVICE 3 = AGENT B (e.g. emulator-5560)
  */
 
-import { test, describe, after } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert';
-import { execSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { randomUUID } from 'node:crypto';
 import { chromium, Page, Browser } from '@playwright/test';
+import { androidSdkEnvironment } from '../scripts/android-sdk';
+import { getLocalSupabaseEnv } from './helpers/localSupabaseEnv';
 
 const ADB = path.join(process.env.LOCALAPPDATA || '', 'Android', 'Sdk', 'platform-tools', 'adb.exe');
 const APP_PACKAGE = 'com.amaratvkrishi.salescrm';
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const LOCAL_TEST_APK = path.join(REPO_ROOT, 'android', 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
-const SUPABASE_LOCAL_URL = 'http://127.0.0.1:15432';
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+const localSupabase = getLocalSupabaseEnv();
+const SUPABASE_LOCAL_URL = localSupabase.apiUrl;
+const SUPABASE_ANON_KEY = localSupabase.anonKey;
 const LOGIN_READY_TIMEOUT_MS = 60_000;
-const AUTH_RESPONSE_TIMEOUT_MS = 60_000;
+const AUTH_RESPONSE_TIMEOUT_MS = 45_000;
+const AUTH_RESPONSE_ATTEMPTS = 2;
 let localTestApkReady = false;
+const harnessBrowsers = new Set<Browser>();
 
 function localBuildEnvironment(): NodeJS.ProcessEnv {
-  return {
+  return androidSdkEnvironment({
     ...process.env,
     VITE_SUPABASE_URL: SUPABASE_LOCAL_URL,
     VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
     CAPACITOR_ANDROID_SCHEME: 'http',
     VITE_APP_ENV: 'local-test',
-  };
+  });
 }
 
 function directoryContains(root: string, needle: string): boolean {
@@ -92,7 +97,7 @@ interface DeviceRoleConfig {
 
 function detectEmulators(): string[] {
   try {
-    const output = execSync(`"${ADB}" devices`, { encoding: 'utf-8' });
+    const output = execFileSync(ADB, ['devices'], { encoding: 'utf-8' });
     const lines = output.split('\n');
     const emulators: string[] = [];
     for (const line of lines) {
@@ -124,14 +129,41 @@ async function waitForCdpReady(port: number, maxAttempts = 45): Promise<boolean>
   return false;
 }
 
+async function reconnectDeviceWebView(serial: string, cdpPort: number): Promise<{ browser: Browser; page: Page }> {
+  let pid = '';
+  for (let attempt = 0; attempt < 30; attempt++) {
+    try {
+      pid = execFileSync(ADB, ['-s', serial, 'shell', 'pidof', APP_PACKAGE], { encoding: 'utf-8' }).trim();
+      if (pid) break;
+    } catch {}
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!pid) throw new Error(`App process unavailable after resume on ${serial}.`);
+
+  try {
+    execFileSync(ADB, ['-s', serial, 'forward', '--remove', `tcp:${cdpPort}`], { stdio: 'ignore' });
+  } catch {}
+  execFileSync(ADB, ['-s', serial, 'forward', `tcp:${cdpPort}`, `localabstract:webview_devtools_remote_${pid}`], { stdio: 'ignore' });
+
+  if (!(await waitForCdpReady(cdpPort, 60))) {
+    throw new Error(`WebView CDP endpoint did not return after native dialer on ${serial}.`);
+  }
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+  harnessBrowsers.add(browser);
+  const context = browser.contexts()[0];
+  const page = context.pages()[0];
+  await page.waitForLoadState('domcontentloaded');
+  return { browser, page };
+}
+
 function ensureAppInstalled(serial: string): void {
   buildLocalTestApk();
-  const listed = execSync(`"${ADB}" -s ${serial} shell pm list packages ${APP_PACKAGE}`, { encoding: 'utf-8' });
+  const listed = execFileSync(ADB, ['-s', serial, 'shell', 'pm', 'list', 'packages', APP_PACKAGE], { encoding: 'utf-8' });
   if (listed.includes(`package:${APP_PACKAGE}`)) {
-    execSync(`"${ADB}" -s ${serial} uninstall ${APP_PACKAGE}`, { stdio: 'ignore' });
+    execFileSync(ADB, ['-s', serial, 'uninstall', APP_PACKAGE], { stdio: 'ignore' });
   }
   console.log(`Installing verified local-Supabase debug APK on ${serial}`);
-  execSync(`"${ADB}" -s ${serial} install "${LOCAL_TEST_APK}"`, { encoding: 'utf-8', timeout: 180_000 });
+  execFileSync(ADB, ['-s', serial, 'install', LOCAL_TEST_APK], { encoding: 'utf-8', timeout: 180_000 });
 }
 
 async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser: Browser; page: Page }> {
@@ -139,20 +171,20 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
   ensureAppInstalled(serial);
 
   // 1. Configure reverse port forwarding for Supabase Local
-  execSync(`"${ADB}" -s ${serial} reverse tcp:15432 tcp:15432`);
+  execFileSync(ADB, ['-s', serial, 'reverse', 'tcp:15432', 'tcp:15432']);
 
   // 2. Clear app storage for clean deterministic session
-  execSync(`"${ADB}" -s ${serial} shell pm clear com.amaratvkrishi.salescrm`);
+  execFileSync(ADB, ['-s', serial, 'shell', 'pm', 'clear', APP_PACKAGE]);
 
   // 3. Launch application
-  execSync(`"${ADB}" -s ${serial} shell monkey -p com.amaratvkrishi.salescrm -c android.intent.category.LAUNCHER 1`);
+  execFileSync(ADB, ['-s', serial, 'shell', 'monkey', '-p', APP_PACKAGE, '-c', 'android.intent.category.LAUNCHER', '1']);
 
   // 4. Poll for PID
   let pid = '';
   for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
-      pid = execSync(`"${ADB}" -s ${serial} shell pidof com.amaratvkrishi.salescrm`, { encoding: 'utf-8' }).trim();
+      pid = execFileSync(ADB, ['-s', serial, 'shell', 'pidof', APP_PACKAGE], { encoding: 'utf-8' }).trim();
       if (pid) break;
     } catch {}
   }
@@ -167,11 +199,11 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
   let cdpForwarded = false;
   for (let attempt = 0; attempt < 15; attempt++) {
     try {
-      execSync(`"${ADB}" -s ${serial} forward --remove tcp:${cdpPort}`, { stdio: 'ignore' });
+      execFileSync(ADB, ['-s', serial, 'forward', '--remove', `tcp:${cdpPort}`], { stdio: 'ignore' });
     } catch {}
 
     try {
-      execSync(`"${ADB}" -s ${serial} forward tcp:${cdpPort} localabstract:webview_devtools_remote_${pid}`, {
+      execFileSync(ADB, ['-s', serial, 'forward', `tcp:${cdpPort}`, `localabstract:webview_devtools_remote_${pid}`], {
         stdio: 'ignore',
       });
       cdpForwarded = true;
@@ -193,6 +225,7 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
 
   // 7. Connect Playwright over CDP
   const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+  harnessBrowsers.add(browser);
   const context = browser.contexts()[0];
   const page = context.pages()[0];
   await page.waitForLoadState('domcontentloaded');
@@ -234,23 +267,38 @@ async function waitForInteractiveLoginForm(page: Page): Promise<void> {
 }
 
 async function signInFromInteractiveLoginForm(page: Page, email: string, password: string): Promise<void> {
-  await waitForInteractiveLoginForm(page);
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
+  let lastError: unknown;
 
-  const signInResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'POST' &&
-      response.url().includes('/auth/v1/token?grant_type=password'),
-    { timeout: AUTH_RESPONSE_TIMEOUT_MS }
-  );
-  await page.getByRole('button', { name: 'Sign In', exact: true }).click({
-    timeout: LOGIN_READY_TIMEOUT_MS,
-    noWaitAfter: true,
-  });
+  for (let attempt = 1; attempt <= AUTH_RESPONSE_ATTEMPTS; attempt++) {
+    await waitForInteractiveLoginForm(page);
+    await page.locator('#login-email').fill(email);
+    await page.locator('#login-password').fill(password);
 
-  const response = await signInResponse;
-  assert.strictEqual(response.status(), 200, `Sign-in request returned HTTP ${response.status()}.`);
+    try {
+      const [response] = await Promise.all([
+        page.waitForResponse(
+          (candidate) =>
+            candidate.request().method() === 'POST' &&
+            candidate.url().includes('/auth/v1/token?grant_type=password'),
+          { timeout: AUTH_RESPONSE_TIMEOUT_MS }
+        ),
+        page.getByRole('button', { name: 'Sign In', exact: true }).click({
+          timeout: LOGIN_READY_TIMEOUT_MS,
+          noWaitAfter: true,
+        }),
+      ]);
+      assert.strictEqual(response.status(), 200, `Sign-in request returned HTTP ${response.status()}.`);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < AUTH_RESPONSE_ATTEMPTS) {
+        console.warn('Login request did not complete on attempt %d; retrying once.', attempt);
+        await page.waitForTimeout(1_000);
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 async function verifyAssignedLeadInApp(page: Page, visibleLead: string, hiddenLeads: string[]): Promise<void> {
@@ -265,27 +313,188 @@ async function verifyAssignedLeadInApp(page: Page, visibleLead: string, hiddenLe
   }
 }
 
-async function exerciseAppWorkflow(page: Page, leadName: string, status: string, note: string): Promise<void> {
+async function assignLeadViaSyncRpc(token: string, leadId: string, assignedTo: string): Promise<void> {
+  const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` };
+  const currentRes = await fetch(
+    `${SUPABASE_LOCAL_URL}/rest/v1/leads?id=eq.${leadId}&select=id,organization_id,sync_revision`,
+    { headers }
+  );
+  assert.strictEqual(currentRes.status, 200, `Lead revision lookup returned ${currentRes.status}.`);
+  const rows = (await currentRes.json()) as Array<{ id: string; organization_id: string; sync_revision: number }>;
+  assert.strictEqual(rows.length, 1, `Expected exactly one lead row for ${leadId}.`);
+  const current = rows[0];
+
+  const mutateRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/rpc/sync_mutate`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      entity: 'leads',
+      operation: 'UPDATE',
+      mutation_id: randomUUID(),
+      expected_revision: current.sync_revision,
+      payload: {
+        id: current.id,
+        organization_id: current.organization_id,
+        assigned_to: assignedTo,
+      },
+    }),
+  });
+  const result = (await mutateRes.json()) as { status?: string };
+  assert.strictEqual(mutateRes.status, 200, `sync_mutate assignment returned ${mutateRes.status}.`);
+  assert.strictEqual(result.status, 'APPLIED', `sync_mutate did not apply assignment for ${leadId}.`);
+}
+
+async function readOutboxCount(page: Page, userId: string): Promise<number> {
+  const dbName = `AmaratvSalesCRM__00000000-0000-0000-0000-000000000001__${userId}`;
+  return page.evaluate(async (name) => {
+    return await new Promise<number>((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('outbox')) {
+          db.close();
+          resolve(-1);
+          return;
+        }
+        const tx = db.transaction('outbox', 'readonly');
+        const countRequest = tx.objectStore('outbox').count();
+        countRequest.onerror = () => reject(countRequest.error);
+        countRequest.onsuccess = () => {
+          const count = countRequest.result;
+          db.close();
+          resolve(count);
+        };
+      };
+    });
+  }, dbName);
+}
+
+async function readLocalLeadStatus(page: Page, userId: string, leadId: string): Promise<string | null> {
+  const dbName = `AmaratvSalesCRM__00000000-0000-0000-0000-000000000001__${userId}`;
+  return page.evaluate(async ({ name, id }) => {
+    return await new Promise<string | null>((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const tx = db.transaction('leads', 'readonly');
+        const getRequest = tx.objectStore('leads').get(id);
+        getRequest.onerror = () => reject(getRequest.error);
+        getRequest.onsuccess = () => {
+          const status = getRequest.result?.status ?? null;
+          db.close();
+          resolve(status);
+        };
+      };
+    });
+  }, { name: dbName, id: leadId });
+}
+
+async function waitForLocalLeadStatus(page: Page, userId: string, leadId: string, expected: string): Promise<void> {
+  const deadline = Date.now() + 60_000;
+  let actual: string | null = null;
+  while (Date.now() < deadline) {
+    actual = await readLocalLeadStatus(page, userId, leadId);
+    if (actual === expected) return;
+    await page.waitForTimeout(500);
+  }
+  throw new Error(`Local lead ${leadId} expected ${expected}, received ${actual}.`);
+}
+
+async function waitForOutboxToDrain(page: Page, userId: string, timeoutMs = 60_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  let lastCount = -1;
+  while (Date.now() < deadline) {
+    lastCount = await readOutboxCount(page, userId);
+    if (lastCount === 0) return;
+    await page.waitForTimeout(500);
+  }
+  throw new Error(`Outbox did not drain for ${userId}; last count ${lastCount}.`);
+}
+
+async function waitForOutboxToContainWork(page: Page, userId: string, timeoutMs = 15_000): Promise<number> {
+  const deadline = Date.now() + timeoutMs;
+  let lastCount = -1;
+  while (Date.now() < deadline) {
+    lastCount = await readOutboxCount(page, userId);
+    if (lastCount > 0) return lastCount;
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`Expected pending outbox work for ${userId}; last count ${lastCount}.`);
+}
+
+async function synchronizeApp(page: Page, userId: string, timeoutMs = 90_000): Promise<void> {
+  const button = page.getByRole('button', { name: 'Sync Now', exact: true }).first();
+  const deadline = Date.now() + timeoutMs;
+  let cycleStarted = false;
+  let lastCount = await readOutboxCount(page, userId);
+  while (Date.now() < deadline) {
+    const enabled = await button.isEnabled().catch(() => false);
+    if (enabled && (!cycleStarted || lastCount > 0)) {
+      await button.click({ timeout: 5_000 }).catch(() => {});
+      cycleStarted = true;
+      await page.waitForTimeout(750);
+    }
+    lastCount = await readOutboxCount(page, userId);
+    if (cycleStarted && lastCount == 0 && await button.isEnabled().catch(() => false)) return;
+    await page.waitForTimeout(500);
+  }
+  throw new Error(`Sync did not settle for ${userId}; outbox count ${lastCount}.`);
+}
+
+async function exerciseAppWorkflow(
+  page: Page,
+  serial: string,
+  cdpPort: number,
+  userId: string,
+  leadName: string,
+  status: string,
+  note: string,
+  followUpTitle: string
+): Promise<{ browser: Browser; page: Page }> {
   await page.getByRole('tab', { name: /Leads/i }).click();
   await page.getByText(leadName, { exact: true }).first().waitFor({ state: 'visible', timeout: 60_000 });
   await page.getByText(leadName, { exact: true }).first().click();
-  // Open the outcome form through the non-dial UI entry point. This keeps the
-  // Android WebView attached to the CRM while still exercising the real form;
-  // native ACTION_DIAL itself is covered by the separate call-lifecycle tests.
-  await page.getByRole('button', { name: /Log call outcome & add remark/i }).click();
+
+  await page.getByRole('button', { name: 'Call', exact: true }).click({ noWaitAfter: true });
+  await new Promise((r) => setTimeout(r, 1_000));
+  execFileSync(ADB, ['-s', serial, 'shell', 'am', 'start', '-n', `${APP_PACKAGE}/.MainActivity`], { stdio: 'ignore' });
+  await new Promise((r) => setTimeout(r, 1_000));
+  const resumed = await reconnectDeviceWebView(serial, cdpPort);
+  page = resumed.page;
+
   await page.locator('#custom-note').waitFor({ state: 'visible', timeout: 60_000 });
   await page.locator('#custom-note').fill(note);
-  await page.locator('#reported-minutes').fill('1.5');
+  await page.locator('#reported-minutes').fill('2');
   await page.locator('#pipeline-status').selectOption(status);
+  await page.locator('#wants-follow-up').check();
+  await page.locator('#follow-up-title').fill(followUpTitle);
   assert.strictEqual(await page.locator('#custom-note').inputValue(), note, 'App call-note form retained the entered note.');
   assert.strictEqual(await page.locator('#pipeline-status').inputValue(), status, 'App call form selected the requested status.');
-  await page.getByRole('button', { name: /Skip \/ do not record/i }).click();
-  await page.getByRole('button', { name: /Back to leads list/i }).waitFor({ state: 'visible', timeout: 60_000 });
+  await page.getByRole('button', { name: /Save call outcome & notes/i }).click();
+  await page.locator('#custom-note').waitFor({ state: 'hidden', timeout: 60_000 });
+
+  await page.getByRole('tab', { name: /Remarks/i }).click();
+  await page.getByRole('button', { name: 'Add note', exact: true }).click();
+  await page.locator('#inline-remark').fill(note);
+  await page.getByRole('button', { name: 'Save remark', exact: true }).click();
+  await page.locator('#inline-remark').waitFor({ state: 'hidden', timeout: 30_000 });
+
+  await synchronizeApp(page, userId);
+  await page.getByRole('button', { name: /Back to leads list/i }).click();
+  return resumed;
 }
 
 describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulators + Docker Supabase)', () => {
   const emulators = detectEmulators();
   const hasThreeEmulators = emulators.length >= 3;
+
+  before(() => {
+    console.log('\n--- Resetting disposable local Supabase for deterministic multi-device acceptance ---');
+    const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    execSync(`${npxCommand} supabase db reset --local`, { cwd: REPO_ROOT, stdio: 'inherit', timeout: 180_000 });
+  });
 
   test('Hardware / Device Prerequisites Check', () => {
     console.log(`Detected ${emulators.length} active Android emulators:`, emulators);
@@ -335,19 +544,18 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     if (cleanupComplete) return;
     cleanupComplete = true;
 
-    for (const browser of [adminBrowser, agentABrowser, agentBBrowser]) {
-      if (browser) await browser.close().catch(() => {});
-    }
+    for (const browser of harnessBrowsers) await browser.close().catch(() => {});
+    harnessBrowsers.clear();
     adminBrowser = null;
     agentABrowser = null;
     agentBBrowser = null;
 
     for (const config of [adminConfig, agentAConfig, agentBConfig]) {
       try {
-        execSync(`"${ADB}" -s ${config.serial} forward --remove tcp:${config.cdpPort}`);
+        execFileSync(ADB, ['-s', config.serial, 'forward', '--remove', `tcp:${config.cdpPort}`]);
       } catch {}
       try {
-        execSync(`"${ADB}" -s ${config.serial} reverse --remove tcp:15432`);
+        execFileSync(ADB, ['-s', config.serial, 'reverse', '--remove', 'tcp:15432']);
       } catch {}
     }
   };
@@ -478,33 +686,10 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     const token = ((await adminTokenRes.json()) as any).access_token;
     assert.ok(token, 'Admin session token retrieved.');
 
-    const rahulId = '00000000-0000-0000-0000-000000000011';
-    const poojaId = '00000000-0000-0000-0000-000000000012';
+    await assignLeadViaSyncRpc(token, '11111111-1111-1111-1111-111111111101', '00000000-0000-0000-0000-000000000011');
+    await assignLeadViaSyncRpc(token, '11111111-1111-1111-1111-111111111102', '00000000-0000-0000-0000-000000000012');
 
-    // 1. Assign Lead A to Agent A (Rahul)
-    const assignARes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/leads?id=eq.11111111-1111-1111-1111-111111111101`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ assigned_to: rahulId, updated_at: new Date().toISOString() }),
-    });
-    assert.ok(assignARes.status === 200 || assignARes.status === 204, `Lead A assignment status: ${assignARes.status}`);
-
-    // 2. Assign Lead B to Agent B (Pooja)
-    const assignBRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/leads?id=eq.11111111-1111-1111-1111-111111111102`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ assigned_to: poojaId, updated_at: new Date().toISOString() }),
-    });
-    assert.ok(assignBRes.status === 200 || assignBRes.status === 204, `Lead B assignment status: ${assignBRes.status}`);
-
+    await synchronizeApp(adminPage!, '00000000-0000-0000-0000-000000000010');
     console.log('✅ Lead A assigned to Agent A (Rahul); Lead B assigned to Agent B (Pooja); Lead C unassigned.');
   });
 
@@ -599,201 +784,38 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     assert.ok(agentAPage, 'Agent A page must be active.');
     console.log('\n--- Step 6: Agent A Actions on Lead A ---');
 
-    await exerciseAppWorkflow(
+    const resumedA = await exerciseAppWorkflow(
       agentAPage,
+      agentAConfig.serial,
+      agentAConfig.cdpPort,
+      '00000000-0000-0000-0000-000000000011',
       'Gold Gym Test Hazratganj',
       'INTERESTED',
-      'Owner interested in gym supply catalog - requested quote'
+      'Owner interested in gym supply catalog - requested quote',
+      'Sample delivery visit'
     );
-    console.log('✅ Agent A real app workflow completed before independent database verification.');
-
-    const tokenARes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
-      body: JSON.stringify({ email: agentAConfig.email, password: 'Agent@123' }),
-    });
-    const tokenA = ((await tokenARes.json()) as any).access_token;
-    const headers = {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${tokenA}`,
-      Prefer: 'resolution=merge-duplicates',
-    };
-
-    const leadId = '11111111-1111-1111-1111-111111111101';
-    const rahulId = '00000000-0000-0000-0000-000000000011';
-    const now = new Date().toISOString();
-
-    const orgId = '00000000-0000-0000-0000-000000000001';
-
-    // 1. Update Lead Status to INTERESTED
-    const updateLeadRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/leads?id=eq.${leadId}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ status: 'INTERESTED', updated_at: now }),
-    });
-    assert.ok(updateLeadRes.status === 200 || updateLeadRes.status === 204, 'Lead A status updated');
-
-    // 2. Add Remark
-    const insertRemarkRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/remarks`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: '22222222-2222-2222-2222-222222222201',
-        organization_id: orgId,
-        lead_id: leadId,
-        user_id: rahulId,
-        author: 'Rahul Verma',
-        content: 'Owner interested in gym supply catalog - requested quote',
-        type: 'CUSTOM',
-        created_at: now,
-        updated_at: now,
-      }),
-    });
-    assert.ok(insertRemarkRes.status === 201 || insertRemarkRes.status === 200, 'Agent A remark added');
-
-    // 3. Record Call Outcome (duration 90s, CONNECTED)
-    const insertCallRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/call_records`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: '33333333-3333-3333-3333-333333333301',
-        organization_id: orgId,
-        lead_id: leadId,
-        user_id: rahulId,
-        outcome: 'CONNECTED',
-        duration_seconds: 90,
-        started_at: now,
-        verification_status: 'VERIFIED',
-        remark: 'Discussed gym protein supplies and bulk discounts',
-        created_at: now,
-        updated_at: now,
-      }),
-    });
-    assert.ok(insertCallRes.status === 201 || insertCallRes.status === 200, 'Agent A call record added');
-
-    // 4. Schedule Follow-Up
-    const tomorrow = new Date(Date.now() + 86400000).toISOString();
-    const insertFollowUpRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/follow_ups`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: '44444444-4444-4444-4444-444444444401',
-        organization_id: orgId,
-        lead_id: leadId,
-        user_id: rahulId,
-        scheduled_at: tomorrow,
-        title: 'Sample delivery visit',
-        notes: 'Deliver protein bar sample box to front desk',
-        status: 'PENDING',
-        priority: 'HIGH',
-        created_at: now,
-        updated_at: now,
-      }),
-    });
-    assert.ok(insertFollowUpRes.status === 201 || insertFollowUpRes.status === 200, 'Agent A follow-up scheduled');
-
-    console.log('✅ Agent A recorded: Status INTERESTED, Remark, Call Record (90s), Follow-Up.');
+    agentABrowser = resumedA.browser;
+    agentAPage = resumedA.page;
+    console.log('✅ Agent A saved status, unverified call outcome, remark, follow-up, and drained its real app outbox.');
   });
 
   test('Step 7: Agent B Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
     assert.ok(agentBPage, 'Agent B page must be active.');
     console.log('\n--- Step 7: Agent B Actions on Lead B ---');
 
-    await exerciseAppWorkflow(
+    const resumedB = await exerciseAppWorkflow(
       agentBPage,
+      agentBConfig.serial,
+      agentBConfig.cdpPort,
+      '00000000-0000-0000-0000-000000000012',
       'FitHub Test Gomti Nagar',
       'SAMPLE_REQUESTED',
-      'Trial samples delivered to front desk - trainer feedback awaited'
+      'Trial samples delivered to front desk - trainer feedback awaited',
+      'Feedback callback'
     );
-    console.log('✅ Agent B real app workflow completed before independent database verification.');
-
-    const tokenBRes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
-      body: JSON.stringify({ email: agentBConfig.email, password: 'Agent@123' }),
-    });
-    const tokenB = ((await tokenBRes.json()) as any).access_token;
-    const headers = {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${tokenB}`,
-      Prefer: 'resolution=merge-duplicates',
-    };
-
-    const leadId = '11111111-1111-1111-1111-111111111102';
-    const poojaId = '00000000-0000-0000-0000-000000000012';
-    const orgId = '00000000-0000-0000-0000-000000000001';
-    const now = new Date().toISOString();
-
-    // 1. Update Lead Status to SAMPLE_REQUESTED
-    const updateLeadRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/leads?id=eq.${leadId}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify({ status: 'SAMPLE_REQUESTED', updated_at: now }),
-    });
-    assert.ok(updateLeadRes.status === 200 || updateLeadRes.status === 204, 'Lead B status updated');
-
-    // 2. Add Remark
-    const insertRemarkRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/remarks`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: '22222222-2222-2222-2222-222222222202',
-        organization_id: orgId,
-        lead_id: leadId,
-        user_id: poojaId,
-        author: 'Pooja Sharma',
-        content: 'Trial samples delivered to front desk - trainer feedback awaited',
-        type: 'CUSTOM',
-        created_at: now,
-        updated_at: now,
-      }),
-    });
-    assert.ok(insertRemarkRes.status === 201 || insertRemarkRes.status === 200, 'Agent B remark added');
-
-    // 3. Record Call Outcome (duration 45s, CONNECTED)
-    const insertCallRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/call_records`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: '33333333-3333-3333-3333-333333333302',
-        organization_id: orgId,
-        lead_id: leadId,
-        user_id: poojaId,
-        outcome: 'CONNECTED',
-        duration_seconds: 45,
-        started_at: now,
-        verification_status: 'VERIFIED',
-        remark: 'Follow-up call on creatine trial order',
-        created_at: now,
-        updated_at: now,
-      }),
-    });
-    assert.ok(insertCallRes.status === 201 || insertCallRes.status === 200, 'Agent B call record added');
-
-    // 4. Schedule Follow-Up
-    const inTwoDays = new Date(Date.now() + 172800000).toISOString();
-    const insertFollowUpRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/follow_ups`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: '44444444-4444-4444-4444-444444444402',
-        organization_id: orgId,
-        lead_id: leadId,
-        user_id: poojaId,
-        scheduled_at: inTwoDays,
-        title: 'Feedback callback',
-        notes: 'Call gym manager for bulk order confirmation',
-        status: 'PENDING',
-        priority: 'MEDIUM',
-        created_at: now,
-        updated_at: now,
-      }),
-    });
-    assert.ok(insertFollowUpRes.status === 201 || insertFollowUpRes.status === 200, 'Agent B follow-up scheduled');
-
-    console.log('✅ Agent B recorded: Status SAMPLE_REQUESTED, Remark, Call Record (45s), Follow-Up.');
+    agentBBrowser = resumedB.browser;
+    agentBPage = resumedB.page;
+    console.log('✅ Agent B saved status, unverified call outcome, remark, follow-up, and drained its real app outbox.');
   });
 
   test('Step 8 & 9: Admin Receives and Displays Both Agent A & Agent B Updates', async () => {
@@ -801,8 +823,10 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('\n--- Step 8 & 9: Admin Device Sync & Verification ---');
 
     // Admin pulls all changes from Supabase
-    await adminPage.locator('button[title="Sync Now"]').click().catch(() => {});
-    await new Promise((r) => setTimeout(r, 2000));
+    await synchronizeApp(adminPage, '00000000-0000-0000-0000-000000000010');
+
+    await waitForLocalLeadStatus(adminPage, '00000000-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111101', 'INTERESTED');
+    await waitForLocalLeadStatus(adminPage, '00000000-0000-0000-0000-000000000010', '11111111-1111-1111-1111-111111111102', 'SAMPLE_REQUESTED');
 
     const adminTokenRes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
@@ -828,8 +852,8 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
 
     const callsRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/call_records?select=*`, { headers });
     const calls = (await callsRes.json()) as any[];
-    assert.ok(calls.some((c) => c.duration_seconds === 90), 'Agent A call record (90s) visible to Admin.');
-    assert.ok(calls.some((c) => c.duration_seconds === 45), 'Agent B call record (45s) visible to Admin.');
+    assert.ok(calls.some((c) => c.lead_id === '11111111-1111-1111-1111-111111111101' && c.verification_status === 'UNVERIFIED' && c.reported_duration_seconds === 120), 'Agent A real unverified ACTION_DIAL record visible to Admin.');
+    assert.ok(calls.some((c) => c.lead_id === '11111111-1111-1111-1111-111111111102' && c.verification_status === 'UNVERIFIED' && c.reported_duration_seconds === 120), 'Agent B real unverified ACTION_DIAL record visible to Admin.');
 
     console.log('✅ Admin successfully received and verified all Agent A & Agent B changes.');
   });
@@ -875,14 +899,14 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     // 2. Verify Call Records in PostgreSQL
     const callsRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/call_records?select=*`, { headers });
     const pgCalls = (await callsRes.json()) as any[];
-    assert.ok(pgCalls.some((c) => c.duration_seconds === 90), 'PostgreSQL contains 90s verified call record.');
-    assert.ok(pgCalls.some((c) => c.duration_seconds === 45), 'PostgreSQL contains 45s verified call record.');
+    assert.ok(pgCalls.some((c) => c.lead_id === '11111111-1111-1111-1111-111111111101' && c.duration_seconds === 0 && c.reported_duration_seconds === 120 && c.verification_status === 'UNVERIFIED'), 'PostgreSQL contains Agent A ACTION_DIAL call with unverified duration semantics.');
+    assert.ok(pgCalls.some((c) => c.lead_id === '11111111-1111-1111-1111-111111111102' && c.duration_seconds === 0 && c.reported_duration_seconds === 120 && c.verification_status === 'UNVERIFIED'), 'PostgreSQL contains Agent B ACTION_DIAL call with unverified duration semantics.');
 
     // 3. Verify Remarks in PostgreSQL
     const remarksRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/remarks?select=*`, { headers });
     const pgRemarks = (await remarksRes.json()) as any[];
-    assert.ok(pgRemarks.some((r) => r.author === 'Rahul Verma'), 'PostgreSQL contains Rahul Verma remark.');
-    assert.ok(pgRemarks.some((r) => r.author === 'Pooja Sharma'), 'PostgreSQL contains Pooja Sharma remark.');
+    assert.ok(pgRemarks.some((r) => r.lead_id === '11111111-1111-1111-1111-111111111101' && r.user_id === '00000000-0000-0000-0000-000000000011' && r.content.includes('Owner interested')), 'PostgreSQL contains Agent A UI-created remark.');
+    assert.ok(pgRemarks.some((r) => r.lead_id === '11111111-1111-1111-1111-111111111102' && r.user_id === '00000000-0000-0000-0000-000000000012' && r.content.includes('Trial samples')), 'PostgreSQL contains Agent B UI-created remark.');
 
     // 4. Verify Follow-Ups in PostgreSQL
     const followUpsRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/follow_ups?select=*`, { headers });
@@ -894,7 +918,30 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
   });
 
   test('Step 11: Offline Outbox Queue & Network Recovery Test', async () => {
+    assert.ok(agentAPage, 'Agent A page must be active.');
     console.log('\n--- Step 11: Offline Queue & Sync Recovery ---');
+
+    const offlineNote = 'Offline note logged in field while disconnected';
+    await agentAPage.getByRole('tab', { name: /Leads/i }).click();
+    await agentAPage.getByText('Gold Gym Test Hazratganj', { exact: true }).first().click();
+    await agentAPage.getByRole('tab', { name: /Remarks/i }).click();
+
+    await agentAPage.context().setOffline(true);
+    try {
+      await agentAPage.getByRole('button', { name: 'Add note', exact: true }).click();
+      await agentAPage.locator('#inline-remark').fill(offlineNote);
+      await agentAPage.getByRole('button', { name: 'Save remark', exact: true }).click();
+      await agentAPage.locator('#inline-remark').waitFor({ state: 'hidden', timeout: 30_000 });
+      const pendingCount = await waitForOutboxToContainWork(agentAPage, '00000000-0000-0000-0000-000000000011');
+      assert.ok(pendingCount > 0, 'Offline mutation must remain queued locally.');
+      await agentAPage.getByRole('button', { name: 'Sync Now', exact: true }).first().click().catch(() => {});
+      await agentAPage.waitForTimeout(1_000);
+      assert.ok((await readOutboxCount(agentAPage, '00000000-0000-0000-0000-000000000011')) > 0, 'Failed offline sync must preserve outbox work.');
+    } finally {
+      await agentAPage.context().setOffline(false);
+    }
+
+    await synchronizeApp(agentAPage, '00000000-0000-0000-0000-000000000011');
 
     const tokenARes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
@@ -902,33 +949,12 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
       body: JSON.stringify({ email: agentAConfig.email, password: 'Agent@123' }),
     });
     const tokenA = ((await tokenARes.json()) as any).access_token;
-    const headers = {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${tokenA}`,
-      Prefer: 'resolution=merge-duplicates',
-    };
-
-    const offlineRemarkId = '22222222-2222-2222-2222-222222222299';
-    const now = new Date().toISOString();
-
-    const insertRemarkRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/remarks`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        id: offlineRemarkId,
-        organization_id: '00000000-0000-0000-0000-000000000001',
-        lead_id: '11111111-1111-1111-1111-111111111101',
-        user_id: '00000000-0000-0000-0000-000000000011',
-        author: 'Rahul Verma',
-        content: 'Offline note logged in field while disconnected',
-        type: 'CUSTOM',
-        created_at: now,
-        updated_at: now,
-      }),
+    const remoteRemarksRes = await fetch(`${SUPABASE_LOCAL_URL}/rest/v1/remarks?select=content&content=eq.${encodeURIComponent(offlineNote)}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${tokenA}` },
     });
-    assert.ok(insertRemarkRes.status === 201 || insertRemarkRes.status === 200, 'Offline remark synchronized.');
-    console.log('✅ Offline mutation successfully synchronized to Supabase.');
+    const remoteRemarks = (await remoteRemarksRes.json()) as Array<{ content: string }>;
+    assert.ok(remoteRemarks.some((row) => row.content === offlineNote), 'Recovered offline remark reached PostgreSQL.');
+    console.log('✅ Offline mutation survived failed sync, recovered, reached Supabase, and left an empty outbox.');
   });
 
   test('Step 12: RLS Tenant & Agent Lead Security Enforcement', async () => {

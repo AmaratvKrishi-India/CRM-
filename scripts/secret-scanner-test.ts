@@ -71,7 +71,10 @@ const SECRET_PATTERNS: Array<{ regex: RegExp; type: string; severity: SecretFind
   // Supabase
   { regex: /eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, type: 'Supabase JWT', severity: 'high', ruleId: 'SUPABASE_JWT' },
   { regex: /supabase[_-]?url[_-]?[:=]\s*['"]?https?:\/\/[^"'\s]+['"]?/gi, type: 'Supabase URL', severity: 'moderate', ruleId: 'SUPABASE_URL' },
-  { regex: /supabase[_-]?(?:anon[_-]?|service[_-]?)?key[_-]?[:=]\s*['"]?[A-Za-z0-9-_]{20,}['"]?/gi, type: 'Supabase Key', severity: 'high', ruleId: 'SUPABASE_KEY' },
+  // Source-code secrets must be literal values. Requiring quotes avoids treating
+  // safe identifiers such as `VITE_SUPABASE_ANON_KEY: playwrightSupabaseAnonKey`
+  // as credentials while JWT-shaped values remain covered by SUPABASE_JWT above.
+  { regex: /supabase[_-]?(?:anon[_-]?|service[_-]?)?key[_-]?[:=]\s*['"][A-Za-z0-9-_]{20,}['"]/gi, type: 'Supabase Key', severity: 'high', ruleId: 'SUPABASE_KEY' },
 
   // Generic Secrets
   { regex: /secret[_-]?[:=]\s*['"]?[A-Za-z0-9-_]{20,}['"]?/gi, type: 'Generic Secret', severity: 'high', ruleId: 'GENERIC_SECRET' },
@@ -142,6 +145,11 @@ function isIntentionalPublicClientKey(ruleId: string, value: string): boolean {
   );
 }
 
+function isIntentionalDisabledLoopbackPg(ruleId: string, value: string): boolean {
+  if (ruleId !== 'PG_CONNECTION_STRING') return false;
+  return /^postgres(?:ql)?:\/\//i.test(value) && /@(?:127\.0\.0\.1|localhost|\[::1\]):1\/disabled(?:[^A-Za-z0-9]|$)/i.test(value);
+}
+
 function maskSecret(secret: string, visibleChars: number = 4): string {
   if (secret.length <= visibleChars * 2) {
     return '*'.repeat(secret.length);
@@ -188,6 +196,10 @@ async function scanFile(file: string): Promise<SecretFinding[]> {
           continue;
         }
 
+        if (isIntentionalDisabledLoopbackPg(pattern.ruleId, match[0])) {
+          continue;
+        }
+
         // Skip if in .env.example or similar
         if (relativePath.endsWith('.env.example') || relativePath.endsWith('.env.template')) {
           continue;
@@ -209,7 +221,7 @@ async function scanFile(file: string): Promise<SecretFinding[]> {
       }
     }
   } catch (error) {
-    console.warn(`Failed to scan ${file}:`, error);
+    console.warn('Failed to scan file %s:', file, error);
   }
 
   return findings;

@@ -3,6 +3,9 @@ import { setupAuthMocks, performLogin, MOCK_AGENT, MOCK_ADMIN } from './helpers/
 import { injectAxe, getViolations } from 'axe-playwright';
 
 async function expectNoAccessibilityViolations(page: Page, surface: string): Promise<void> {
+  // Axe must inspect the stable rendered state. WebKit can sample colors during
+  // the 200-300ms entrance/fade animation and report a false low-contrast frame.
+  await page.waitForTimeout(350);
   const violations = await getViolations(page);
   console.log(`${surface} accessibility violations:`, violations.length);
   violations.forEach((v) => console.log(`  - ${v.id}: ${v.help} (${v.impact})`));

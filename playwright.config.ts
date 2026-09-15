@@ -3,6 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim();
 const localBaseURL = 'http://127.0.0.1:4174';
 const baseURL = externalBaseURL || localBaseURL;
+const playwrightSupabaseUrl = process.env.VITE_SUPABASE_URL?.trim() || 'http://127.0.0.1:15432';
+const playwrightSupabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim() || 'playwright-test-anon-key';
 
 const apiTestIgnore = process.env.E2E_API_BASE_URL ? [] : ['**/api.spec.ts'];
 const visualTestIgnore = process.env.CI && process.platform !== 'win32'
@@ -90,5 +92,10 @@ export default defineConfig({
         url: localBaseURL,
         reuseExistingServer: false,
         timeout: 120_000,
+        env: {
+          ...process.env,
+          VITE_SUPABASE_URL: playwrightSupabaseUrl,
+          VITE_SUPABASE_ANON_KEY: playwrightSupabaseAnonKey,
+        },
       },
 });

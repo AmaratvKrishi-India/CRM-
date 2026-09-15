@@ -1,76 +1,66 @@
 # 16 — Current State and Release Decision
 
 **Document status:** CURRENT
-**Last reviewed:** 2026-09-11
-**Source of truth:** this checkout, `package.json`, `src/`, `supabase/migrations/`, `GATES.md`, and the newest dated verification reports
+**Last reviewed:** 2026-09-15
 **Release decision:** **NOT RELEASE-APPROVED**
+**Branch:** `codex/release-readiness`
+**Application version:** `2.0.0`
+**Production Supabase:** `lahvcodvgubplzfshare` — **17/17 migrations**
+**Vercel project:** `crm` / `prj_oQvjAM8zwuJUGwDXDKIhc5IMyJ7W`
 
-## Checkout identity
+Physical-device verification is explicitly **WAIVED BY USER** for this release decision. It is not recorded as PASS.
 
-| Item | Value |
-|---|---|
-| Branch | `codex/release-readiness` |
-| HEAD reviewed | `edc8b3fd3a1169d1f2e3ca4bf19fadbb5844ae7a` |
-| Application version | `2.0.0` |
-| Web production URL | `https://crm-blush-omega.vercel.app` |
-| Protected production Supabase ref | `lahvcodvgubplzfshare` |
-| Allowed isolated staging ref in recent evidence | `dhoinifpzijqyobcamlv` |
-| Current migration files | 14 ordered SQL migrations |
-| Current local Dexie schema | Version 7 |
+## Current verified source position
 
-The working tree contains pre-existing tracked and untracked changes. This documentation refresh does not commit, reset, clean, push, deploy, or modify production.
+The release candidate has been deliberately staged while preserving unrelated scratch/generated work. The current candidate includes the synchronization/database/mobile hardening, migration 17, test and audit tooling fixes, removal of confirmed dead files, dependency remediation, and a release-branch GitHub Actions trigger.
 
-## What is implemented
+Latest verified evidence before the final post-trigger freeze:
 
-- React 19 + Vite 8 + TypeScript 6 application wrapped with Capacitor 8 for Android.
-- Role-based ADMIN and AGENT experiences routed from `src/App.tsx`.
-- Account-scoped Dexie local storage with repositories, transactional outbox, sync state, and schema versions 1–7.
-- Scoped push/pull synchronization, server-revision ordering, retained conflicts, recovery, and Supabase Realtime reconciliation.
-- PostgreSQL RLS for organization and agent lead isolation, with later migrations for ordering, abuse controls, reporting, attempt identity, purge policy, and child-record hardening.
-- One server-side `create-agent` Edge Function.
-- Playwright, Maestro, Node, Vitest, database, security, and performance verification tooling.
+- `npm run test:all`: **10/10 suites, 0 failed, 0 skipped**.
+- Strict `npm run verify`: **0 command failures**.
+- Full Playwright matrix: **212/212** across Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari, and Tablet.
+- Real PostgreSQL/RLS integration: PASS.
+- Real three-emulator synchronization: PASS on the primary exact-candidate verifier run.
+- Accessibility: **11/11**, zero Axe violations.
+- Mutation score: **81.74%** (94 killed, 19 survived, 2 uncovered, 115 total).
+- Semgrep: **0 findings**.
+- Gitleaks tracked-source scan: **no leaks**.
+- Custom secret scan: **0 Critical / 0 High**.
+- npm audit / OSV / Trivy: **0 current dependency vulnerabilities**.
+- dependency-cruiser: no architecture violations.
+- Supabase local DB lint: no schema errors.
+- Android lint/build and emulator smoke: PASS.
 
-## Repository snapshot
+A second back-to-back multi-device run inside `audit:deep` exposed an Agent B login-request timeout; downstream Agent B assertions then cascaded. Because the immediately preceding exact-candidate three-emulator run passed, this was classified as a harness reliability defect. The harness now has a bounded login retry and still requires an observed HTTP 200 auth response. The final exact tree must be reverified after this change.
 
-Living documentation intentionally avoids volatile file counts. For dated audits, count the live checkout and record the exact command and exclusions used.
+## Production database
 
-| Area | Role |
-|---|---|
-| `src/` | React application, data layer, services, sync, and utilities |
-| `tests/` | Node/Vitest unit, integration, security, type, and performance tests |
-| `e2e/` | Playwright specs, helpers, Maestro flows, snapshots, and evidence |
-| `scripts/` | Verification, probes, generation, reports, and test runners |
-| `supabase/migrations/` | Ordered PostgreSQL schema/security changes |
-| `docs/project-knowledge/` | Living guides plus dated verification evidence |
+Fresh read-only production evidence confirms all **17/17 migrations**, including `20260913185759_security_definer_helper_execute_hardening`. Fresh production/local comparison matched the public table set, RLS-enabled tables, policies, SECURITY DEFINER function names, and realtime publication membership.
 
-## Latest verification position
+Current advisor findings are reviewed debt, not new P0/P1 blockers: 5 RLS-no-policy INFO findings on internal tables, 10 authenticated SECURITY DEFINER WARN findings, leaked-password-protection WARN, 20 unindexed-FK INFO findings, one RLS init-plan WARN, and 28 unused-index INFO findings.
 
-The fresh [September 12 final verification](./FINAL_RELEASE_VERIFICATION_2026-09-12.md) records the current green code and artifact baseline: `npm test -- --runInBand` passed 285/285, the aggregate runner passed all 10 configured suites with every required suite and its quality gate green, and typecheck, lint, build, bundle, security-at-high-severity, accessibility, E2E, visual, local integration, isolated-staging, production migration parity, signing, and emulator artifact checks passed in their recorded scopes.
+## Android release artifact status
 
-The current decision remains **NOT RELEASE-APPROVED**, but the previous database and signing blockers are cleared. Intended production is now verified at **14/14 migrations** after an authorized backed-up migration window. The recovered production signing identity exactly matches the historical certificate, and the newly rebuilt APK/AAB are signed and verified. The exact signed APK installed and cold-launched successfully on Android Studio emulators `5554`, `5556`, and `5558`. The only remaining hard release gate is a physical-device smoke test of this exact signed APK. See [GATES.md](../../GATES.md) and [FINAL_RELEASE_VERIFICATION_2026-09-12.md](./FINAL_RELEASE_VERIFICATION_2026-09-12.md).
+The current source produces `app-release-unsigned.apk` only. Current unsigned APK SHA-256 is `ACC41B43BDB973E2FC3A67E64601904C8793B5CB3F148F1ECCADC8F9B92CA4AD`, size **6,145,603 bytes**.
 
-## Evidence rules
+No production `.jks`, `.keystore`, `keystore.properties`, `ANDROID_KEYSTORE_PROPERTIES`, current signed APK, or current AAB is available in the repository or searched user workspace. Therefore current production signing, signed APK/AAB verification, and exact signed-artifact MobSF closure are **BLOCKED**.
+Historical signed hashes and certificate evidence remain useful historical evidence only and must not be represented as current artifacts after source changes.
 
-- Historical v2.0.0 release documents describe the shipped artifact, not this dirty working tree.
-- Local, staging, and production evidence are separate scopes. A local or staging pass never proves production state.
-- A focused test proves only the behavior and environment it exercised.
-- A failed or unavailable gate remains visible; it is not converted into a pass by using a different runner.
-- New verification should create a new dated report and then update this document and `GATES.md`.
+## Vercel and GitHub state
 
-## Main entry points
+The currently public production deployment `dpl_GbqEsSY9Y3Gi79Z8u2QPRFiX1Fjr` is healthy but carries `gitDirty=1` and points to historical SHA `c6bb3ed718503de614212643aa26d877dce8b1c5`; it does **not** satisfy final exact-SHA provenance.
 
-- `src/main.tsx` — React mount and global providers
-- `src/App.tsx` — role-based application routing and agent workspace
-- `src/db/database.ts` — Dexie schema and access-scope enforcement
-- `src/db/index.ts` — data-layer factory and repositories
-- `src/services/sync/syncEngine.ts` — scoped synchronization coordinator
-- `src/services/realtime/realtimeService.ts` — realtime subscriptions and reconciliation
-- `src/services/supabaseClient.ts` — configured Supabase client factory
-- `supabase/functions/create-agent/index.ts` — admin-only agent provisioning
+The release workflow now includes `codex/release-readiness` in its push trigger so the final release commit can obtain exact-SHA GitHub Actions evidence. Repository rulesets and branch protection are unavailable on the current private-repository plan (GitHub API 403); this is an external governance limitation.
 
-## Next actions
+## Remaining release closure
 
-1. Connect an authorized USB-debugging Android phone and install/cold-launch the exact signed APK from the 2026-09-12 candidate.
-2. Record physical-device process/activity smoke evidence for that exact hash.
-3. If the physical-device smoke passes, update GATES.md, this document, and the dated verification authority to a final release decision.
-4. Repeat artifact-dependent gates after any code, schema, or signing change.
+1. Reverify the final exact tree after the CI-trigger/login-harness changes.
+2. Create and push the release commit; prove local SHA = remote SHA and ahead/behind 0.
+3. Require GitHub Actions SUCCESS for that exact release SHA.
+4. Produce/promote a clean exact-SHA Vercel deployment and complete production smoke/header/runtime checks.
+5. Update the final production release report and living documentation.
+6. Supply the existing production Android signing material, rebuild/sign APK/AAB, verify certificate/hashes, and run MobSF against the exact signed APK.
+
+Until the existing production signing identity is available and all remaining closure evidence is complete, the authoritative decision is:
+
+**NOT RELEASE-APPROVED**

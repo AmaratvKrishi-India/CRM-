@@ -450,7 +450,7 @@ export class RealtimeService {
       });
       });
     } catch (err) {
-      console.warn(`Error processing realtime event for ${table}:`, err);
+      console.warn('Error processing realtime event for table %s:', table, err);
     }
   }
 

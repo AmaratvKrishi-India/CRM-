@@ -2,13 +2,13 @@ import { describe, it, before } from 'node:test';
 import assert from 'node:assert';
 import crypto from 'node:crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getLocalSupabaseEnv } from './helpers/localSupabaseEnv';
 
-const SUPABASE_LOCAL_URL = 'http://127.0.0.1:15432';
-const JWT_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long';
-const ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-const SERVICE_ROLE_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+const localSupabase = getLocalSupabaseEnv();
+const SUPABASE_LOCAL_URL = localSupabase.apiUrl;
+const JWT_SECRET = localSupabase.jwtSecret;
+const ANON_KEY = localSupabase.anonKey;
+const SERVICE_ROLE_KEY = localSupabase.serviceRoleKey;
 
 const ORG_1_ID = '00000000-0000-0000-0000-000000000001';
 const ORG_2_ID = '00000000-0000-0000-0000-000000000002';
@@ -223,7 +223,7 @@ describe('Real Supabase Local & PostgreSQL Integration Tests (Docker Stack)', ()
       .eq('id', '00000000-0000-0000-0000-000000000101');
 
     assert.ok(error !== null, 'Agent reassigning lead to another agent must be blocked');
-    assert.match(error.message, /not permitted to reassign leads/i);
+    assert.match(error.message, /modifying lead assignment/i);
   });
 
   // -------------------------------------------------------------
@@ -442,4 +442,24 @@ describe('Real Supabase Local & PostgreSQL Integration Tests (Docker Stack)', ()
     assert.strictEqual(recordAfter.verification_status, 'VERIFIED');
     assert.strictEqual(recordAfter.duration_seconds, 60);
   });
+
+  it('16. Security: anonymous clients cannot invoke SECURITY DEFINER helper RPCs', async () => {
+    const anonClient = createClient(SUPABASE_LOCAL_URL, ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    for (const fn of ['current_profile_id', 'current_user_org_id', 'current_user_role', 'is_org_admin', 'is_active_org_user', 'sync_head']) {
+      const { error } = await anonClient.rpc(fn);
+      assert.ok(error, `${fn} must not be executable by anon`);
+    }
+
+    const { error: leadAccessError } = await anonClient.rpc('can_access_lead_for_current_user', {
+      p_lead_id: '00000000-0000-0000-0000-000000000101',
+    });
+    assert.ok(leadAccessError, 'can_access_lead_for_current_user must not be executable by anon');
+
+    const { error: authError } = await adminClient.rpc('current_user_org_id');
+    assert.strictEqual(authError, null, 'authenticated RLS helper execution must remain available');
+  });
+
 });

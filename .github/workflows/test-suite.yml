@@ -103,4 +103,6 @@ jobs:
 
       - name: Assemble debug and unsigned release configuration
         working-directory: android
-        run: ./gradlew assembleDebug assembleRelease --no-daemon
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug assembleRelease --no-daemon

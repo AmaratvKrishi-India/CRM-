@@ -82,3 +82,14 @@ test('GitHub Android job avoids the obsolete SDK tools package', () => {
     'Android CI must not request the removed SDK tools package'
   );
 });
+
+
+test('GitHub Android job makes the Gradle wrapper executable before assembling', () => {
+  const workflow = readFileSync('.github/workflows/test-suite.yml', 'utf8');
+  const chmodGradle = workflow.indexOf('chmod +x ./gradlew');
+  const assembleGradle = workflow.indexOf('./gradlew assembleDebug assembleRelease --no-daemon');
+
+  assert.notEqual(chmodGradle, -1, 'Android CI must make gradlew executable on Linux runners');
+  assert.notEqual(assembleGradle, -1, 'Android CI must retain the real debug and release Gradle build');
+  assert.ok(chmodGradle < assembleGradle, 'gradlew must be executable before the assemble command runs');
+});

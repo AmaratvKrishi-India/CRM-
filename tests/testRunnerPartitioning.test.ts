@@ -52,3 +52,16 @@ test('local Supabase integration files run serially', () => {
     'integration files share one local Supabase stack and must not race each other'
   );
 });
+
+test('GitHub unit-test job starts local Supabase before database-backed Node tests', () => {
+  const workflow = readFileSync('.github/workflows/test-suite.yml', 'utf8');
+  const supabaseStart = workflow.indexOf('npx supabase start');
+  const unitTests = workflow.indexOf('npm test -- --runInBand');
+
+  assert.notEqual(supabaseStart, -1, 'GitHub CI must start local Supabase for F002/F003 database-backed tests');
+  assert.notEqual(unitTests, -1, 'GitHub CI must retain the complete Node test suite');
+  assert.ok(
+    supabaseStart < unitTests,
+    'local Supabase must be running before npm test executes database-backed tests'
+  );
+});

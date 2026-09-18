@@ -2,7 +2,7 @@ name: Release readiness
 
 on:
   push:
-    branches: [main, develop, codex/release-readiness]
+    branches: [main, develop, '**/release-readiness']
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -21,6 +21,7 @@ env:
 jobs:
   web-quality:
     name: Web quality gates
+    environment: Production
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -55,6 +56,9 @@ jobs:
         run: npx tsx scripts/secret-scanner-test.ts --fail-on-found
 
       - name: Production build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
       - name: Enforce production JavaScript bundle budget
@@ -68,6 +72,7 @@ jobs:
 
   android-toolchain:
     name: Android build validation
+    environment: Production
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: web-quality
@@ -96,10 +101,11 @@ jobs:
       - name: Clean install
         run: npm ci
 
-      - name: Sync web assets into Capacitor
-        run: |
-          npm run build
-          npx cap sync android
+      - name: Prepare guarded Android release assets
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run release:android:prepare
 
       - name: Assemble debug and unsigned release configuration
         working-directory: android

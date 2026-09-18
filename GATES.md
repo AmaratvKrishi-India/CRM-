@@ -25,7 +25,8 @@ Physical-device acceptance is explicitly **WAIVED BY USER** for this release dec
 | Production Supabase advisors | PASS WITH REVIEWED FINDINGS | No new P0/P1; existing INFO/WARN debt documented |
 | Dependency / supply-chain audit | PASS | npm audit, OSV and Trivy report 0 current vulnerabilities |
 | Semgrep / Gitleaks | PASS | Semgrep 0 findings; tracked-source Gitleaks no leaks |
-| Mutation testing | PASS | **81.74%**, 94 killed / 19 survived / 2 uncovered || Android lint/build/emulator | PASS | Android lint/build, emulator smoke, and clean-checkout Android audit pass |
+| Mutation testing | PASS | **81.74%**, 94 killed / 19 survived / 2 uncovered |
+| Android lint/build/emulator | PASS | Android lint/build, emulator smoke, and clean-checkout Android audit pass |
 | Production-signed APK/AAB | PASS | Permanent production key created; APK/AAB signed and signer-verified |
 | Current signed APK MobSF | PASS WITH REVIEWED HEURISTICS | 0 trackers, 0 secrets, 0 code-analysis highs; two reviewed StrandHogg manifest heuristics |
 | Physical-device signed-artifact acceptance | WAIVED BY USER | User explicitly waived physical hardware verification |

@@ -20,12 +20,16 @@ test('F039 contribution guide commands and relative links resolve', () => {
 test('current documentation authorities agree on release status and resolve', () => {
   const gatesPath = 'GATES.md';
   const statePath = 'docs/project-knowledge/16_CURRENT_STATE.md';
-  const signoffPath = 'docs/project-knowledge/FINAL_RELEASE_SIGNOFF_2026-09-09.md';
+  const authorityPath = 'docs/project-knowledge/FINAL_PRODUCTION_RELEASE_2026-09-14.md';
   const gates = readFileSync(gatesPath, 'utf8');
   const state = readFileSync(statePath, 'utf8');
-  assert.match(gates, /NOT RELEASE-APPROVED/);
-  assert.match(state, /NOT RELEASE-APPROVED/);
-  assert.ok(existsSync(signoffPath));
-  assert.ok(gates.includes('FINAL_RELEASE_SIGNOFF_2026-09-09.md'));
+  const authority = readFileSync(authorityPath, 'utf8');
+  for (const document of [gates, state, authority]) {
+    assert.match(document, /RELEASE-APPROVED/);
+    assert.doesNotMatch(document, /\*\*NOT RELEASE-APPROVED\*\*/);
+    assert.match(document, /WAIVED BY USER/);
+  }
+  assert.ok(existsSync(authorityPath));
+  assert.ok(gates.includes('FINAL_PRODUCTION_RELEASE_2026-09-14.md'));
   assert.doesNotMatch(gates, /FINAL_LOCAL_REMEDIATION_2026-09-06/);
 });

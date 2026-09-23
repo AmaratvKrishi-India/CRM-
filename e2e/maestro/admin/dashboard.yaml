@@ -1,5 +1,5 @@
 # Admin Dashboard Flow
-# Tests admin dashboard with org-wide metrics
+# Verifies current organization-wide metrics and primary navigation.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,65 +7,50 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-
-- tapOn: "email-input"
-- inputText: "admin@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "admin-dashboard"
-    timeout: 10000
-
-- # Verify admin tabs visible
-- assertVisible:
-    id: "admin-tab"
-- assertVisible:
-    id: "leads-tab"
-- assertVisible:
-    id: "agents-tab"
-- assertVisible:
-    id: "analytics-tab"
-- assertVisible:
-    id: "import-tab"
-
-- # Verify KPI cards
-- assertVisible:
-    id: "total-leads-card"
-- assertVisible:
-    id: "active-agents-card"
-- assertVisible:
-    id: "calls-today-card"
-- assertVisible:
-    id: "conversion-rate-card"
-
-- # Verify activity feed
-- assertVisible:
-    id: "activity-feed"
-
-- # Navigate to leads tab
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-- waitFor:
-    id: "admin-leads-list"
-- assertVisible:
-    id: "admin-leads-list"
-
-- # Navigate to agents tab
+    id: "login-email"
+- inputText: ${MAESTRO_ADMIN_EMAIL}
 - tapOn:
-    id: "agents-tab"
-- waitFor:
-    id: "agents-list"
-- assertVisible:
-    id: "agents-list"
+    id: "login-password"
+- inputText: ${MAESTRO_ADMIN_PASSWORD}
+- tapOn: "Sign In"
 
-- # Navigate to analytics
-- tapOn:
-    id: "analytics-tab"
-- waitFor:
-    id: "analytics-charts"
+- extendedWaitUntil:
+    visible:
+      id: "admin-main-content"
+    timeout: 60000
 - assertVisible:
-    id: "analytics-charts"
+    id: "admin-tab-home"
+- assertVisible: "Executive Overview"
+- assertVisible: ".*TOTAL LEADS.*"
+- assertVisible: ".*TOTAL CALLS.*"
+- assertVisible: ".*VERIFIED TALK TIME.*"
+- assertVisible: ".*FOLLOW-UPS.*"
+
+- tapOn:
+    id: "admin-tab-leads"
+- extendedWaitUntil:
+    visible:
+      text: ".*Iron Paradise Alambagh.*"
+    timeout: 60000
+- tapOn:
+    id: "admin-tab-agents"
+- extendedWaitUntil:
+    visible: "Sales Representatives"
+    timeout: 60000
+- tapOn:
+    id: "admin-tab-data"
+- extendedWaitUntil:
+    visible:
+      id: "data-tab-DATABASE"
+    timeout: 60000
+- tapOn:
+    id: "admin-tab-reports"
+- extendedWaitUntil:
+    visible: "Analytics & Reporting"
+    timeout: 60000
+- assertVisible: "Territory Reports"

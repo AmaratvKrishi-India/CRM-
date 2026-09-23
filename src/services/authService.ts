@@ -7,6 +7,7 @@
 
 import type { Session, User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { getSupabaseClient, getSupabaseConfig } from './supabaseClient';
+import { fetchVerifiedProfile } from './verifiedProfileService';
 import { activateCRMDataScope, crmData, lockCRMData } from '../db';
 import { accessScopeFromUser, sameAccessScope } from '../db/accessScope';
 import { UserRepository } from '../db/repositories/userRepository';
@@ -20,10 +21,6 @@ export interface AuthResult {
 
 let customUserRepository: UserRepository | null = null;
 
-interface RemoteProfileResult {
-  user: User | null;
-  error?: string;
-}
 
 export class AuthService {
   /**
@@ -84,7 +81,7 @@ export class AuthService {
 
     // 2. Re-read authorization from the server. Cached role/status is never
     // trusted to unlock business data.
-    const remote = await this.fetchRemoteProfile(data.user);
+    const remote = await fetchVerifiedProfile(data.user);
     const profile = remote.user;
 
     // 3. Check if user is provisioned
@@ -170,7 +167,7 @@ export class AuthService {
    * the matching local account partition.
    */
   static async resolveUserProfile(authUser: SupabaseAuthUser): Promise<User | null> {
-    const remote = await this.fetchRemoteProfile(authUser);
+    const remote = await fetchVerifiedProfile(authUser);
     if (!remote.user) {
       if (!customUserRepository) await lockCRMData();
       return null;
@@ -190,67 +187,6 @@ export class AuthService {
     return remote.user;
   }
 
-  /**
-   * Fetches a user profile from the remote Supabase `profiles` table by auth_user_id,
-   * then caches the verified profile in the matching local data partition.
-   */
-  private static async fetchRemoteProfile(authUser: SupabaseAuthUser): Promise<RemoteProfileResult> {
-    const client = getSupabaseClient();
-    if (!client) return { user: null, error: 'Authentication server is not configured.' };
-
-    try {
-      // Query remote profiles table by auth_user_id
-      const { data: remoteProfile, error } = await client
-        .from('profiles')
-        .select('*')
-        .eq('auth_user_id', authUser.id)
-        .maybeSingle();
-
-      if (error) {
-        console.warn('Remote profile revalidation failed:', error.message);
-        return { user: null, error: 'Unable to verify account access with the server.' };
-      }
-      if (!remoteProfile) {
-        return { user: null, error: 'Account access has been revoked or is not provisioned.' };
-      }
-
-      if (
-        !remoteProfile.id ||
-        !remoteProfile.organization_id ||
-        remoteProfile.deleted_at ||
-        remoteProfile.status !== 'ACTIVE'
-      ) {
-        return { user: null, error: 'Account access has been revoked.' };
-      }
-      if (remoteProfile.role !== 'ADMIN' && remoteProfile.role !== 'AGENT') {
-        return { user: null, error: 'Account role is invalid or has been revoked.' };
-      }
-
-      // Map remote snake_case columns to local camelCase User entity.
-      // Role, status, organization and identity are never inferred locally.
-      const localUser: User = {
-        id: remoteProfile.id,
-        serverRevision: typeof remoteProfile.sync_revision === 'number' ? remoteProfile.sync_revision : undefined,
-        organizationId: remoteProfile.organization_id,
-        name: remoteProfile.name || authUser.email || 'Unknown',
-        email: (remoteProfile.email || authUser.email || '').trim().toLowerCase(),
-        phone: remoteProfile.phone || '',
-        role: remoteProfile.role,
-        status: remoteProfile.status,
-        createdAt: remoteProfile.created_at || new Date().toISOString(),
-        createdBy: remoteProfile.created_by || null,
-        updatedAt: remoteProfile.updated_at || new Date().toISOString(),
-        lastLoginAt: null,
-        isSynced: 1,
-        deletedAt: remoteProfile.deleted_at || null,
-      };
-
-      return { user: localUser };
-    } catch (err: unknown) {
-      console.warn('Failed to revalidate remote profile:', err instanceof Error ? err.message : err);
-      return { user: null, error: 'Unable to verify account access with the server.' };
-    }
-  }
 
   /**
    * Validates and loads the currently authenticated profile.
@@ -272,7 +208,7 @@ export class AuthService {
       return { user: null };
     }
 
-    const remote = await this.fetchRemoteProfile(data.user);
+    const remote = await fetchVerifiedProfile(data.user);
     const profile = remote.user;
     if (!profile) {
       await this.signOut();

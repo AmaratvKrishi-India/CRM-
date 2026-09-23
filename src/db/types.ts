@@ -150,7 +150,7 @@ export interface Activity extends ServerSyncMetadata {
   userId: string; // Foreign Key -> User.id (actor)
   deviceId: string | null; // Stable device ID
   activityType: ActivityType; // Action type
-  metadata: Record<string, any>; // Arbitrary event context (outcomes, duration, diffs)
+  metadata: Record<string, unknown>; // Arbitrary event context (outcomes, duration, diffs)
   createdAt: string; // ISO DateTime
   updatedAt: string; // ISO DateTime
   isSynced: number; // 0 = un-synced, 1 = synced
@@ -198,12 +198,12 @@ export interface CallRecord extends ServerSyncMetadata {
  */
 export interface ImportAudit extends ServerSyncMetadata {
   id: string; // Primary Key (UUID v4)
-  uploadedBy: string; // User ID who performed import
+  uploadedBy: string | null; // User ID who performed import; null when the referenced profile was removed
   deviceId: string | null; // Originating device ID
   filename: string; // File name (e.g. "Lucknow-Gyms.xlsx")
   source: string; // Source tag
   startedAt: string; // ISO DateTime
-  completedAt: string; // ISO DateTime
+  completedAt: string | null; // ISO DateTime; nullable for an incomplete/server-retained audit
   totalRows: number; // Total rows in spreadsheet
   imported: number; // Count of newly inserted leads
   updated: number; // Count of updated leads
@@ -229,7 +229,7 @@ export interface BulkAssignmentAudit extends ServerSyncMetadata {
   failedCount: number; // Count of failed assignments
   startedAt: string; // ISO DateTime
   completedAt: string; // ISO DateTime
-  filterSnapshot?: Record<string, any>; // Search/Filter parameters used at selection
+  filterSnapshot?: Record<string, unknown>; // Search/Filter parameters used at selection
   status: 'PENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
   errorSummary?: string | null; // Errors encountered if any
   createdAt: string; // ISO DateTime

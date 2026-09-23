@@ -300,8 +300,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const saved = await AppSettingsService.setDefaultCatalogue(file);
       setDefaultCatalogue(saved);
       showToast({ message: 'Catalogue saved for Quick Send.', tone: 'success' });
-    } catch (err: any) {
-      setCatalogueError(err.message || 'Failed to process file.');
+    } catch (err: unknown) {
+      setCatalogueError(err instanceof Error ? err.message : 'Failed to process file.');
     }
   };
 

@@ -1,0 +1,37 @@
+# Current UI contract: admin shell exposes an explicit sign-out control.
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+
+- tapOn:
+    id: "login-email"
+- inputText: ${MAESTRO_ADMIN_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_ADMIN_PASSWORD}
+- tapOn: "Sign In"
+
+- extendedWaitUntil:
+    visible:
+      id: "admin-main-content"
+    timeout: 30000
+- assertVisible:
+    id: "admin-tab-home"
+- tapOn:
+    id: "admin-sign-out-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- assertVisible:
+    id: "login-password"
+- assertNotVisible:
+    id: "admin-main-content"

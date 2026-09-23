@@ -23,7 +23,7 @@ function parseEnv(output: string): Record<string, string> {
 }
 export function getLocalSupabaseEnv(): LocalSupabaseEnv {
   if (cached) return cached;
-  const npxArgs = ['supabase', 'status', '-o', 'env'];
+  const npxArgs = ['--no-install', 'supabase', 'status', '-o', 'env'];
   const executable = process.platform === 'win32' ? process.execPath : 'npx';
   const args = process.platform === 'win32'
     ? [join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js'), ...npxArgs]
@@ -31,6 +31,8 @@ export function getLocalSupabaseEnv(): LocalSupabaseEnv {
   const output = execFileSync(executable, args, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 30_000,
+    windowsHide: true,
   });
   const values = parseEnv(output);
   const required = ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY', 'JWT_SECRET'] as const;

@@ -1,5 +1,5 @@
 # Call Outcome Flow - Agent Logs Call Result
-# Tests the call outcome logging flow
+# Records a current ACTION_DIAL outcome and a sales remark.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,70 +7,72 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
-
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
-- waitFor:
-    id: "leads-list"
-
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
 - tapOn:
-    id: "lead-item-0"
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
-    id: "lead-detail"
-
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
+- tapOn:
+    id: "app-tab-LEADS"
+- tapOn:
+    id: "leads-search"
+- inputText: "Gold Gym Hazratganj"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 60000
+- tapOn: ".*Gold Gym Hazratganj.*Gym.*"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
 - tapOn:
     id: "call-button"
-
-- waitFor:
-    id: "call-modal"
-    timeout: 5000
-
+- pressKey: HOME
+- launchApp:
+    clearState: false
 - tapOn:
-    id: "dial-button"
-
-- waitFor:
-    id: "call-active"
+    id: "app-tab-LEADS"
+- tapOn:
+    id: "leads-search"
+- inputText: "Gold Gym Hazratganj"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ".*Gold Gym Hazratganj.*"
+    timeout: 60000
+- tapOn: ".*Gold Gym Hazratganj.*Gym.*"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
+- tapOn: ".*Log call outcome.*"
+- extendedWaitUntil:
+    visible: ".*Unverified.*ACTION_DIAL.*"
+    timeout: 60000
+- tapOn: "Connected"
+- tapOn: "Interested"
+- scrollUntilVisible:
+    element: ".*Save call outcome.*"
+    direction: DOWN
     timeout: 10000
+- tapOn: ".*Save call outcome.*"
 
-- # Simulate call duration
-- waitFor:
-    id: "call-timer"
-    timeout: 5000
-
-- tapOn:
-    id: "end-call-button"
-
-- waitFor:
-    id: "call-outcome-modal"
-    timeout: 3000
-
-- tapOn:
-    id: "outcome-interested"
-
-- tapOn:
-    id: "save-outcome-button"
-
-- waitFor:
-    id: "lead-detail"
-    timeout: 3000
-
-- assertVisible:
-    text: "INTERESTED"
-
-- assertVisible:
-    id: "call-record"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
+- assertVisible: "Interested"
+- tapOn: "Calls (.*)"
+- assertVisible: "Connected"

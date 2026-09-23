@@ -1,3 +1,4 @@
+import type { Activity } from '../../db/types';
 /**
  * Agent Performance Detail Component (Phase 2L)
  * Displays deep-dive productivity scorecards, verified call durations,
@@ -56,7 +57,7 @@ export const AgentPerformanceDetail: React.FC<AgentPerformanceDetailProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const [summary, setSummary] = useState<AgentPerformanceSummary | null>(null);
-  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
   const [assignedLeads, setAssignedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -247,8 +248,8 @@ export const AgentPerformanceDetail: React.FC<AgentPerformanceDetailProps> = ({
                       <span className="font-semibold text-ink">
                         {act.activityType.replace(/_/g, ' ')}
                       </span>
-                      {act.metadata?.leadName && (
-                        <p className="text-xs text-soft truncate">Lead: {act.metadata.leadName}</p>
+                      {typeof act.metadata?.leadName === 'string' && act.metadata.leadName && (
+                        <p className="text-xs text-soft truncate">Lead: {String(act.metadata.leadName ?? '')}</p>
                       )}
                     </div>
                     <span className="text-xs text-faint shrink-0">

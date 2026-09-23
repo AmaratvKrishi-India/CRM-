@@ -35,6 +35,226 @@ type BackupTab = 'EXPORT' | 'RESTORE' | 'HISTORY';
 
 const TAB_ORDER: BackupTab[] = ['EXPORT', 'RESTORE', 'HISTORY'];
 
+interface DatabaseSummary {
+  leadsCount: number;
+  remarksCount: number;
+  callsCount: number;
+  followUpsCount: number;
+  messagesCount: number;
+  templatesCount: number;
+  totalRecords: number;
+}
+
+const nextBackupTab = (current: BackupTab, key: string): BackupTab | null => {
+  const index = TAB_ORDER.indexOf(current);
+  if (key === 'ArrowRight') return TAB_ORDER[(index + 1) % TAB_ORDER.length];
+  if (key === 'ArrowLeft') return TAB_ORDER[(index - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+  if (key === 'Home') return TAB_ORDER[0];
+  if (key === 'End') return TAB_ORDER[TAB_ORDER.length - 1];
+  return null;
+};
+
+const formatLogDate = (isoString: string): string => {
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const tabButtonClass = (selected: boolean): string =>
+  'min-h-11 py-2 px-3.5 text-sm font-bold border-b-2 flex items-center gap-1.5 transition-colors ' +
+  (selected
+    ? 'border-accent text-accent-text bg-surface rounded-t-xl'
+    : 'border-transparent text-soft hover:text-ink');
+
+interface BackupTabNavigationProps {
+  activeTab: BackupTab;
+  onSelect: (tab: BackupTab) => void;
+  onKeyDown: (event: React.KeyboardEvent, tab: BackupTab) => void;
+  registerRef: (tab: BackupTab, element: HTMLButtonElement | null) => void;
+}
+
+const BackupTabNavigation: React.FC<BackupTabNavigationProps> = ({
+  activeTab,
+  onSelect,
+  onKeyDown,
+  registerRef,
+}) => (
+  <div
+    role="tablist"
+    aria-label="Backup and restore sections"
+    className="flex border-b border-line bg-inset px-4 pt-2 -mx-4 -mt-4 mb-4"
+  >
+    {[
+      { id: 'EXPORT' as BackupTab, label: 'Export Backup', icon: Download },
+      { id: 'RESTORE' as BackupTab, label: 'Restore Backup', icon: Upload },
+      { id: 'HISTORY' as BackupTab, label: 'History', icon: History },
+    ].map(({ id, label, icon: Icon }) => (
+      <button
+        key={id}
+        ref={(element) => registerRef(id, element)}
+        type="button"
+        role="tab"
+        id={'backup-tab-' + id.toLowerCase()}
+        aria-selected={activeTab === id}
+        aria-controls={'backup-panel-' + id.toLowerCase()}
+        tabIndex={activeTab === id ? 0 : -1}
+        onClick={() => onSelect(id)}
+        onKeyDown={(event) => onKeyDown(event, id)}
+        className={tabButtonClass(activeTab === id)}
+      >
+        <Icon className="w-4 h-4" aria-hidden="true" />
+        <span>{label}</span>
+      </button>
+    ))}
+  </div>
+);
+
+const BackupStatusMessages: React.FC<{
+  errorMessage: string | null;
+  successMessage: string | null;
+}> = ({ errorMessage, successMessage }) => (
+  <>
+    {errorMessage && (
+      <div
+        role="alert"
+        className="p-3 bg-danger-soft border border-danger rounded-xl text-sm text-danger-text flex items-start gap-2 animate-in fade-in"
+      >
+        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        <span className="whitespace-pre-wrap">{errorMessage}</span>
+      </div>
+    )}
+    {successMessage && (
+      <div
+        role="status"
+        className="p-3 bg-success-soft border border-success rounded-xl text-sm text-success-text flex items-start gap-2 animate-in fade-in"
+      >
+        <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        <span>{successMessage}</span>
+      </div>
+    )}
+  </>
+);
+
+interface ExportBackupPanelProps {
+  active: boolean;
+  dbSummary: DatabaseSummary | null;
+  isProcessing: boolean;
+  loadingSummary: boolean;
+  onExport: () => void;
+}
+
+const ExportBackupPanel: React.FC<ExportBackupPanelProps> = ({
+  active,
+  dbSummary,
+  isProcessing,
+  loadingSummary,
+  onExport,
+}) => {
+  if (!active) return null;
+  return (
+    <div
+      role="tabpanel"
+      id="backup-panel-export"
+      aria-labelledby="backup-tab-export"
+      className="space-y-4"
+    >
+      <div className="p-3.5 bg-inset rounded-2xl border border-line space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-ink">Current Local Database State</span>
+          <span className="text-xs text-soft font-semibold">
+            {dbSummary?.totalRecords || 0} Total Records
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center text-sm">
+          {[
+            { label: 'Leads', value: dbSummary?.leadsCount },
+            { label: 'Calls', value: dbSummary?.callsCount },
+            { label: 'Remarks', value: dbSummary?.remarksCount },
+            { label: 'Follow-ups', value: dbSummary?.followUpsCount },
+            { label: 'Messages', value: dbSummary?.messagesCount },
+            { label: 'Templates', value: dbSummary?.templatesCount },
+          ].map((cell) => (
+            <div key={cell.label} className="bg-surface p-2 rounded-xl border border-line">
+              <span className="text-xs text-faint font-bold block uppercase">{cell.label}</span>
+              <span className="text-base font-black text-ink">{cell.value || 0}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="p-3 bg-info-soft border border-info rounded-xl text-sm text-info-text space-y-1">
+        <div className="flex items-center gap-1.5 font-bold">
+          <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+          <span>Full Offline Preservation</span>
+        </div>
+        <p className="text-xs leading-relaxed">
+          Exporting creates a versioned JSON snapshot containing all gym leads, call records,
+          sales notes, scheduled follow-ups, WhatsApp logs, and pitch templates.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onExport}
+        disabled={isProcessing || loadingSummary}
+        className="min-h-11 w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+      >
+        {isProcessing ? (
+          <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <Download className="w-4 h-4" aria-hidden="true" />
+        )}
+        <span>Download CRM Backup File (.json)</span>
+      </button>
+    </div>
+  );
+};
+
+const BackupHistoryPanel: React.FC<{
+  active: boolean;
+  auditLogs: BackupAuditLog[];
+}> = ({ active, auditLogs }) => {
+  if (!active) return null;
+  return (
+    <div
+      role="tabpanel"
+      id="backup-panel-history"
+      aria-labelledby="backup-tab-history"
+      className="space-y-2.5"
+    >
+      {auditLogs.length === 0 ? (
+        <div className="text-center py-8 text-sm text-faint">
+          No backup or restore operations logged yet.
+        </div>
+      ) : (
+        auditLogs.map((log) => (
+          <div
+            key={log.id}
+            className="p-3 bg-inset rounded-xl border border-line space-y-1 text-sm"
+          >
+            <div className="flex items-center justify-between">
+              <span
+                className={'text-xs font-bold px-2 py-0.5 rounded-full border ' +
+                  (log.status === 'SUCCESS'
+                    ? 'bg-success-soft text-success-text border-success'
+                    : 'bg-danger-soft text-danger-text border-danger')}
+              >
+                {labelFor(log.operation)} • {labelFor(log.status)}
+              </span>
+              <span className="text-xs text-faint font-mono">
+                {formatLogDate(log.timestamp)}
+              </span>
+            </div>
+            <p className="text-soft font-medium">{log.summaryText}</p>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
 export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   isOpen,
   onClose,
@@ -42,15 +262,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 }) => {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<BackupTab>('EXPORT');
-  const [dbSummary, setDbSummary] = useState<{
-    leadsCount: number;
-    remarksCount: number;
-    callsCount: number;
-    followUpsCount: number;
-    messagesCount: number;
-    templatesCount: number;
-    totalRecords: number;
-  } | null>(null);
+  const [dbSummary, setDbSummary] = useState<DatabaseSummary | null>(null);
 
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,17 +312,11 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   }, [isOpen]);
 
   const handleTabKeyDown = (e: React.KeyboardEvent, id: BackupTab) => {
-    const idx = TAB_ORDER.indexOf(id);
-    let next: BackupTab | null = null;
-    if (e.key === 'ArrowRight') next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
-    else if (e.key === 'ArrowLeft') next = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
-    else if (e.key === 'Home') next = TAB_ORDER[0];
-    else if (e.key === 'End') next = TAB_ORDER[TAB_ORDER.length - 1];
-    if (next) {
-      e.preventDefault();
-      setActiveTab(next);
-      tabRefs.current[next]?.focus();
-    }
+    const next = nextBackupTab(id, e.key);
+    if (!next) return;
+    e.preventDefault();
+    setActiveTab(next);
+    tabRefs.current[next]?.focus();
   };
 
   const handleExportBackup = async () => {
@@ -128,9 +334,9 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         `Backup saved successfully as "${filename}" (${(jsonStr.length / 1024).toFixed(1)} KB).`
       );
       await loadSummaryAndHistory();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Export failed:', err);
-      setErrorMessage(err.message || 'Failed to generate backup.');
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to generate backup.');
     } finally {
       setIsProcessing(false);
     }
@@ -145,6 +351,14 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
     setSuccessMessage(null);
     setMergeResult(null);
 
+    const sizeError = BackupService.validateRestoreFileSize(file.size);
+    if (sizeError) {
+      setValidationResult(null);
+      setErrorMessage(sizeError);
+      e.target.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -154,8 +368,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         if (!res.isValid) {
           setErrorMessage(`Invalid Backup File:\n${res.errors.slice(0, 3).join('\n')}`);
         }
-      } catch (err: any) {
-        setErrorMessage(`Failed to read backup file: ${err.message}`);
+      } catch (err: unknown) {
+        setErrorMessage(`Failed to read backup file: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
     reader.readAsText(file);
@@ -175,9 +389,9 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
       );
       await loadSummaryAndHistory();
       onDatabaseChanged();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Merge restore failed:', err);
-      setErrorMessage(err.message || 'Merge restore failed.');
+      setErrorMessage(err instanceof Error ? err.message : 'Merge restore failed.');
     } finally {
       setIsProcessing(false);
     }
@@ -202,30 +416,13 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
       );
       await loadSummaryAndHistory();
       onDatabaseChanged();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Replace restore failed:', err);
-      setErrorMessage(err.message || 'Replace restore failed.');
+      setErrorMessage(err instanceof Error ? err.message : 'Replace restore failed.');
     } finally {
       setIsProcessing(false);
     }
   };
-
-  const formatLogDate = (isoString: string) => {
-    const d = new Date(isoString);
-    return d.toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const tabButtonClass = (selected: boolean) =>
-    `min-h-11 py-2 px-3.5 text-sm font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
-      selected
-        ? 'border-accent text-accent-text bg-surface rounded-t-xl'
-        : 'border-transparent text-soft hover:text-ink'
-    }`;
 
   return (
     <Modal
@@ -242,122 +439,34 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
       }
     >
       {/* Tab Navigation */}
-      <div
-        role="tablist"
-        aria-label="Backup and restore sections"
-        className="flex border-b border-line bg-inset px-4 pt-2 -mx-4 -mt-4 mb-4"
-      >
-        {[
-          { id: 'EXPORT' as BackupTab, label: 'Export Backup', icon: Download },
-          { id: 'RESTORE' as BackupTab, label: 'Restore Backup', icon: Upload },
-          { id: 'HISTORY' as BackupTab, label: 'History', icon: History },
-        ].map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            ref={(el) => {
-              tabRefs.current[id] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`backup-tab-${id.toLowerCase()}`}
-            aria-selected={activeTab === id}
-            aria-controls={`backup-panel-${id.toLowerCase()}`}
-            tabIndex={activeTab === id ? 0 : -1}
-            onClick={() => {
-              setActiveTab(id);
-              setErrorMessage(null);
-              setSuccessMessage(null);
-            }}
-            onKeyDown={(e) => handleTabKeyDown(e, id)}
-            className={tabButtonClass(activeTab === id)}
-          >
-            <Icon className="w-4 h-4" aria-hidden="true" />
-            <span>{label}</span>
-          </button>
-        ))}
-      </div>
+      <BackupTabNavigation
+        activeTab={activeTab}
+        onSelect={(tab) => {
+          setActiveTab(tab);
+          setErrorMessage(null);
+          setSuccessMessage(null);
+        }}
+        onKeyDown={handleTabKeyDown}
+        registerRef={(tab, element) => {
+          tabRefs.current[tab] = element;
+        }}
+      />
 
       {/* Modal Body */}
       <div className="space-y-4">
-        {errorMessage && (
-          <div
-            role="alert"
-            className="p-3 bg-danger-soft border border-danger rounded-xl text-sm text-danger-text flex items-start gap-2 animate-in fade-in"
-          >
-            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <span className="whitespace-pre-wrap">{errorMessage}</span>
-          </div>
-        )}
-
-        {successMessage && (
-          <div
-            role="status"
-            className="p-3 bg-success-soft border border-success rounded-xl text-sm text-success-text flex items-start gap-2 animate-in fade-in"
-          >
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <span>{successMessage}</span>
-          </div>
-        )}
+        <BackupStatusMessages
+          errorMessage={errorMessage}
+          successMessage={successMessage}
+        />
 
         {/* TAB 1: EXPORT BACKUP */}
-        {activeTab === 'EXPORT' && (
-          <div
-            role="tabpanel"
-            id="backup-panel-export"
-            aria-labelledby="backup-tab-export"
-            className="space-y-4"
-          >
-            <div className="p-3.5 bg-inset rounded-2xl border border-line space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-ink">Current Local Database State</span>
-                <span className="text-xs text-soft font-semibold">
-                  {dbSummary?.totalRecords || 0} Total Records
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                {[
-                  { label: 'Leads', value: dbSummary?.leadsCount },
-                  { label: 'Calls', value: dbSummary?.callsCount },
-                  { label: 'Remarks', value: dbSummary?.remarksCount },
-                  { label: 'Follow-ups', value: dbSummary?.followUpsCount },
-                  { label: 'Messages', value: dbSummary?.messagesCount },
-                  { label: 'Templates', value: dbSummary?.templatesCount },
-                ].map((cell) => (
-                  <div key={cell.label} className="bg-surface p-2 rounded-xl border border-line">
-                    <span className="text-xs text-faint font-bold block uppercase">{cell.label}</span>
-                    <span className="text-base font-black text-ink">{cell.value || 0}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-3 bg-info-soft border border-info rounded-xl text-sm text-info-text space-y-1">
-              <div className="flex items-center gap-1.5 font-bold">
-                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-                <span>Full Offline Preservation</span>
-              </div>
-              <p className="text-xs leading-relaxed">
-                Exporting creates a versioned JSON snapshot containing all gym leads, call records,
-                sales notes, scheduled follow-ups, WhatsApp logs, and pitch templates.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleExportBackup}
-              disabled={isProcessing || loadingSummary}
-              className="min-h-11 w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isProcessing ? (
-                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Download className="w-4 h-4" aria-hidden="true" />
-              )}
-              <span>Download CRM Backup File (.json)</span>
-            </button>
-          </div>
-        )}
+        <ExportBackupPanel
+          active={activeTab === 'EXPORT'}
+          dbSummary={dbSummary}
+          isProcessing={isProcessing}
+          loadingSummary={loadingSummary}
+          onExport={() => void handleExportBackup()}
+        />
 
         {/* TAB 2: RESTORE BACKUP */}
         {activeTab === 'RESTORE' && (
@@ -529,43 +638,11 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         )}
 
         {/* TAB 3: BACKUP HISTORY */}
-        {activeTab === 'HISTORY' && (
-          <div
-            role="tabpanel"
-            id="backup-panel-history"
-            aria-labelledby="backup-tab-history"
-            className="space-y-2.5"
-          >
-            {auditLogs.length === 0 ? (
-              <div className="text-center py-8 text-sm text-faint">
-                No backup or restore operations logged yet.
-              </div>
-            ) : (
-              auditLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-3 bg-inset rounded-xl border border-line space-y-1 text-sm"
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                        log.status === 'SUCCESS'
-                          ? 'bg-success-soft text-success-text border-success'
-                          : 'bg-danger-soft text-danger-text border-danger'
-                      }`}
-                    >
-                      {labelFor(log.operation)} • {labelFor(log.status)}
-                    </span>
-                    <span className="text-xs text-faint font-mono">
-                      {formatLogDate(log.timestamp)}
-                    </span>
-                  </div>
-                  <p className="text-soft font-medium">{log.summaryText}</p>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        <BackupHistoryPanel
+          active={activeTab === 'HISTORY'}
+          auditLogs={auditLogs}
+        />
+
       </div>
     </Modal>
   );

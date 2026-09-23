@@ -114,6 +114,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
             type="button"
             onClick={signOut}
             aria-label="Sign out"
+            id="admin-sign-out-button"
             className="min-w-11 min-h-11 flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-inset hover:bg-danger-soft hover:text-danger-text hover:border-danger text-soft text-sm font-semibold border border-line transition-all active:scale-95"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />

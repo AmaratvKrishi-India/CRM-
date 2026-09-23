@@ -14,8 +14,10 @@ async function expectNoAccessibilityViolations(page: Page, surface: string): Pro
 
 test.describe('Accessibility Tests', () => {
   test('login page accessibility check', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await setupAuthMocks(page);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Login page');
@@ -23,21 +25,23 @@ test.describe('Accessibility Tests', () => {
 
   test('login page accessibility check - mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await setupAuthMocks(page);
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Login page (mobile)');
   });
 
   test('agent dashboard accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Agent dashboard');
@@ -45,36 +49,35 @@ test.describe('Accessibility Tests', () => {
 
   test('agent dashboard accessibility check - mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
-    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Agent dashboard (mobile)');
   });
 
   test('leads list accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
     await page.getByRole('tab', { name: /Leads/i }).click();
-    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Leads list');
   });
 
   test('create lead modal accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -86,42 +89,42 @@ test.describe('Accessibility Tests', () => {
     const modal = page.locator('[role="dialog"]').first();
     await expect(modal).toBeVisible();
     await page.waitForTimeout(300);
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Create lead modal');
   });
 
   test('admin dashboard accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_ADMIN);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_ADMIN.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 15000 });
-    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Admin dashboard');
   });
 
   test('follow-ups tab accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
     await page.getByRole('tab', { name: /Follow-ups/i }).click();
-    await page.waitForLoadState('networkidle');
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Follow-ups tab');
   });
 
   test('Settings modal accessibility check (admin)', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_ADMIN);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_ADMIN.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 15000 });
@@ -137,15 +140,15 @@ test.describe('Accessibility Tests', () => {
     await settingsBtn.click();
     
     await expect(page.getByRole('dialog', { name: /Settings & Pitch Templates/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Settings modal');
   });
 
   test('Settings modal Preferences tab accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_ADMIN);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_ADMIN.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 15000 });
@@ -162,15 +165,15 @@ test.describe('Accessibility Tests', () => {
     
     await expect(page.getByRole('dialog', { name: /Settings & Pitch Templates/i })).toBeVisible();
     await page.getByRole('tab', { name: /Preferences/i }).click();
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
     await injectAxe(page);
     
     await expectNoAccessibilityViolations(page, 'Settings modal Preferences tab');
   });
 
   test('WhatsApp modal accessibility check', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -195,7 +198,8 @@ test.describe('Accessibility Tests', () => {
     if (await whatsappBtn.isVisible()) {
       await whatsappBtn.click();
       await expect(page.getByText(/WhatsApp|Catalogue|Message Template/i).first()).toBeVisible();
-      await injectAxe(page);
+      await expect(page.getByRole('button', { name: 'Sign In', exact: true }).or(page.getByRole('tab', { name: /Dashboard|Reports/i }).first())).toBeVisible();
+    await injectAxe(page);
       
       await expectNoAccessibilityViolations(page, 'WhatsApp modal');
     }

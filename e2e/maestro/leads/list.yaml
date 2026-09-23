@@ -1,5 +1,5 @@
 # Leads List - View and Navigate
-# Tests viewing the leads list as an agent
+# Agent can search/open a seeded lead and return to the list.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,49 +7,45 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
-- waitFor:
-    id: "leads-list"
-    timeout: 5000
-
-- assertVisible:
-    id: "leads-list"
-
-- # Verify lead items are visible
-- assertVisible:
-    id: "lead-item-0"
-
-- # Tap on a lead to view details
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
 - tapOn:
-    id: "lead-item-0"
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
-    id: "lead-detail"
-    timeout: 3000
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
+- tapOn:
+    id: "app-tab-LEADS"
+- tapOn:
+    id: "leads-search"
+- inputText: "Gold Gym Hazratganj"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 60000
+- tapOn:
+    id: "lead-item-.*"
 
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
 - assertVisible:
-    id: "lead-name"
-
-- assertVisible:
-    id: "lead-phone"
-
-- # Go back
+    text: ".*Gold Gym Hazratganj.*"
+- assertVisible: ".*\\+919876543210.*"
 - tapOn:
     id: "back-button"
-
-- waitFor:
-    id: "leads-list"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 60000

@@ -1,19 +1,25 @@
 #!/usr/bin/env tsx
 /**
  * Regional Compliance Accessibility Test Script
- * Uses a11y-guard for region-aware WCAG compliance (ADA, EAA, Section 508, AODA, etc.)
- * Generates SARIF output for CI integration
+ *
+ * The original version called an npm package named a11y-guard, which is not
+ * published and cannot be resolved. This implementation keeps the regional
+ * reporting contract but uses the project-local axe engine against a local
+ * app URL. The region labels classify the applicable standards; axe findings
+ * are WCAG evidence and are not legal certification for any jurisdiction.
  */
 
 import { program } from 'commander';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { dirname, join } from 'path';
-import { spawnSync } from 'child_process';
+import { mkdirSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { chromium, type Browser } from 'playwright';
+import { AxeBuilder } from '@axe-core/playwright';
 
 program
-  .option('-p, --pattern <glob>', 'File pattern to analyze', 'src/**/*.tsx')
+  .option('-p, --pattern <glob>', 'Source pattern recorded with the audit', 'src/**/*.tsx')
   .option('-r, --regions <regions>', 'Comma-separated regions: US,EU,CA,UK,AU,DE,FR,BR,JP,IL', 'US,EU')
   .option('-o, --output <dir>', 'Output directory', 'test-results/a11y-regional')
+  .option('--url <url>', 'Local URL to scan', process.env.REGIONAL_A11Y_URL || 'http://127.0.0.1:4174/')
   .option('--format <type>', 'Output format: sarif, json', 'sarif')
   .parse(process.argv);
 
@@ -24,6 +30,7 @@ interface RegionalA11yResult {
   config: {
     pattern: string;
     regions: string[];
+    url: string;
   };
   results: RegionResult[];
   summary: {
@@ -54,173 +61,173 @@ interface RegionalViolation {
 }
 
 const REGION_STANDARDS: Record<string, string[]> = {
-  'US': ['ADA', 'Section508'],
-  'EU': ['EAA', 'EN301549'],
-  'CA': ['ACA', 'AODA'],
-  'UK': ['EqualityAct', 'BS8878'],
-  'AU': ['DDA', 'AS EN 301 549'],
-  'DE': ['BGG', 'BITV'],
-  'FR': ['RGAA'],
-  'BR': ['LBI', 'Decree5296'],
-  'JP': ['JIS X 8341-3'],
-  'IL': ['IS 5568'],
+  US: ['ADA', 'Section508'],
+  EU: ['EAA', 'EN301549'],
+  CA: ['ACA', 'AODA'],
+  UK: ['EqualityAct', 'BS8878'],
+  AU: ['DDA', 'AS EN 301 549'],
+  DE: ['BGG', 'BITV'],
+  FR: ['RGAA'],
+  BR: ['LBI', 'Decree5296'],
+  JP: ['JIS X 8341-3'],
+  IL: ['IS 5568'],
 };
 
-async function runA11yGuard(region: string, pattern: string, outputDir: string): Promise<RegionalViolation[]> {
+function severityForImpact(impact: string | null | undefined): RegionalViolation['severity'] {
+  if (impact === 'critical' || impact === 'serious') return 'error';
+  if (impact === 'moderate') return 'warning';
+  return 'info';
+}
+
+function executionErrorViolation(region: string, standards: string[], error: unknown): RegionalViolation {
+  const message = error instanceof Error ? error.message : String(error);
+  return {
+    ruleId: 'execution-error',
+    message: 'Failed to run local axe scan for ' + region + ': ' + message,
+    severity: 'error',
+    file: '',
+    line: 0,
+    column: 0,
+    standard: standards.join(', '),
+    criterion: '',
+  };
+}
+
+function writeSarif(outputFile: string, url: string, violations: RegionalViolation[]): void {
+  const results = violations.map((violation) => ({
+    ruleId: violation.ruleId,
+    level: violation.severity === 'error' ? 'error' : violation.severity === 'warning' ? 'warning' : 'note',
+    message: { text: violation.message },
+    locations: [{
+      physicalLocation: {
+        artifactLocation: { uri: violation.file || url },
+        region: { startLine: violation.line || 1, startColumn: violation.column || 1 },
+      },
+    }],
+  }));
+
+  writeFileSync(outputFile, JSON.stringify({
+    version: '2.1.0',
+    $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+    runs: [{
+      tool: {
+        driver: {
+          name: '@axe-core/playwright',
+          informationUri: 'https://github.com/dequelabs/axe-core-npm',
+        },
+      },
+      results,
+    }],
+  }, null, 2));
+}
+
+async function runRegionalAxe(
+  browser: Browser,
+  region: string,
+  url: string,
+  outputDir: string,
+): Promise<RegionalViolation[]> {
   const standards = REGION_STANDARDS[region] || ['WCAG21AA'];
-  const standardArg = standards.join(',');
+  const outputFile = join(outputDir, 'a11y-guard-' + region.toLowerCase() + '.sarif');
+  const locale = region === 'US'
+    ? 'en-US'
+    : region === 'UK'
+      ? 'en-GB'
+      : region === 'CA'
+        ? 'en-CA'
+        : 'en';
+  const context = await browser.newContext({ locale });
+  const page = await context.newPage();
 
   try {
-    // region is validated against REGION_STANDARDS in main(); outputDir is an explicit local CLI destination.
-    const outputFile = join(outputDir, `a11y-guard-${region.toLowerCase()}.sarif`); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
-    
-    // Run a11y-guard without a shell so CLI-controlled values remain literal arguments.
-    const npmExecPath = process.env.npm_execpath;
-    const candidates = [
-      npmExecPath ? join(dirname(npmExecPath), 'npx-cli.js') : '',
-      join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js'),
-      join(dirname(dirname(process.execPath)), 'lib', 'node_modules', 'npm', 'bin', 'npx-cli.js'),
-    ].filter(Boolean);
-    const npxCli = candidates.find((candidate) => existsSync(candidate));
-    if (!npxCli) throw new Error('Unable to locate npm npx-cli.js');
-
-    const args = [
-      npxCli,
-      'a11y-guard',
-      'scan',
-      pattern,
-      `--region=${region}`,
-      `--standard=${standardArg}`,
-      '--format=sarif',
-      `--output=${outputFile}`,
-    ];
-
-    console.log(`Running a11y-guard for ${region}`);
-    const child = spawnSync(process.execPath, args, {
-      stdio: 'pipe',
-      timeout: 120000,
-      encoding: 'utf8',
-      shell: false,
-    });
-    if (child.error) throw child.error;
-    if (child.status !== 0) {
-      throw new Error(child.stderr?.trim() || `a11y-guard exited with status ${child.status}`);
-    }
-
-    // Parse SARIF output
-    const sarifContent = require('fs').readFileSync(outputFile, 'utf-8');
-    const sarif = JSON.parse(sarifContent);
-
-    const violations: RegionalViolation[] = [];
-    
-    if (sarif.runs && sarif.runs[0] && sarif.runs[0].results) {
-      for (const result of sarif.runs[0].results) {
-        const locations = result.locations || [];
-        for (const location of locations) {
-          const physicalLocation = location.physicalLocation;
-          if (physicalLocation) {
-            violations.push({
-              ruleId: result.ruleId || 'unknown',
-              message: result.message?.text || 'Unknown violation',
-              severity: result.level === 'error' ? 'error' : result.level === 'warning' ? 'warning' : 'info',
-              file: physicalLocation.artifactLocation?.uri || 'unknown',
-              line: physicalLocation.region?.startLine || 0,
-              column: physicalLocation.region?.startColumn || 0,
-              standard: standards.join(', '),
-              criterion: result.ruleId || '',
-            });
-          }
-        }
-      }
-    }
-
-    return violations;
-  } catch (error) {
-    console.warn('a11y-guard failed for region %s: %s', region, error instanceof Error ? error.message : String(error));
-    return [{
-      ruleId: 'execution-error',
-      message: `Failed to run a11y-guard for ${region}: ${error instanceof Error ? error.message : String(error)}`,
-      severity: 'error',
-      file: '',
+    console.log('Running local axe scan for ' + region + ' (' + standards.join(', ') + ')');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.waitForTimeout(350);
+    const axeResult = await new AxeBuilder({ page }).analyze();
+    const violations = axeResult.violations.flatMap((violation) => violation.nodes.map((node) => ({
+      ruleId: violation.id,
+      message: violation.help + ': ' + (node.failureSummary || violation.description),
+      severity: severityForImpact(violation.impact),
+      file: url,
       line: 0,
       column: 0,
       standard: standards.join(', '),
-      criterion: '',
-    }];
+      criterion: violation.id,
+    })));
+    writeSarif(outputFile, url, violations);
+    return violations;
+  } catch (error) {
+    const violation = executionErrorViolation(region, standards, error);
+    writeSarif(outputFile, url, [violation]);
+    console.warn(violation.message);
+    return [violation];
+  } finally {
+    await context.close();
   }
 }
 
 async function main(): Promise<void> {
   const pattern = options.pattern;
-  const regions = options.regions.split(',').map((r: string) => r.trim().toUpperCase());
+  const regions = options.regions.split(',').map((region: string) => region.trim().toUpperCase());
+  const url = options.url;
   const invalidRegions = regions.filter((region: string) => !Object.prototype.hasOwnProperty.call(REGION_STANDARDS, region));
   if (invalidRegions.length > 0) {
-    throw new Error(`Unsupported accessibility region(s): ${invalidRegions.join(', ')}`);
+    throw new Error('Unsupported accessibility region(s): ' + invalidRegions.join(', '));
   }
+
   const outputDir = options.output;
-
-  console.log(`Starting regional accessibility compliance test`);
-  console.log(`Pattern: ${pattern}`);
-  console.log(`Regions: ${regions.join(', ')}`);
-
   mkdirSync(outputDir, { recursive: true });
 
+  console.log('Starting regional accessibility compliance test');
+  console.log('Pattern: ' + pattern);
+  console.log('Regions: ' + regions.join(', '));
+  console.log('URL: ' + url);
+
   const results: RegionResult[] = [];
+  const browser = await chromium.launch({ headless: true });
 
-  for (const region of regions) {
-    console.log(`\nTesting region: ${region} (${REGION_STANDARDS[region]?.join(', ') || 'WCAG21AA'})`);
-    
-    const violations = await runA11yGuard(region, pattern, outputDir);
-    
-    // Count unique files
-    const files = new Set(violations.map(v => v.file).filter(f => f));
-    
-    results.push({
-      region,
-      standard: REGION_STANDARDS[region]?.join(', ') || 'WCAG21AA',
-      violations,
-      filesAnalyzed: files.size,
-    });
+  try {
+    for (const region of regions) {
+      const standards = REGION_STANDARDS[region].join(', ');
+      console.log('\nTesting region: ' + region + ' (' + standards + ')');
+      const violations = await runRegionalAxe(browser, region, url, outputDir);
+      const files = new Set(violations.map((violation) => violation.file).filter(Boolean));
+      const executionFailed = violations.some((violation) => violation.ruleId === 'execution-error');
+      const filesAnalyzed = executionFailed ? 0 : Math.max(files.size, 1);
 
-    console.log(`  Files analyzed: ${files.size}`);
-    console.log(`  Violations: ${violations.length}`);
-    
-    const bySeverity = violations.reduce((acc, v) => {
-      acc[v.severity] = (acc[v.severity] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    console.log(`  By severity: ${JSON.stringify(bySeverity)}`);
+      results.push({
+        region,
+        standard: standards,
+        violations,
+        filesAnalyzed,
+      });
+
+      console.log('  Files analyzed: ' + filesAnalyzed);
+      console.log('  Violations: ' + violations.length);
+    }
+  } finally {
+    await browser.close();
   }
 
-  // Calculate summary
-  const totalFiles = new Set(results.flatMap(r => r.violations.map(v => v.file).filter(f => f))).size;
-  const totalViolations = results.reduce((sum, r) => sum + r.violations.length, 0);
-  
-  const violationsByRegion = results.reduce((acc, r) => {
-    acc[r.region] = r.violations.length;
+  const totalFiles = results.reduce((sum, result) => sum + result.filesAnalyzed, 0);
+  const totalViolations = results.reduce((sum, result) => sum + result.violations.length, 0);
+  const violationsByRegion = results.reduce((acc, result) => {
+    acc[result.region] = result.violations.length;
     return acc;
   }, {} as Record<string, number>);
-
-  const violationsByStandard = results.flatMap(r => r.violations).reduce((acc, v) => {
-    const standards = v.standard.split(', ').map(s => s.trim());
-    standards.forEach(s => {
-      acc[s] = (acc[s] || 0) + 1;
+  const violationsByStandard = results.flatMap((result) => result.violations).reduce((acc, violation) => {
+    violation.standard.split(', ').forEach((standard) => {
+      acc[standard] = (acc[standard] || 0) + 1;
     });
     return acc;
   }, {} as Record<string, number>);
-
-  const errorCount = results.flatMap(r => r.violations).filter(v => v.severity === 'error').length;
-  const warningCount = results.flatMap(r => r.violations).filter(v => v.severity === 'warning').length;
-  
-  // Pass if no errors across all regions
+  const errorCount = results.flatMap((result) => result.violations).filter((violation) => violation.severity === 'error').length;
+  const warningCount = results.flatMap((result) => result.violations).filter((violation) => violation.severity === 'warning').length;
   const passed = errorCount === 0;
 
   const output: RegionalA11yResult = {
     timestamp: new Date().toISOString(),
-    config: {
-      pattern,
-      regions,
-    },
+    config: { pattern, regions, url },
     results,
     summary: {
       totalFiles,
@@ -231,30 +238,19 @@ async function main(): Promise<void> {
     },
   };
 
-  // Write combined results
-  const combinedOutputFile = join(outputDir, 'a11y-regional-combined.json');
-  writeFileSync(combinedOutputFile, JSON.stringify(output, null, 2));
-
-  // Print summary
+  writeFileSync(join(outputDir, 'a11y-regional-combined.json'), JSON.stringify(output, null, 2));
   console.log('\n=== REGIONAL ACCESSIBILITY COMPLIANCE RESULTS ===');
-  console.log(`Regions tested: ${regions.join(', ')}`);
-  console.log(`Files analyzed: ${totalFiles}`);
-  console.log(`Total violations: ${totalViolations}`);
-  console.log(`  Errors: ${errorCount}`);
-  console.log(`  Warnings: ${warningCount}`);
-  console.log(`\nBy Region:`);
-  Object.entries(violationsByRegion).forEach(([region, count]) => {
-    console.log(`  ${region}: ${count}`);
-  });
-  console.log(`\nBy Standard:`);
-  Object.entries(violationsByStandard).forEach(([standard, count]) => {
-    console.log(`  ${standard}: ${count}`);
-  });
-  console.log(`\nOverall: ${passed ? '✅ PASSED' : '❌ FAILED'}`);
+  console.log('Regions tested: ' + regions.join(', '));
+  console.log('Files analyzed: ' + totalFiles);
+  console.log('Total violations: ' + totalViolations);
+  console.log('  Errors: ' + errorCount);
+  console.log('  Warnings: ' + warningCount);
+  console.log('Overall: ' + (passed ? 'PASSED' : 'FAILED'));
 
-  if (!passed) {
-    process.exit(1);
-  }
+  if (!passed) process.exitCode = 1;
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

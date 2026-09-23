@@ -82,6 +82,139 @@ const formatSeconds = (seconds: number) => {
   return `${s}s`;
 };
 
+const LeadReportSection: React.FC<{ active: boolean; report: LeadReportData | null }> = ({ active, report }) => {
+  if (!active || !report) return null;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ReportKpiCard title="Total Leads" value={report.totalLeads} subtitle={`${report.assignedLeads} Assigned`} icon={TrendingUp} color="blue" />
+        <ReportKpiCard title="Converted Customers" value={report.convertedCustomers} subtitle={`${report.conversionPercentage}% Conversion Rate`} icon={Award} color="emerald" />
+        <ReportKpiCard title="New Leads" value={report.statusBreakdown.NEW} subtitle="Awaiting first contact" icon={Flame} color="purple" />
+        <ReportKpiCard title="Unassigned Leads" value={report.unassignedLeads} subtitle="Territory pool" icon={Users} color="amber" />
+      </div>
+      <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-soft">Lead Status Distribution</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {Object.entries(report.statusBreakdown).map(([status, count]) => (
+            <div key={status} className="p-2.5 bg-inset rounded-xl border border-line text-center">
+              <span className="text-xs uppercase font-bold text-soft block truncate">{labelFor(status)}</span>
+              <span className="text-base font-black text-ink">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CallReportSection: React.FC<{ active: boolean; report: CallReportData | null }> = ({ active, report }) => {
+  if (!active || !report) return null;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ReportKpiCard title="Total Calls" value={report.totalCalls} subtitle={`${report.verifiedCalls} Verified`} icon={PhoneCall} color="emerald" />
+        <ReportKpiCard title="Verified Talk Time" value={formatSeconds(report.verifiedTalkTimeSeconds)} subtitle="Zero fake duration" icon={Clock} color="purple" />
+        <ReportKpiCard title="Avg Verified Duration" value={formatSeconds(report.averageVerifiedDurationSeconds)} subtitle="Per verified connection" icon={CheckCircle2} color="blue" />
+        <ReportKpiCard title="Longest Call" value={formatSeconds(report.longestVerifiedDurationSeconds)} subtitle="Top duration" icon={Award} color="amber" />
+      </div>
+      <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-soft">Call Outcome Distribution</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {Object.entries(report.callsByOutcome).map(([outcome, count]) => (
+            <div key={outcome} className="p-2.5 bg-inset rounded-xl border border-line text-center">
+              <span className="text-xs uppercase font-bold text-soft block truncate">{labelFor(outcome)}</span>
+              <span className="text-base font-black text-ink">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-soft">Verified Talk Time by Sales Representative</h3>
+        <div className="space-y-2">
+          {report.talkTimeByAgent.map((stat) => (
+            <div key={stat.agentId} className="p-3 bg-inset rounded-xl flex items-center justify-between text-sm">
+              <div>
+                <span className="font-bold text-ink block">{stat.agentName}</span>
+                <span className="text-xs text-soft">Avg: {formatSeconds(stat.avgVerifiedDurationSeconds)}</span>
+              </div>
+              <span className="font-black text-accent-text text-sm">{formatSeconds(stat.verifiedTalkTimeSeconds)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FollowUpReportSection: React.FC<{ active: boolean; report: FollowUpReportData | null }> = ({ active, report }) => {
+  if (!active || !report) return null;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <ReportKpiCard
+          title="Total Follow-ups"
+          value={report.totalFollowUps}
+          subtitle={`${report.completionPercentage}% Completed`}
+          icon={Calendar}
+          color="blue"
+        />
+        <ReportKpiCard
+          title="Completed"
+          value={report.completed}
+          subtitle="Successfully concluded"
+          icon={CheckCircle2}
+          color="emerald"
+        />
+        <ReportKpiCard
+          title="Today's Reminders"
+          value={report.today}
+          subtitle="Action required"
+          icon={Flame}
+          color="amber"
+        />
+        <ReportKpiCard
+          title="Overdue"
+          value={report.overdue}
+          subtitle={`${report.overduePercentage}% Overdue`}
+          icon={AlertCircle}
+          color="rose"
+        />
+      </div>
+    </div>
+  );
+};
+
+const WhatsAppReportSection: React.FC<{ active: boolean; report: WhatsAppReportData | null }> = ({ active, report }) => {
+  if (!active || !report) return null;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <ReportKpiCard
+          title="WhatsApp Initiated"
+          value={report.totalInitiated}
+          subtitle="Templates dispatched"
+          icon={MessageSquare}
+          color="emerald"
+        />
+        <ReportKpiCard
+          title="Landlines Guarded"
+          value={report.landlinePreventedCount}
+          subtitle="0522 guard protected"
+          icon={ShieldCheck}
+          color="blue"
+        />
+        <ReportKpiCard
+          title="Top Template"
+          value={report.mostUsedTemplateName || 'None'}
+          subtitle="Most utilized pitch"
+          icon={Award}
+          color="purple"
+        />
+      </div>
+    </div>
+  );
+};
+
 export const AdminReportsView: React.FC = () => {
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<ReportTab>('LEADS');
@@ -302,135 +435,10 @@ export const AdminReportsView: React.FC = () => {
           aria-labelledby={`report-tab-${activeTab.toLowerCase()}`}
         >
           {/* 1. LEAD REPORT */}
-          {activeTab === 'LEADS' && leadReport && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <ReportKpiCard
-                  title="Total Leads"
-                  value={leadReport.totalLeads}
-                  subtitle={`${leadReport.assignedLeads} Assigned`}
-                  icon={TrendingUp}
-                  color="blue"
-                />
-                <ReportKpiCard
-                  title="Converted Customers"
-                  value={leadReport.convertedCustomers}
-                  subtitle={`${leadReport.conversionPercentage}% Conversion Rate`}
-                  icon={Award}
-                  color="emerald"
-                />
-                <ReportKpiCard
-                  title="New Leads"
-                  value={leadReport.statusBreakdown.NEW}
-                  subtitle="Awaiting first contact"
-                  icon={Flame}
-                  color="purple"
-                />
-                <ReportKpiCard
-                  title="Unassigned Leads"
-                  value={leadReport.unassignedLeads}
-                  subtitle="Territory pool"
-                  icon={Users}
-                  color="amber"
-                />
-              </div>
-
-              {/* Status Breakdown Table */}
-              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
-                  Lead Status Distribution
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {Object.entries(leadReport.statusBreakdown).map(([status, count]) => (
-                    <div key={status} className="p-2.5 bg-inset rounded-xl border border-line text-center">
-                      <span className="text-xs uppercase font-bold text-soft block truncate">
-                        {labelFor(status)}
-                      </span>
-                      <span className="text-base font-black text-ink">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          <LeadReportSection active={activeTab === 'LEADS'} report={leadReport} />
 
           {/* 2. CALL REPORT */}
-          {activeTab === 'CALLS' && callReport && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <ReportKpiCard
-                  title="Total Calls"
-                  value={callReport.totalCalls}
-                  subtitle={`${callReport.verifiedCalls} Verified`}
-                  icon={PhoneCall}
-                  color="emerald"
-                />
-                <ReportKpiCard
-                  title="Verified Talk Time"
-                  value={formatSeconds(callReport.verifiedTalkTimeSeconds)}
-                  subtitle="Zero fake duration"
-                  icon={Clock}
-                  color="purple"
-                />
-                <ReportKpiCard
-                  title="Avg Verified Duration"
-                  value={formatSeconds(callReport.averageVerifiedDurationSeconds)}
-                  subtitle="Per verified connection"
-                  icon={CheckCircle2}
-                  color="blue"
-                />
-                <ReportKpiCard
-                  title="Longest Call"
-                  value={formatSeconds(callReport.longestVerifiedDurationSeconds)}
-                  subtitle="Top duration"
-                  icon={Award}
-                  color="amber"
-                />
-              </div>
-
-              {/* Outcome Breakdown */}
-              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
-                  Call Outcome Distribution
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {Object.entries(callReport.callsByOutcome).map(([outcome, count]) => (
-                    <div key={outcome} className="p-2.5 bg-inset rounded-xl border border-line text-center">
-                      <span className="text-xs uppercase font-bold text-soft block truncate">
-                        {labelFor(outcome)}
-                      </span>
-                      <span className="text-base font-black text-ink">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Talk Time by Agent */}
-              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
-                  Verified Talk Time by Sales Representative
-                </h3>
-                <div className="space-y-2">
-                  {callReport.talkTimeByAgent.map((stat) => (
-                    <div
-                      key={stat.agentId}
-                      className="p-3 bg-inset rounded-xl flex items-center justify-between text-sm"
-                    >
-                      <div>
-                        <span className="font-bold text-ink block">{stat.agentName}</span>
-                        <span className="text-xs text-soft">
-                          Avg: {formatSeconds(stat.avgVerifiedDurationSeconds)}
-                        </span>
-                      </div>
-                      <span className="font-black text-accent-text text-sm">
-                        {formatSeconds(stat.verifiedTalkTimeSeconds)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+          <CallReportSection active={activeTab === 'CALLS'} report={callReport} />
 
           {/* 3. AGENT PRODUCTIVITY REPORT */}
           {activeTab === 'PRODUCTIVITY' && (
@@ -489,69 +497,10 @@ export const AdminReportsView: React.FC = () => {
           )}
 
           {/* 4. FOLLOW-UP REPORT */}
-          {activeTab === 'FOLLOW_UPS' && followUpReport && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <ReportKpiCard
-                  title="Total Follow-ups"
-                  value={followUpReport.totalFollowUps}
-                  subtitle={`${followUpReport.completionPercentage}% Completed`}
-                  icon={Calendar}
-                  color="blue"
-                />
-                <ReportKpiCard
-                  title="Completed"
-                  value={followUpReport.completed}
-                  subtitle="Successfully concluded"
-                  icon={CheckCircle2}
-                  color="emerald"
-                />
-                <ReportKpiCard
-                  title="Today's Reminders"
-                  value={followUpReport.today}
-                  subtitle="Action required"
-                  icon={Flame}
-                  color="amber"
-                />
-                <ReportKpiCard
-                  title="Overdue"
-                  value={followUpReport.overdue}
-                  subtitle={`${followUpReport.overduePercentage}% Overdue`}
-                  icon={AlertCircle}
-                  color="rose"
-                />
-              </div>
-            </div>
-          )}
+          <FollowUpReportSection active={activeTab === 'FOLLOW_UPS'} report={followUpReport} />
 
           {/* 5. WHATSAPP REPORT */}
-          {activeTab === 'WHATSAPP' && whatsAppReport && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <ReportKpiCard
-                  title="WhatsApp Initiated"
-                  value={whatsAppReport.totalInitiated}
-                  subtitle="Templates dispatched"
-                  icon={MessageSquare}
-                  color="emerald"
-                />
-                <ReportKpiCard
-                  title="Landlines Guarded"
-                  value={whatsAppReport.landlinePreventedCount}
-                  subtitle="0522 guard protected"
-                  icon={ShieldCheck}
-                  color="blue"
-                />
-                <ReportKpiCard
-                  title="Top Template"
-                  value={whatsAppReport.mostUsedTemplateName || 'None'}
-                  subtitle="Most utilized pitch"
-                  icon={Award}
-                  color="purple"
-                />
-              </div>
-            </div>
-          )}
+          <WhatsAppReportSection active={activeTab === 'WHATSAPP'} report={whatsAppReport} />
 
           {/* 6. IMPORT REPORT */}
           {activeTab === 'IMPORTS' && importReport && (
@@ -600,7 +549,7 @@ export const AdminReportsView: React.FC = () => {
                       <div className="text-right">
                         <span className="font-bold text-success-text">+{imp.imported} leads</span>
                         <span className="text-xs text-faint block">
-                          {new Date(imp.completedAt).toLocaleDateString()}
+                          {imp.completedAt ? new Date(imp.completedAt).toLocaleDateString() : 'In progress'}
                         </span>
                       </div>
                     </div>

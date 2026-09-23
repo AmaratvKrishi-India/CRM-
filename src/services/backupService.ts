@@ -7,6 +7,7 @@
  */
 
 import type { SalesCRMDatabase } from '../db/database';
+import type { Table } from 'dexie';
 import type {
   Lead,
   Remark,
@@ -22,7 +23,7 @@ import type {
   BulkAssignmentAudit,
 } from '../db/types';
 import type { SyncState } from './sync/syncTypes';
-import { canAccessLead } from '../db/accessScope';
+import { canAccessLead, type AccessScope } from '../db/accessScope';
 
 export interface CRMBackupData {
   leads: Lead[];
@@ -146,9 +147,10 @@ export interface BackupAuditLog {
 }
 
 const BACKUP_HISTORY_STORAGE_KEY = 'amaratv_backup_audit_history';
+export const MAX_BACKUP_RESTORE_FILE_BYTES = 25 * 1024 * 1024;
 
 type FieldKind = 'string' | 'number' | 'boolean' | 'object' | 'timestamp' | 'syncFlag';
-type FieldRule = { kind: FieldKind; nullable?: boolean; optional?: boolean };
+type FieldRule = { kind: FieldKind; nullable?: boolean; optional?: boolean; allowEmpty?: boolean };
 type RecordRules = Record<string, FieldRule>;
 
 const SUPPORTED_BACKUP_COLLECTIONS = new Set([
@@ -169,10 +171,10 @@ const RECORD_RULES: Record<string, RecordRules> = {
   followUps: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, scheduledAt: { kind: 'timestamp' }, title: { kind: 'string' }, notes: { kind: 'string', nullable: true }, priority: { kind: 'string' }, status: { kind: 'string' }, completedAt: { kind: 'timestamp', nullable: true }, deletedAt: { kind: 'timestamp', nullable: true } },
   messageHistory: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, channel: { kind: 'string' }, templateId: { kind: 'string', nullable: true }, recipientPhone: { kind: 'string' }, messageContent: { kind: 'string' }, sentStatus: { kind: 'string' }, sentAt: { kind: 'timestamp' }, deletedAt: { kind: 'timestamp', nullable: true } },
   messageTemplates: { ...COMMON_RECORD_RULES, title: { kind: 'string' }, category: { kind: 'string' }, body: { kind: 'string' }, isDefault: { kind: 'boolean' }, deletedAt: { kind: 'timestamp', nullable: true } },
-  users: { ...COMMON_RECORD_RULES, organizationId: { kind: 'string', nullable: true }, name: { kind: 'string' }, email: { kind: 'string' }, phone: { kind: 'string' }, role: { kind: 'string' }, status: { kind: 'string' }, createdBy: { kind: 'string', nullable: true }, lastLoginAt: { kind: 'timestamp', nullable: true }, deletedAt: { kind: 'timestamp', nullable: true } },
+  users: { ...COMMON_RECORD_RULES, organizationId: { kind: 'string', nullable: true }, name: { kind: 'string' }, email: { kind: 'string' }, phone: { kind: 'string', allowEmpty: true }, role: { kind: 'string' }, status: { kind: 'string' }, createdBy: { kind: 'string', nullable: true }, lastLoginAt: { kind: 'timestamp', nullable: true }, deletedAt: { kind: 'timestamp', nullable: true } },
   activities: { ...COMMON_RECORD_RULES, leadId: { kind: 'string', nullable: true }, userId: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, activityType: { kind: 'string' }, metadata: { kind: 'object' }, deletedAt: { kind: 'timestamp', nullable: true } },
   callRecords: { ...COMMON_RECORD_RULES, leadId: { kind: 'string' }, userId: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, startedAt: { kind: 'timestamp' }, answeredAt: { kind: 'timestamp', nullable: true }, endedAt: { kind: 'timestamp', nullable: true }, durationSeconds: { kind: 'number' }, outcome: { kind: 'string' }, remark: { kind: 'string', nullable: true }, verificationStatus: { kind: 'string' }, deletedAt: { kind: 'timestamp', nullable: true } },
-  importAudits: { ...COMMON_RECORD_RULES, uploadedBy: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, filename: { kind: 'string' }, source: { kind: 'string' }, startedAt: { kind: 'timestamp' }, completedAt: { kind: 'timestamp' }, totalRows: { kind: 'number' }, imported: { kind: 'number' }, updated: { kind: 'number' }, duplicates: { kind: 'number' }, invalid: { kind: 'number' } },
+  importAudits: { ...COMMON_RECORD_RULES, uploadedBy: { kind: 'string', nullable: true }, deviceId: { kind: 'string', nullable: true }, filename: { kind: 'string' }, source: { kind: 'string' }, startedAt: { kind: 'timestamp' }, completedAt: { kind: 'timestamp', nullable: true }, totalRows: { kind: 'number' }, imported: { kind: 'number' }, updated: { kind: 'number' }, duplicates: { kind: 'number' }, invalid: { kind: 'number' } },
   outbox: { id: { kind: 'string' }, organizationId: { kind: 'string', nullable: true }, userId: { kind: 'string' }, deviceId: { kind: 'string', nullable: true }, entityType: { kind: 'string' }, entityId: { kind: 'string' }, operation: { kind: 'string' }, payload: { kind: 'object' }, createdAt: { kind: 'timestamp' }, updatedAt: { kind: 'timestamp' }, retryCount: { kind: 'number' }, lastAttemptAt: { kind: 'timestamp', nullable: true }, lastError: { kind: 'string', nullable: true }, status: { kind: 'string' } },
   syncState: { id: { kind: 'string' }, organizationId: { kind: 'string' }, userId: { kind: 'string' }, deviceId: { kind: 'string' }, lastSuccessfulSyncAt: { kind: 'timestamp', nullable: true }, lastPullCursor: { kind: 'string', nullable: true }, status: { kind: 'string' } },
   bulkAssignmentAudits: { ...COMMON_RECORD_RULES, organizationId: { kind: 'string', nullable: true }, performedBy: { kind: 'string' }, targetAgentId: { kind: 'string' }, selectedLeadCount: { kind: 'number' }, successfulCount: { kind: 'number' }, failedCount: { kind: 'number' }, startedAt: { kind: 'timestamp' }, completedAt: { kind: 'timestamp' }, status: { kind: 'string' }, deletedAt: { kind: 'timestamp', nullable: true } },
@@ -188,7 +190,7 @@ function fieldMatches(value: unknown, rule: FieldRule): boolean {
   if (rule.kind === 'syncFlag') return value === 0 || value === 1;
   if (rule.kind === 'object') return isPlainObject(value);
   if (rule.kind === 'number') return typeof value === 'number' && Number.isFinite(value);
-  if (rule.kind === 'string') return typeof value === 'string' && value.trim().length > 0;
+  if (rule.kind === 'string') return typeof value === 'string' && (rule.allowEmpty === true || value.trim().length > 0);
   return typeof value === 'boolean';
 }
 
@@ -203,8 +205,168 @@ function validateRecordShape(table: string, item: Record<string, unknown>, index
   }
 }
 
+const REQUIRED_BACKUP_COLLECTIONS = ['leads', 'remarks', 'callHistory', 'followUps', 'messageHistory', 'messageTemplates'] as const;
+const FK_BACKUP_COLLECTIONS = ['remarks', 'callHistory', 'followUps', 'messageHistory', 'activities', 'callRecords'] as const;
+
+function emptyBackupSummary(approxSizeBytes = 0): BackupValidationResult['summary'] {
+  return { leadsCount: 0, remarksCount: 0, callsCount: 0, followUpsCount: 0, messagesCount: 0, templatesCount: 0, totalRecords: 0, approxSizeBytes };
+}
+
+function invalidBackup(errors: string[], approxSizeBytes = 0): BackupValidationResult {
+  return { isValid: false, errors, summary: emptyBackupSummary(approxSizeBytes) };
+}
+
+function validateBackupHeader(payload: Record<string, unknown>, scope: AccessScope, errors: string[]): void {
+  if (!payload.schemaVersion || typeof payload.schemaVersion !== 'number' || payload.schemaVersion < 1) {
+    errors.push('Missing or invalid schemaVersion in backup header.');
+  }
+  if (typeof payload.schemaVersion === 'number' && payload.schemaVersion < 6) {
+    errors.push('Legacy unscoped backups cannot be restored automatically; use the audited recovery process.');
+  }
+  if (payload.organizationId !== scope.organizationId || payload.userId !== scope.userId) {
+    errors.push('Backup belongs to a different organization or signed-in user.');
+  }
+}
+
+function validateBackupCollections(data: Record<string, unknown>, errors: string[]): boolean {
+  for (const name of Object.keys(data)) {
+    if (!SUPPORTED_BACKUP_COLLECTIONS.has(name)) errors.push(`Unsupported backup collection "${name}".`);
+  }
+  for (const name of REQUIRED_BACKUP_COLLECTIONS) {
+    if (!Array.isArray(data[name])) errors.push(`Table "${name}" must be an array.`);
+  }
+  for (const name of SUPPORTED_BACKUP_COLLECTIONS) {
+    if (name in data && !Array.isArray(data[name])) errors.push(`Table "${name}" must be an array.`);
+  }
+  return !errors.some((error) => error.includes('must be an array'));
+}
+
+function backupTables(data: Record<string, unknown>): Array<{ name: string; list: unknown[] }> {
+  const tables: Array<{ name: string; list: unknown[] }> = REQUIRED_BACKUP_COLLECTIONS.map((name) => ({ name, list: data[name] as unknown[] }));
+  for (const name of SUPPORTED_BACKUP_COLLECTIONS) {
+    if (!(REQUIRED_BACKUP_COLLECTIONS as readonly string[]).includes(name) && Array.isArray(data[name])) {
+      tables.push({ name, list: data[name] as unknown[] });
+    }
+  }
+  return tables;
+}
+
+function validateScopedBackupRecord(
+  name: string,
+  item: Record<string, unknown>,
+  scope: AccessScope,
+  errors: string[],
+): void {
+  if (name === 'leads') {
+    const wrongOrg = Boolean(item.organizationId) && item.organizationId !== scope.organizationId;
+    const inaccessible = scope.role !== 'ADMIN' && item.assignedTo !== scope.userId && item.createdBy !== scope.userId;
+    if (wrongOrg || inaccessible) errors.push(`Lead "${item.id}" is outside the active backup access scope.`);
+    return;
+  }
+  if (name === 'users' && item.organizationId !== scope.organizationId) {
+    errors.push(`Profile "${item.id}" belongs to another organization.`);
+    return;
+  }
+  if (name === 'bulkAssignmentAudits' && item.organizationId !== scope.organizationId) {
+    errors.push(`Bulk-assignment audit "${item.id}" belongs to another organization.`);
+    return;
+  }
+  if (name === 'outbox') {
+    if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
+      errors.push(`Outbox mutation "${item.id}" belongs to another synchronization context.`);
+    }
+    const payloadOrg = isPlainObject(item.payload) ? (item.payload.organizationId || item.payload.organization_id) : undefined;
+    if (payloadOrg && payloadOrg !== scope.organizationId) errors.push(`Outbox mutation "${item.id}" contains a cross-organization payload.`);
+    return;
+  }
+  if (name === 'syncState') {
+    const expectedId = `${scope.organizationId}:${scope.userId}`;
+    const wrongContext = item.id !== expectedId || item.organizationId !== scope.organizationId || item.userId !== scope.userId;
+    if (wrongContext) errors.push(`Sync state "${item.id}" does not match the active synchronization context.`);
+  }
+}
+
+function validateBackupTables(
+  tables: Array<{ name: string; list: unknown[] }>,
+  scope: AccessScope,
+  errors: string[],
+): Set<string> {
+  const leadIds = new Set<string>();
+  for (const { name, list } of tables) {
+    const ids = new Set<string>();
+    for (let index = 0; index < list.length; index++) {
+      const item = list[index];
+      if (!isPlainObject(item)) {
+        errors.push(`Invalid record at ${name}[${index}]: Must be an object.`);
+        continue;
+      }
+      validateRecordShape(name, item, index, errors);
+      if (!item.id || typeof item.id !== 'string') {
+        errors.push(`Missing or non-string "id" at ${name}[${index}].`);
+        continue;
+      }
+      if (ids.has(item.id)) errors.push(`Duplicate ID "${item.id}" detected in table "${name}".`);
+      ids.add(item.id);
+      if (name === 'leads') leadIds.add(item.id);
+      validateScopedBackupRecord(name, item, scope, errors);
+    }
+  }
+  return leadIds;
+}
+
+function validateBackupForeignKeys(
+  data: Record<string, unknown>,
+  leadIds: Set<string>,
+  errors: string[],
+): void {
+  const hasLeads = Array.isArray(data.leads) && data.leads.length > 0;
+  if (!hasLeads) return;
+  for (const childName of FK_BACKUP_COLLECTIONS) {
+    const list = data[childName];
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!isPlainObject(item) || typeof item.leadId !== 'string' || !item.leadId || leadIds.has(item.leadId)) continue;
+      errors.push(`Orphan record in "${childName}" (ID: ${item.id}): Referenced leadId "${item.leadId}" not found in leads table.`);
+    }
+  }
+}
+
+function backupSummary(data: Record<string, unknown>, approxSizeBytes: number): BackupValidationResult['summary'] {
+  const count = (name: string) => Array.isArray(data[name]) ? data[name].length : 0;
+  const leadsCount = count('leads');
+  const remarksCount = count('remarks');
+  const callsCount = count('callHistory');
+  const followUpsCount = count('followUps');
+  const messagesCount = count('messageHistory');
+  const templatesCount = count('messageTemplates');
+  const usersCount = count('users');
+  const activitiesCount = count('activities');
+  const callRecordsCount = count('callRecords');
+  const importAuditsCount = count('importAudits');
+  return {
+    leadsCount, remarksCount, callsCount, followUpsCount, messagesCount, templatesCount,
+    usersCount, activitiesCount, callRecordsCount, importAuditsCount,
+    totalRecords: leadsCount + remarksCount + callsCount + followUpsCount + messagesCount + templatesCount + usersCount + activitiesCount + callRecordsCount + importAuditsCount,
+    approxSizeBytes,
+  };
+}
+
 export class BackupService {
   constructor(private db: SalesCRMDatabase) {}
+
+  /**
+   * Rejects oversized restore files before FileReader/JSON.parse allocate their contents.
+   * The supported restore-file limit is 25 MiB.
+   */
+  static validateRestoreFileSize(sizeBytes: number): string | null {
+    if (!Number.isFinite(sizeBytes) || sizeBytes < 0) {
+      return 'Backup file size is invalid.';
+    }
+    if (sizeBytes > MAX_BACKUP_RESTORE_FILE_BYTES) {
+      return 'Backup file exceeds the supported 25 MB restore limit.';
+    }
+    return null;
+  }
 
   /**
    * Generates the standard backup filename: amaratv-crm-backup-YYYY-MM-DD-HHmm.json
@@ -305,222 +467,33 @@ export class BackupService {
    * Validates a parsed or generated backup payload for schema structure, UUIDs, and reference consistency.
    * Supports backward compatibility with Schema Version 2.
    */
-  validateBackupPayload(payload: any, calculateSize = true): BackupValidationResult {
+  validateBackupPayload(payload: unknown, calculateSize = true): BackupValidationResult {
     const errors: string[] = [];
     const scope = this.db.requireAccessScope();
+    if (!isPlainObject(payload)) return invalidBackup(['Invalid backup: Payload must be a valid JSON object.']);
 
-    if (!payload || typeof payload !== 'object') {
-      return {
-        isValid: false,
-        errors: ['Invalid backup: Payload must be a valid JSON object.'],
-        summary: {
-          leadsCount: 0,
-          remarksCount: 0,
-          callsCount: 0,
-          followUpsCount: 0,
-          messagesCount: 0,
-          templatesCount: 0,
-          totalRecords: 0,
-          approxSizeBytes: 0,
-        },
-      };
-    }
-
-    if (!payload.schemaVersion || typeof payload.schemaVersion !== 'number' || payload.schemaVersion < 1) {
-      errors.push('Missing or invalid schemaVersion in backup header.');
-    }
-    if (payload.schemaVersion < 6) {
-      errors.push('Legacy unscoped backups cannot be restored automatically; use the audited recovery process.');
-    }
-    if (payload.organizationId !== scope.organizationId || payload.userId !== scope.userId) {
-      errors.push('Backup belongs to a different organization or signed-in user.');
-    }
-
+    validateBackupHeader(payload, scope, errors);
     if (!isPlainObject(payload.data)) {
       errors.push('Missing "data" container object in backup payload.');
-      return {
-        isValid: false,
-        errors,
-        summary: {
-          leadsCount: 0,
-          remarksCount: 0,
-          callsCount: 0,
-          followUpsCount: 0,
-          messagesCount: 0,
-          templatesCount: 0,
-          totalRecords: 0,
-          approxSizeBytes: 0,
-        },
-      };
+      return invalidBackup(errors);
     }
 
-    for (const name of Object.keys(payload.data)) {
-      if (!SUPPORTED_BACKUP_COLLECTIONS.has(name)) errors.push(`Unsupported backup collection "${name}".`);
-    }
-    const requiredCollections = ['leads', 'remarks', 'callHistory', 'followUps', 'messageHistory', 'messageTemplates'];
-    for (const name of requiredCollections) {
-      if (!Array.isArray(payload.data[name])) errors.push(`Table "${name}" must be an array.`);
-    }
-    for (const name of SUPPORTED_BACKUP_COLLECTIONS) {
-      if (name in payload.data && !Array.isArray(payload.data[name])) errors.push(`Table "${name}" must be an array.`);
-    }
-    if (errors.some((error) => error.includes('must be an array'))) {
-      return {
-        isValid: false,
-        errors,
-        summary: {
-          leadsCount: 0, remarksCount: 0, callsCount: 0, followUpsCount: 0,
-          messagesCount: 0, templatesCount: 0, totalRecords: 0,
-          approxSizeBytes: calculateSize ? JSON.stringify(payload).length : 0,
-        },
-      };
+    const data = payload.data;
+    if (!validateBackupCollections(data, errors)) {
+      const size = calculateSize ? JSON.stringify(payload).length : 0;
+      return invalidBackup(errors, size);
     }
 
-    const {
-      leads = [],
-      remarks = [],
-      callHistory = [],
-      followUps = [],
-      messageHistory = [],
-      messageTemplates = [],
-      users = [],
-      activities = [],
-      callRecords = [],
-      importAudits = [],
-      outbox = [],
-      syncState = [],
-      bulkAssignmentAudits = [],
-    } = payload.data;
-
-    const tables: Array<{ name: string; list: any[] }> = [
-      { name: 'leads', list: leads },
-      { name: 'remarks', list: remarks },
-      { name: 'callHistory', list: callHistory },
-      { name: 'followUps', list: followUps },
-      { name: 'messageHistory', list: messageHistory },
-      { name: 'messageTemplates', list: messageTemplates },
-    ];
-
-    if (payload.data.users) tables.push({ name: 'users', list: users });
-    if (payload.data.activities) tables.push({ name: 'activities', list: activities });
-    if (payload.data.callRecords) tables.push({ name: 'callRecords', list: callRecords });
-    if (payload.data.importAudits) tables.push({ name: 'importAudits', list: importAudits });
-    if (payload.data.outbox) tables.push({ name: 'outbox', list: outbox });
-    if (payload.data.syncState) tables.push({ name: 'syncState', list: syncState });
-    if (payload.data.bulkAssignmentAudits) tables.push({ name: 'bulkAssignmentAudits', list: bulkAssignmentAudits });
-
-    const leadIds = new Set<string>();
-
-    // Validate table arrays & duplicate IDs
-    for (const { name, list } of tables) {
-      if (!Array.isArray(list)) {
-        errors.push(`Table "${name}" must be an array.`);
-        continue;
-      }
-
-      const ids = new Set<string>();
-      for (let i = 0; i < list.length; i++) {
-        const item = list[i];
-        if (!item || typeof item !== 'object') {
-          errors.push(`Invalid record at ${name}[${i}]: Must be an object.`);
-          continue;
-        }
-        validateRecordShape(name, item, i, errors);
-        if (!item.id || typeof item.id !== 'string') {
-          errors.push(`Missing or non-string "id" at ${name}[${i}].`);
-          continue;
-        }
-        if (ids.has(item.id)) {
-          errors.push(`Duplicate ID "${item.id}" detected in table "${name}".`);
-        }
-        ids.add(item.id);
-
-        if (name === 'leads') {
-          leadIds.add(item.id);
-          if ((item.organizationId && item.organizationId !== scope.organizationId) || !canAccessLead(scope, item)) {
-            errors.push(`Lead "${item.id}" is outside the active backup access scope.`);
-          }
-        } else if (name === 'users' && item.organizationId !== scope.organizationId) {
-          errors.push(`Profile "${item.id}" belongs to another organization.`);
-        } else if (name === 'bulkAssignmentAudits' && item.organizationId !== scope.organizationId) {
-          errors.push(`Bulk-assignment audit "${item.id}" belongs to another organization.`);
-        } else if (name === 'outbox') {
-          if (item.organizationId !== scope.organizationId || item.userId !== scope.userId) {
-            errors.push(`Outbox mutation "${item.id}" belongs to another synchronization context.`);
-          }
-          const payloadOrg = item.payload?.organizationId || item.payload?.organization_id;
-          if (payloadOrg && payloadOrg !== scope.organizationId) {
-            errors.push(`Outbox mutation "${item.id}" contains a cross-organization payload.`);
-          }
-        } else if (name === 'syncState') {
-          const expectedId = `${scope.organizationId}:${scope.userId}`;
-          if (
-            item.id !== expectedId ||
-            item.organizationId !== scope.organizationId ||
-            item.userId !== scope.userId
-          ) {
-            errors.push(`Sync state "${item.id}" does not match the active synchronization context.`);
-          }
-        }
-      }
-    }
-
-    // Validate foreign keys for child relations
-    const validateForeignKeys = (childList: any[], childName: string) => {
-      if (!Array.isArray(childList)) return;
-      for (let i = 0; i < childList.length; i++) {
-        const item = childList[i];
-        if (item && item.leadId && !leadIds.has(item.leadId)) {
-          if (leads.length > 0) {
-            errors.push(
-              `Orphan record in "${childName}" (ID: ${item.id}): Referenced leadId "${item.leadId}" not found in leads table.`
-            );
-          }
-        }
-      }
-    };
-
-    validateForeignKeys(remarks, 'remarks');
-    validateForeignKeys(callHistory, 'callHistory');
-    validateForeignKeys(followUps, 'followUps');
-    validateForeignKeys(messageHistory, 'messageHistory');
-    if (Array.isArray(activities)) validateForeignKeys(activities, 'activities');
-    if (Array.isArray(callRecords)) validateForeignKeys(callRecords, 'callRecords');
-
-    const totalRecords =
-      leads.length +
-      remarks.length +
-      callHistory.length +
-      followUps.length +
-      messageHistory.length +
-      messageTemplates.length +
-      users.length +
-      activities.length +
-      callRecords.length +
-      importAudits.length;
-    // Outbox and sync metadata are intentionally excluded from business
-    // record totals but are still structurally and context validated above.
-
+    const tables = backupTables(data);
+    const leadIds = validateBackupTables(tables, scope, errors);
+    validateBackupForeignKeys(data, leadIds, errors);
     const approxSizeBytes = calculateSize ? JSON.stringify(payload).length : 0;
 
     return {
       isValid: errors.length === 0,
       errors,
-      summary: {
-        leadsCount: leads.length,
-        remarksCount: remarks.length,
-        callsCount: callHistory.length,
-        followUpsCount: followUps.length,
-        messagesCount: messageHistory.length,
-        templatesCount: messageTemplates.length,
-        usersCount: users.length,
-        activitiesCount: activities.length,
-        callRecordsCount: callRecords.length,
-        importAuditsCount: importAudits.length,
-        totalRecords,
-        approxSizeBytes,
-      },
-      payload: errors.length === 0 ? (payload as CRMBackupPayload) : undefined,
+      summary: backupSummary(data, approxSizeBytes),
+      payload: errors.length === 0 ? (payload as unknown as CRMBackupPayload) : undefined,
     };
   }
 
@@ -531,10 +504,10 @@ export class BackupService {
     try {
       const parsed = JSON.parse(jsonString);
       return this.validateBackupPayload(parsed);
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
         isValid: false,
-        errors: [`JSON Syntax Error: ${err.message}`],
+        errors: [`JSON Syntax Error: ${err instanceof Error ? err.message : String(err)}`],
         summary: {
           leadsCount: 0,
           remarksCount: 0,
@@ -586,13 +559,16 @@ export class BackupService {
     };
 
     await this.db.transaction('rw', this.db.tables, async () => {
-      const mergeTable = async (
+      const mergeTable = async <T extends { id: string; updatedAt?: string; createdAt?: string }>(
         tableName: keyof CRMBackupData,
-        incoming: any[] | undefined,
+        incoming: T[] | undefined,
         detailObj: { added: number; updated: number; skipped: number }
       ) => {
         if (!incoming || incoming.length === 0) return;
-        const table = this.db[tableName as keyof SalesCRMDatabase] as any;
+        // Resolve through the database's named properties so the concrete
+        // Dexie table instance (and its hooks/test seams) is preserved while
+        // keeping the generic merge loop free of `any`.
+        const table = (this.db[tableName as keyof SalesCRMDatabase] as unknown) as Table<T, string> | undefined;
         if (!table) return;
 
         for (const item of incoming) {
@@ -726,7 +702,7 @@ export class BackupService {
         status: 'SUCCESS',
         summaryText: `Replaced DB with ${validation.summary.totalRecords} records from backup.`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       // 2. Rollback to safety snapshot in case of transaction failure
       console.error('Replace restore failed! Attempting safety rollback...', err);
       try {
@@ -752,10 +728,10 @@ export class BackupService {
       this.logAudit({
         operation: 'REPLACE_RESTORE',
         status: 'FAILED',
-        summaryText: `Error: ${err.message}. Safety snapshot restored.`,
+        summaryText: `Error: ${err instanceof Error ? err.message : String(err)}. Safety snapshot restored.`,
       });
 
-      throw new Error(`Database replacement failed: ${err.message}. Previous database state was restored.`);
+      throw new Error(`Database replacement failed: ${err instanceof Error ? err.message : String(err)}. Previous database state was restored.`);
     }
   }
 
@@ -873,6 +849,9 @@ export class BackupService {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Keep the object URL alive until the browser has had a chance to begin
+    // consuming the download. Immediate revocation can race the download
+    // handoff in Chromium/WebView and cause the export to disappear silently.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 }

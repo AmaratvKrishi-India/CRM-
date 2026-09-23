@@ -10,13 +10,13 @@
 
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert';
-import { execFileSync, execSync } from 'child_process';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'node:crypto';
 import { chromium, Page, Browser } from '@playwright/test';
 import { androidSdkEnvironment } from '../scripts/android-sdk';
+import { runProcessWithWatchdog } from '../scripts/process-watchdog';
 import { getLocalSupabaseEnv } from './helpers/localSupabaseEnv';
 
 const ADB = path.join(process.env.LOCALAPPDATA || '', 'Android', 'Sdk', 'platform-tools', 'adb.exe');
@@ -29,8 +29,30 @@ const SUPABASE_ANON_KEY = localSupabase.anonKey;
 const LOGIN_READY_TIMEOUT_MS = 60_000;
 const AUTH_RESPONSE_TIMEOUT_MS = 45_000;
 const AUTH_RESPONSE_ATTEMPTS = 2;
+const CDP_CONNECT_TIMEOUT_MS = 45_000;
+const DEVICE_API_READY_TIMEOUT_MS = 60_000;
 let localTestApkReady = false;
 const harnessBrowsers = new Set<Browser>();
+
+async function runAdb(args: string[], options: any = {}): Promise<any> {
+  const timeoutMs = typeof options.timeout === 'number' ? options.timeout : 30_000;
+  const result = await runProcessWithWatchdog({
+    label: `ADB ${args.join(' ')}`,
+    command: ADB,
+    args,
+    cwd: REPO_ROOT,
+    env: process.env,
+    timeoutMs,
+    logFile: path.join(REPO_ROOT, 'test-results', 'multi-device-adb-watchdog.log'),
+  });
+  if (result.status !== 'PASSED') {
+    throw new Error(
+      `${result.label} ${result.status}: ${result.reason ?? 'no additional reason'}\n` +
+      `${result.stdout}${result.stderr}`,
+    );
+  }
+  return options.encoding ? result.stdout : Buffer.from(result.stdout);
+}
 
 function localBuildEnvironment(): NodeJS.ProcessEnv {
   return androidSdkEnvironment({
@@ -59,17 +81,45 @@ function directoryContains(root: string, needle: string): boolean {
   return false;
 }
 
-function buildLocalTestApk(): void {
+async function runOwnedStage(
+  label: string,
+  command: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  timeoutMs: number,
+): Promise<void> {
+  const result = await runProcessWithWatchdog({
+    label,
+    command,
+    args,
+    cwd,
+    env,
+    timeoutMs,
+    logFile: path.join(REPO_ROOT, 'test-results', 'multi-device-watchdog.log'),
+    echoOutput: true,
+  });
+  assert.strictEqual(
+    result.status,
+    'PASSED',
+    `${label} ${result.status}: ${result.reason ?? 'no additional reason'}`,
+  );
+}
+
+async function buildLocalTestApk(): Promise<void> {
   if (localTestApkReady) return;
 
   const env = localBuildEnvironment();
-  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const gradleCommand = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+  const npm = process.platform === 'win32'
+    ? { command: process.execPath, args: [path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')] }
+    : { command: 'npm', args: [] };
+  const npx = process.platform === 'win32'
+    ? { command: process.execPath, args: [path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js')] }
+    : { command: 'npx', args: [] };
 
   console.log('Building the Android test artifact against disposable local Supabase.');
-  execSync(`${npmCommand} run build`, { cwd: REPO_ROOT, env, stdio: 'inherit' });
-  execSync(`${npxCommand} cap sync android`, { cwd: REPO_ROOT, env, stdio: 'inherit' });
+  await runOwnedStage('Multi-device Android: local web build', npm.command, [...npm.args, 'run', 'build:local-test'], REPO_ROOT, env, 180_000);
+  await runOwnedStage('Multi-device Android: Capacitor sync', npx.command, [...npx.args, 'cap', 'sync', 'android'], REPO_ROOT, env, 120_000);
 
   const syncedAssets = path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'assets', 'public');
   assert.ok(
@@ -78,11 +128,17 @@ function buildLocalTestApk(): void {
   );
   assert.ok(existsSync(path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'assets', 'capacitor.config.json')));
 
-  execSync(`${gradleCommand} assembleDebug --no-daemon`, {
-    cwd: path.join(REPO_ROOT, 'android'),
+  const gradle = process.platform === 'win32'
+    ? { command: 'cmd.exe', args: ['/d', '/s', '/c', 'gradlew.bat assembleDebug --no-daemon'] }
+    : { command: path.join(REPO_ROOT, 'android', 'gradlew'), args: ['assembleDebug', '--no-daemon'] };
+  await runOwnedStage(
+    'Multi-device Android: Gradle assembleDebug',
+    gradle.command,
+    gradle.args,
+    path.join(REPO_ROOT, 'android'),
     env,
-    stdio: 'inherit',
-  });
+    300_000,
+  );
   assert.ok(existsSync(LOCAL_TEST_APK), `Expected local Android test APK at ${LOCAL_TEST_APK}`);
   localTestApkReady = true;
 }
@@ -95,9 +151,9 @@ interface DeviceRoleConfig {
   name: string;
 }
 
-function detectEmulators(): string[] {
+async function detectEmulators(): Promise<string[]> {
   try {
-    const output = execFileSync(ADB, ['devices'], { encoding: 'utf-8' });
+    const output = await runAdb(['devices'], { encoding: 'utf-8' });
     const lines = output.split('\n');
     const emulators: string[] = [];
     for (const line of lines) {
@@ -133,7 +189,7 @@ async function reconnectDeviceWebView(serial: string, cdpPort: number): Promise<
   let pid = '';
   for (let attempt = 0; attempt < 30; attempt++) {
     try {
-      pid = execFileSync(ADB, ['-s', serial, 'shell', 'pidof', APP_PACKAGE], { encoding: 'utf-8' }).trim();
+      pid = (await runAdb(['-s', serial, 'shell', 'pidof', APP_PACKAGE], { encoding: 'utf-8' })).trim();
       if (pid) break;
     } catch {}
     await new Promise((r) => setTimeout(r, 500));
@@ -141,50 +197,96 @@ async function reconnectDeviceWebView(serial: string, cdpPort: number): Promise<
   if (!pid) throw new Error(`App process unavailable after resume on ${serial}.`);
 
   try {
-    execFileSync(ADB, ['-s', serial, 'forward', '--remove', `tcp:${cdpPort}`], { stdio: 'ignore' });
+    await runAdb(['-s', serial, 'forward', '--remove', `tcp:${cdpPort}`], { stdio: 'ignore' });
   } catch {}
-  execFileSync(ADB, ['-s', serial, 'forward', `tcp:${cdpPort}`, `localabstract:webview_devtools_remote_${pid}`], { stdio: 'ignore' });
+  await runAdb(['-s', serial, 'forward', `tcp:${cdpPort}`, `localabstract:webview_devtools_remote_${pid}`], { stdio: 'ignore' });
 
   if (!(await waitForCdpReady(cdpPort, 60))) {
     throw new Error(`WebView CDP endpoint did not return after native dialer on ${serial}.`);
   }
-  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`, { timeout: CDP_CONNECT_TIMEOUT_MS });
   harnessBrowsers.add(browser);
   const context = browser.contexts()[0];
   const page = context.pages()[0];
-  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState('domcontentloaded', { timeout: LOGIN_READY_TIMEOUT_MS });
   return { browser, page };
 }
 
-function ensureAppInstalled(serial: string): void {
-  buildLocalTestApk();
-  const listed = execFileSync(ADB, ['-s', serial, 'shell', 'pm', 'list', 'packages', APP_PACKAGE], { encoding: 'utf-8' });
-  if (listed.includes(`package:${APP_PACKAGE}`)) {
-    execFileSync(ADB, ['-s', serial, 'uninstall', APP_PACKAGE], { stdio: 'ignore' });
+async function ensureAppInstalled(serial: string): Promise<void> {
+  await buildLocalTestApk();
+  const listed = await runAdb(['-s', serial, 'shell', 'pm', 'list', 'packages', APP_PACKAGE], { encoding: 'utf-8' });
+  const exactPackageInstalled = listed
+    .split(/\r?\n/)
+    .some(line => line.trim() === `package:${APP_PACKAGE}`);
+  if (exactPackageInstalled) {
+    // Package removal can take longer than the ordinary ADB budget after a
+    // local database reset or emulator reconnect. Keep it bounded without
+    // misclassifying a slow cleanup as device setup failure.
+    await runAdb(['-s', serial, 'uninstall', APP_PACKAGE], { stdio: 'ignore', timeout: 90_000 });
   }
   console.log(`Installing verified local-Supabase debug APK on ${serial}`);
-  execFileSync(ADB, ['-s', serial, 'install', LOCAL_TEST_APK], { encoding: 'utf-8', timeout: 180_000 });
+  await runAdb(['-s', serial, 'install', LOCAL_TEST_APK], { encoding: 'utf-8', timeout: 180_000 });
 }
 
 async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser: Browser; page: Page }> {
-  // 0. Guarantee the app is installed on whichever emulator was selected
-  ensureAppInstalled(serial);
+  await waitForDeviceReady(serial);
+  await ensureAppInstalled(serial);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      return await prepareDeviceSession(serial, cdpPort);
+    } catch (error) {
+      await captureDeviceDiagnostics(serial);
+      if (attempt === 2) throw new Error(`INFRASTRUCTURE_LIMITATION: device setup failed on ${serial} after ${attempt} attempts.`, { cause: error });
+      await runAdb(['-s', serial, 'shell', 'am', 'force-stop', APP_PACKAGE]);
+      await waitForDeviceReady(serial);
+    }
+  }
+  throw new Error('Device setup exhausted its retry budget.');
+}
+
+async function waitForDeviceReady(serial: string): Promise<void> {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    try {
+      const state = await runAdb(['-s', serial, 'get-state'], { encoding: 'utf8', timeout: 5_000 });
+      const boot = await runAdb(['-s', serial, 'shell', 'getprop', 'sys.boot_completed'], { encoding: 'utf8', timeout: 5_000 });
+      const packages = await runAdb(['-s', serial, 'shell', 'pm', 'path', 'android'], { encoding: 'utf8', timeout: 5_000 });
+      if (state.trim() === 'device' && boot.trim() === '1' && packages.includes('package:')) return;
+    } catch { /* Retry only this device within the readiness deadline. */ }
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  await captureDeviceDiagnostics(serial);
+  throw new Error(`INFRASTRUCTURE_LIMITATION: ${serial} failed boot/package-manager readiness.`);
+}
+
+async function captureDeviceDiagnostics(serial: string): Promise<void> {
+  for (const args of [['get-state'], ['shell', 'getprop', 'sys.boot_completed'], ['logcat', '-d', '-t', '100', 'ActivityManager:I', 'AndroidRuntime:E', '*:S']]) {
+    try { await runAdb(['-s', serial, ...args], { encoding: 'utf8', timeout: 5_000 }); } catch { /* The watchdog retains failures too. */ }
+  }
+}
+
+async function prepareDeviceSession(serial: string, cdpPort: number): Promise<{ browser: Browser; page: Page }> {
 
   // 1. Configure reverse port forwarding for Supabase Local
-  execFileSync(ADB, ['-s', serial, 'reverse', 'tcp:15432', 'tcp:15432']);
+  await runAdb(['-s', serial, 'reverse', 'tcp:15432', 'tcp:15432']);
 
   // 2. Clear app storage for clean deterministic session
-  execFileSync(ADB, ['-s', serial, 'shell', 'pm', 'clear', APP_PACKAGE]);
+  // Android's package manager can be slow after an emulator has just been
+  // reconnected. Keep cleanup bounded without turning a slow clear into a
+  // false lifecycle/setup failure.
+  await runAdb(['-s', serial, 'shell', 'pm', 'clear', APP_PACKAGE], { timeout: 90_000 });
 
-  // 3. Launch application
-  execFileSync(ADB, ['-s', serial, 'shell', 'monkey', '-p', APP_PACKAGE, '-c', 'android.intent.category.LAUNCHER', '1']);
+  // 3. Launch application. ActivityManager is deterministic and non-blocking;
+  // PID and WebView CDP readiness are verified explicitly below. `monkey` and
+  // `am start -W` can wait indefinitely on a cold or degraded WebView.
+  await runAdb(['-s', serial, 'shell', 'am', 'start', '-n', `${APP_PACKAGE}/.MainActivity`]);
 
   // 4. Poll for PID
   let pid = '';
   for (let attempt = 0; attempt < 30; attempt++) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
-      pid = execFileSync(ADB, ['-s', serial, 'shell', 'pidof', APP_PACKAGE], { encoding: 'utf-8' }).trim();
+      pid = (await runAdb(['-s', serial, 'shell', 'pidof', APP_PACKAGE], { encoding: 'utf-8' })).trim();
       if (pid) break;
     } catch {}
   }
@@ -199,11 +301,11 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
   let cdpForwarded = false;
   for (let attempt = 0; attempt < 15; attempt++) {
     try {
-      execFileSync(ADB, ['-s', serial, 'forward', '--remove', `tcp:${cdpPort}`], { stdio: 'ignore' });
+      await runAdb(['-s', serial, 'forward', '--remove', `tcp:${cdpPort}`], { stdio: 'ignore' });
     } catch {}
 
     try {
-      execFileSync(ADB, ['-s', serial, 'forward', `tcp:${cdpPort}`, `localabstract:webview_devtools_remote_${pid}`], {
+      await runAdb(['-s', serial, 'forward', `tcp:${cdpPort}`, `localabstract:webview_devtools_remote_${pid}`], {
         stdio: 'ignore',
       });
       cdpForwarded = true;
@@ -224,11 +326,11 @@ async function prepareDevice(serial: string, cdpPort: number): Promise<{ browser
   }
 
   // 7. Connect Playwright over CDP
-  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`, { timeout: CDP_CONNECT_TIMEOUT_MS });
   harnessBrowsers.add(browser);
   const context = browser.contexts()[0];
   const page = context.pages()[0];
-  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState('domcontentloaded', { timeout: LOGIN_READY_TIMEOUT_MS });
 
   return { browser, page };
 }
@@ -266,10 +368,42 @@ async function waitForInteractiveLoginForm(page: Page): Promise<void> {
   throw new Error(`Login form never became interactive after WebView startup: ${detail}`);
 }
 
+async function waitForDeviceSupabaseApi(page: Page): Promise<void> {
+  const deadline = Date.now() + DEVICE_API_READY_TIMEOUT_MS;
+  let lastError = 'no response';
+
+  while (Date.now() < deadline) {
+    try {
+      const status = await page.evaluate(async ({ apiUrl, anonKey }) => {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 5_000);
+        try {
+          const response = await fetch(`${apiUrl}/auth/v1/settings`, {
+            headers: { apikey: anonKey },
+            signal: controller.signal,
+          });
+          return response.status;
+        } finally {
+          window.clearTimeout(timer);
+        }
+      }, { apiUrl: SUPABASE_LOCAL_URL, anonKey: SUPABASE_ANON_KEY });
+
+      if (status === 200) return;
+      lastError = `HTTP ${status}`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+    await page.waitForTimeout(1_000);
+  }
+
+  throw new Error(`Supabase auth API was not reachable from the Android WebView within ${DEVICE_API_READY_TIMEOUT_MS}ms: ${lastError}`);
+}
+
 async function signInFromInteractiveLoginForm(page: Page, email: string, password: string): Promise<void> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= AUTH_RESPONSE_ATTEMPTS; attempt++) {
+    await waitForDeviceSupabaseApi(page);
     await waitForInteractiveLoginForm(page);
     await page.locator('#login-email').fill(email);
     await page.locator('#login-password').fill(password);
@@ -427,17 +561,22 @@ async function waitForOutboxToContainWork(page: Page, userId: string, timeoutMs 
 async function synchronizeApp(page: Page, userId: string, timeoutMs = 90_000): Promise<void> {
   const button = page.getByRole('button', { name: 'Sync Now', exact: true }).first();
   const deadline = Date.now() + timeoutMs;
-  let cycleStarted = false;
-  let lastCount = await readOutboxCount(page, userId);
+  let lastCount = -1;
+  let emptySince: number | null = null;
   while (Date.now() < deadline) {
-    const enabled = await button.isEnabled().catch(() => false);
-    if (enabled && (!cycleStarted || lastCount > 0)) {
-      await button.click({ timeout: 5_000 }).catch(() => {});
-      cycleStarted = true;
-      await page.waitForTimeout(750);
-    }
     lastCount = await readOutboxCount(page, userId);
-    if (cycleStarted && lastCount == 0 && await button.isEnabled().catch(() => false)) return;
+    if (lastCount === 0) {
+      emptySince ??= Date.now();
+      // A background sync may drain the outbox before the explicit button click
+      // is enabled. Downstream Admin/PostgreSQL assertions prove persistence.
+      if (Date.now() - emptySince >= 2_000) return;
+    } else {
+      emptySince = null;
+      if (await button.isEnabled().catch(() => false)) {
+        await button.click({ timeout: 5_000 }).catch(() => {});
+        await page.waitForTimeout(750);
+      }
+    }
     await page.waitForTimeout(500);
   }
   throw new Error(`Sync did not settle for ${userId}; outbox count ${lastCount}.`);
@@ -459,7 +598,7 @@ async function exerciseAppWorkflow(
 
   await page.getByRole('button', { name: 'Call', exact: true }).click({ noWaitAfter: true });
   await new Promise((r) => setTimeout(r, 1_000));
-  execFileSync(ADB, ['-s', serial, 'shell', 'am', 'start', '-n', `${APP_PACKAGE}/.MainActivity`], { stdio: 'ignore' });
+  await runAdb(['-s', serial, 'shell', 'am', 'start', '-n', `${APP_PACKAGE}/.MainActivity`], { stdio: 'ignore' });
   await new Promise((r) => setTimeout(r, 1_000));
   const resumed = await reconnectDeviceWebView(serial, cdpPort);
   page = resumed.page;
@@ -486,15 +625,36 @@ async function exerciseAppWorkflow(
   return resumed;
 }
 
+const detectedEmulators = await detectEmulators();
+
 describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulators + Docker Supabase)', () => {
-  const emulators = detectEmulators();
+  const emulators = detectedEmulators;
   const hasThreeEmulators = emulators.length >= 3;
 
-  before(() => {
+  before(async () => {
+    if (!hasThreeEmulators) throw new Error('INFRASTRUCTURE_LIMITATION: three emulators are required before resetting local test data.');
+    for (const serial of emulators.slice(0, 3)) await waitForDeviceReady(serial);
     console.log('\n--- Resetting disposable local Supabase for deterministic multi-device acceptance ---');
-    const npxCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-    execSync(`${npxCommand} supabase db reset --local`, { cwd: REPO_ROOT, stdio: 'inherit', timeout: 180_000 });
+    const npx = process.platform === 'win32'
+      ? { command: process.execPath, args: [path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js')] }
+      : { command: 'npx', args: [] };
+    await runOwnedStage(
+      'Multi-device disposable Supabase reset',
+      npx.command,
+      [...npx.args, '--no-install', 'supabase', 'db', 'reset', '--local'],
+      REPO_ROOT,
+      process.env,
+      180_000,
+    );
   });
+
+  let failedStep: string | undefined;
+  function workflowStep(name: string, run: () => Promise<void>): void {
+    test(name, async context => {
+      if (failedStep) { context.skip('Blocked by failed prerequisite: ' + failedStep); return; }
+      try { await run(); } catch (error) { failedStep = name; throw error; }
+    });
+  }
 
   test('Hardware / Device Prerequisites Check', () => {
     console.log(`Detected ${emulators.length} active Android emulators:`, emulators);
@@ -552,10 +712,10 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
 
     for (const config of [adminConfig, agentAConfig, agentBConfig]) {
       try {
-        execFileSync(ADB, ['-s', config.serial, 'forward', '--remove', `tcp:${config.cdpPort}`]);
+        await runAdb(['-s', config.serial, 'forward', '--remove', `tcp:${config.cdpPort}`]);
       } catch {}
       try {
-        execFileSync(ADB, ['-s', config.serial, 'reverse', '--remove', 'tcp:15432']);
+        await runAdb(['-s', config.serial, 'reverse', '--remove', 'tcp:15432']);
       } catch {}
     }
   };
@@ -564,7 +724,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     await cleanupDeviceSessions();
   });
 
-  test('Step 1: Admin Emulator Setup & Login', async () => {
+  workflowStep('Step 1: Admin Emulator Setup & Login', async () => {
     console.log(`\n--- Step 1: Launching Admin on ${adminConfig.serial} ---`);
     const setup = await prepareDevice(adminConfig.serial, adminConfig.cdpPort);
     adminBrowser = setup.browser;
@@ -579,7 +739,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Admin successfully logged in and dashboard loaded.');
   });
 
-  test('Step 2: Admin Ingests Test Leads into Database', async () => {
+  workflowStep('Step 2: Admin Ingests Test Leads into Database', async () => {
     assert.ok(adminPage, 'Admin page must be active.');
     console.log('\n--- Step 2: Admin Lead Ingestion ---');
 
@@ -675,7 +835,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Lead A, Lead B, and Lead C imported into database and verified on Admin.');
   });
 
-  test('Step 3: Admin Assigns Lead A -> Agent A and Lead B -> Agent B', async () => {
+  workflowStep('Step 3: Admin Assigns Lead A -> Agent A and Lead B -> Agent B', async () => {
     console.log('\n--- Step 3: Admin Lead Assignment ---');
 
     const adminTokenRes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
@@ -693,7 +853,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Lead A assigned to Agent A (Rahul); Lead B assigned to Agent B (Pooja); Lead C unassigned.');
   });
 
-  test('Step 4: Agent A Emulator Setup, Login & Lead Isolation', async () => {
+  workflowStep('Step 4: Agent A Emulator Setup, Login & Lead Isolation', async () => {
     console.log(`\n--- Step 4: Launching Agent A on ${agentAConfig.serial} ---`);
     const setup = await prepareDevice(agentAConfig.serial, agentAConfig.cdpPort);
     agentABrowser = setup.browser;
@@ -738,7 +898,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Agent A Lead Isolation verified: Lead A visible, Lead B & C isolated.');
   });
 
-  test('Step 5: Agent B Emulator Setup, Login & Lead Isolation', async () => {
+  workflowStep('Step 5: Agent B Emulator Setup, Login & Lead Isolation', async () => {
     console.log(`\n--- Step 5: Launching Agent B on ${agentBConfig.serial} ---`);
     const setup = await prepareDevice(agentBConfig.serial, agentBConfig.cdpPort);
     agentBBrowser = setup.browser;
@@ -780,7 +940,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Agent B Lead Isolation verified: Lead B visible, Lead A isolated.');
   });
 
-  test('Step 6: Agent A Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
+  workflowStep('Step 6: Agent A Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
     assert.ok(agentAPage, 'Agent A page must be active.');
     console.log('\n--- Step 6: Agent A Actions on Lead A ---');
 
@@ -799,7 +959,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Agent A saved status, unverified call outcome, remark, follow-up, and drained its real app outbox.');
   });
 
-  test('Step 7: Agent B Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
+  workflowStep('Step 7: Agent B Workflow (Status, Remark, Call Outcome, Follow-Up, Sync Push)', async () => {
     assert.ok(agentBPage, 'Agent B page must be active.');
     console.log('\n--- Step 7: Agent B Actions on Lead B ---');
 
@@ -818,7 +978,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Agent B saved status, unverified call outcome, remark, follow-up, and drained its real app outbox.');
   });
 
-  test('Step 8 & 9: Admin Receives and Displays Both Agent A & Agent B Updates', async () => {
+  workflowStep('Step 8 & 9: Admin Receives and Displays Both Agent A & Agent B Updates', async () => {
     assert.ok(adminPage, 'Admin page must be active.');
     console.log('\n--- Step 8 & 9: Admin Device Sync & Verification ---');
 
@@ -858,7 +1018,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Admin successfully received and verified all Agent A & Agent B changes.');
   });
 
-  test('Step 10: Independent Docker Supabase PostgreSQL Database Verification', async () => {
+  workflowStep('Step 10: Independent Docker Supabase PostgreSQL Database Verification', async () => {
     console.log('\n--- Step 10: PostgreSQL Database Query Verification ---');
 
     const adminTokenRes = await fetch(`${SUPABASE_LOCAL_URL}/auth/v1/token?grant_type=password`, {
@@ -917,7 +1077,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Independent PostgreSQL database verification 100% PASS.');
   });
 
-  test('Step 11: Offline Outbox Queue & Network Recovery Test', async () => {
+  workflowStep('Step 11: Offline Outbox Queue & Network Recovery Test', async () => {
     assert.ok(agentAPage, 'Agent A page must be active.');
     console.log('\n--- Step 11: Offline Queue & Sync Recovery ---');
 
@@ -930,7 +1090,11 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     try {
       await agentAPage.getByRole('button', { name: 'Add note', exact: true }).click();
       await agentAPage.locator('#inline-remark').fill(offlineNote);
-      await agentAPage.getByRole('button', { name: 'Save remark', exact: true }).click();
+      await agentAPage.locator('#inline-remark').evaluate((input) => {
+        const form = input.closest('form');
+        if (!(form instanceof HTMLFormElement)) throw new Error('Offline remark form was not attached to the DOM.');
+        form.requestSubmit();
+      });
       await agentAPage.locator('#inline-remark').waitFor({ state: 'hidden', timeout: 30_000 });
       const pendingCount = await waitForOutboxToContainWork(agentAPage, '00000000-0000-0000-0000-000000000011');
       assert.ok(pendingCount > 0, 'Offline mutation must remain queued locally.');
@@ -957,7 +1121,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ Offline mutation survived failed sync, recovered, reached Supabase, and left an empty outbox.');
   });
 
-  test('Step 12: RLS Tenant & Agent Lead Security Enforcement', async () => {
+  workflowStep('Step 12: RLS Tenant & Agent Lead Security Enforcement', async () => {
     console.log('\n--- Step 12: PostgreSQL RLS Policy Enforcement Test ---');
 
     // 1. Get Agent A token
@@ -999,7 +1163,7 @@ describe('Real Multi-Device End-to-End Synchronization Suite (3 Android Emulator
     console.log('✅ PostgreSQL RLS Lead Isolation verified across all Agent tokens.');
   });
 
-  test('Step 13: Clean Teardown', async () => {
+  workflowStep('Step 13: Clean Teardown', async () => {
     console.log('\n--- Step 13: Closing Device CDP Sessions ---');
     await cleanupDeviceSessions();
     console.log('✅ Teardown complete.');

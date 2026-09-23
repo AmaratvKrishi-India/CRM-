@@ -128,7 +128,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
       }
     >
       {/* Form Content */}
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form id="create-lead-form" onSubmit={handleSubmit} className="space-y-3.5">
         {errorMessage && (
           <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text font-medium">
             {errorMessage}
@@ -269,6 +269,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
           </button>
           <button
             type="submit"
+            id="save-create-lead-button"
             disabled={loading}
             className="flex-1 min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-colors shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
           >

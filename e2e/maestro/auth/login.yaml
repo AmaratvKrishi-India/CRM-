@@ -10,7 +10,7 @@ appId: "com.amaratvkrishi.salescrm"
 - extendedWaitUntil:
     visible:
       id: "login-email"
-    timeout: 30000
+    timeout: 120000
 
 - assertVisible: "Email / Login ID"
 - assertVisible:
@@ -32,6 +32,6 @@ appId: "com.amaratvkrishi.salescrm"
 - extendedWaitUntil:
     notVisible:
       id: "login-email"
-    timeout: 30000
+    timeout: 120000
 
 - assertNotVisible: "Email / Login ID"

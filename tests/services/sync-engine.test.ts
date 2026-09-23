@@ -48,6 +48,7 @@ describe('SyncEngine', () => {
     const queue = {
       recoverStuckItems: vi.fn(async () => { events.push('recover'); return 0; }),
       purgeSyncedItems: vi.fn(async () => { events.push('purge'); return 0; }),
+      getPendingItems: vi.fn(async () => []),
       getQueueStats: vi.fn(async () => ({ pending: 0, syncing: 0, synced: 0, failed: 0, deadLetter: 0, total: 0 })),
     };
     const push = {

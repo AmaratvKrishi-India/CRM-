@@ -5,6 +5,8 @@
  * Does NOT access IMEI, MAC addresses, serial numbers, or hardware identifiers.
  */
 
+import { createUuid } from '../utils/id';
+
 const DEVICE_ID_STORAGE_KEY = 'amaratv_crm_device_id';
 
 export class DeviceService {
@@ -30,7 +32,7 @@ export class DeviceService {
       // localStorage may throw in restricted sandboxes
     }
 
-    const newId = this.generateUuid();
+    const newId = createUuid();
     this.cachedDeviceId = newId;
 
     try {
@@ -44,19 +46,6 @@ export class DeviceService {
     return newId;
   }
 
-  /**
-   * Generates a standard UUID v4 string.
-   */
-  private static generateUuid(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
 
   /**
    * Resets cached and stored device ID (used strictly in test environments).

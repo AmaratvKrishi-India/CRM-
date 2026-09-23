@@ -34,7 +34,7 @@ export interface OutboxItem {
   entityType: SyncEntityType;
   entityId: string; // UUID of the target entity
   operation: SyncOperation;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   createdAt: string; // ISO DateTime
   updatedAt: string; // ISO DateTime
   retryCount: number;
@@ -94,8 +94,8 @@ export interface SyncConflict {
   id: string;
   entityType: SyncEntityType;
   entityId: string;
-  localData: Record<string, any>;
-  remoteData: Record<string, any>;
+  localData: Record<string, unknown>;
+  remoteData: Record<string, unknown>;
   resolution: 'LOCAL_WON' | 'REMOTE_WON' | 'MERGED';
   resolvedAt: string;
 }

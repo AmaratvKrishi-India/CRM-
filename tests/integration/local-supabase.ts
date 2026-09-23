@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { dirname, join } from 'node:path';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 interface LocalSupabaseConnection {
@@ -45,14 +46,17 @@ function parseEnvironment(output: string): Record<string, string> {
 function localConnection(): LocalSupabaseConnection {
   let output: string;
   try {
-    const command = process.platform === 'win32' ? 'cmd.exe' : 'npx';
+    const npxCli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js');
+    const command = process.platform === 'win32' ? process.execPath : 'npx';
     const args = process.platform === 'win32'
-      ? ['/d', '/s', '/c', 'npx supabase status -o env']
-      : ['supabase', 'status', '-o', 'env'];
+      ? [npxCli, '--no-install', 'supabase', 'status', '-o', 'env']
+      : ['--no-install', 'supabase', 'status', '-o', 'env'];
     output = execFileSync(command, args, {
       cwd: process.cwd(),
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 30_000,
+      windowsHide: true,
     });
   } catch {
     throw new Error('Local Supabase is required for this integration suite. Start the local stack before running Vitest.');

@@ -99,55 +99,51 @@ export class AgentManagementService {
    * Generates an immutable AGENT_CREATED audit log attributed to the actor.
    * Passwords are NEVER persisted locally in Dexie, localStorage, or activity logs.
    */
-  static async createAgent(
-    actor: User | null,
-    input: CreateAgentInput
-  ): Promise<{ agent: User; auditActivity: Activity }> {
-    this.assertAdmin(actor);
-
+  private static validateCreateAgentInput(input: CreateAgentInput): {
+    cleanName: string;
+    cleanEmail: string;
+    cleanPhone: string;
+    password: string;
+  } {
     const cleanName = (input.name || '').trim();
     const cleanEmail = (input.email || '').trim().toLowerCase();
     const cleanPhone = (input.phone || '').trim();
     const password = input.password || '';
 
-    const nameValidation = validateRequired(cleanName, 'Agent full name is required.');
-    if (!nameValidation.valid) throw new Error(nameValidation.error);
+    const checks = [
+      validateRequired(cleanName, 'Agent full name is required.'),
+      validateRequired(cleanEmail, 'Agent email is required.'),
+      validateEmail(cleanEmail, 'Please enter a valid email address.'),
+      validateRequired(password, 'A temporary password is required to provision an agent account.'),
+      validateMinLength(password, 6, 'Password must be at least 6 characters in length.'),
+    ];
+    const failed = checks.find((result) => !result.valid);
+    if (failed && !failed.valid) throw new Error(failed.error);
+    return { cleanName, cleanEmail, cleanPhone, password };
+  }
 
-    const emailRequired = validateRequired(cleanEmail, 'Agent email is required.');
-    if (!emailRequired.valid) throw new Error(emailRequired.error);
-    const emailValidation = validateEmail(cleanEmail, 'Please enter a valid email address.');
-    if (!emailValidation.valid) throw new Error(emailValidation.error);
-
-    const passwordRequired = validateRequired(password, 'A temporary password is required to provision an agent account.');
-    if (!passwordRequired.valid) throw new Error(passwordRequired.error);
-    const passwordLength = validateMinLength(password, 6, 'Password must be at least 6 characters in length.');
-    if (!passwordLength.valid) throw new Error(passwordLength.error);
-
-    const userRepo = this.getUserRepo();
-    const existing = await userRepo.getUserByEmail(cleanEmail);
-    if (existing) {
-      throw new Error(`An account with email "${cleanEmail}" already exists.`);
-    }
-
-    // Agent creation is an online-only server operation. A local profile is
-    // cached only after the Auth account and remote profile both exist.
+  private static async invokeCreateAgent(input: {
+    cleanName: string;
+    cleanEmail: string;
+    cleanPhone: string;
+    password: string;
+  }): Promise<Partial<User>> {
     const supabase = getSupabaseClient();
     if (!supabase) {
       throw new Error('Agent provisioning requires a configured authentication server and an internet connection.');
     }
-
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       throw new Error('Agent provisioning requires an internet connection. No local account was created.');
     }
 
-    let edgeData: any;
+    let edgeData: { error?: string; agent?: Partial<User> } | null;
     try {
       const result = await supabase.functions.invoke('create-agent', {
         body: {
-          name: cleanName,
-          email: cleanEmail,
-          phone: cleanPhone,
-          password,
+          name: input.cleanName,
+          email: input.cleanEmail,
+          phone: input.cleanPhone,
+          password: input.password,
           idempotencyKey: crypto.randomUUID(),
         },
       });
@@ -170,9 +166,14 @@ export class AgentManagementService {
     if (edgeData?.error) {
       throw new Error(`Agent provisioning failed on the server: ${edgeData.error}. No local account was created.`);
     }
+    if (!edgeData?.agent) {
+      throw new Error('Agent provisioning returned an incomplete server profile. No local account was created.');
+    }
+    return edgeData.agent;
+  }
 
-    const remoteAgent = edgeData?.agent;
-    if (!remoteAgent?.id || !remoteAgent.organizationId) {
+  private static validateRemoteAgent(actor: User, remoteAgent: Partial<User>, cleanEmail: string): void {
+    if (!remoteAgent.id || !remoteAgent.organizationId) {
       throw new Error('Agent provisioning returned an incomplete server profile. No local account was created.');
     }
     if (remoteAgent.organizationId !== actor.organizationId) {
@@ -187,17 +188,25 @@ export class AgentManagementService {
     if (remoteAgent.status !== 'ACTIVE' && remoteAgent.status !== 'INACTIVE') {
       throw new Error('Agent provisioning returned an invalid account status. No local account was created.');
     }
+  }
 
+  private static buildAgent(
+    actor: User,
+    remoteAgent: Partial<User>,
+    cleanName: string,
+    cleanEmail: string,
+    cleanPhone: string,
+  ): User {
     const createdAt = remoteAgent.createdAt || new Date().toISOString();
-    const agent: User = {
-      id: remoteAgent.id,
+    return {
+      id: remoteAgent.id!,
       serverRevision: typeof remoteAgent.serverRevision === 'number' ? remoteAgent.serverRevision : undefined,
-      organizationId: remoteAgent.organizationId,
+      organizationId: remoteAgent.organizationId!,
       name: (remoteAgent.name || cleanName).trim(),
       email: cleanEmail,
       phone: (remoteAgent.phone || cleanPhone).trim(),
       role: 'AGENT',
-      status: remoteAgent.status,
+      status: remoteAgent.status!,
       createdAt,
       createdBy: remoteAgent.createdBy || actor.id,
       updatedAt: remoteAgent.updatedAt || createdAt,
@@ -205,15 +214,13 @@ export class AgentManagementService {
       isSynced: 1,
       deletedAt: null,
     };
-    await userRepo.putUser(agent);
+  }
 
-    // Append immutable local audit activity (NEVER storing password).
-    const activityRepo = this.getActivityRepo();
-    const deviceId = DeviceService.getDeviceId();
-    const auditActivity = await activityRepo.logActivity({
+  private static async logAgentCreated(actor: User, agent: User): Promise<Activity> {
+    return this.getActivityRepo().logActivity({
       leadId: null,
-      userId: actor.id, // Actor is the Admin
-      deviceId,
+      userId: actor.id,
+      deviceId: DeviceService.getDeviceId(),
       activityType: 'AGENT_CREATED',
       metadata: {
         agentId: agent.id,
@@ -222,7 +229,35 @@ export class AgentManagementService {
         initialStatus: agent.status,
       },
     });
+  }
 
+  /**
+   * Creates a new sales agent (role is strictly forced to AGENT).
+   * Calls secure Supabase Edge Function 'create-agent' if connected to cloud.
+   * Passwords are NEVER persisted locally in Dexie, localStorage, or activity logs.
+   */
+  static async createAgent(
+    actor: User | null,
+    input: CreateAgentInput
+  ): Promise<{ agent: User; auditActivity: Activity }> {
+    this.assertAdmin(actor);
+    const sanitized = this.validateCreateAgentInput(input);
+    const userRepo = this.getUserRepo();
+    if (await userRepo.getUserByEmail(sanitized.cleanEmail)) {
+      throw new Error(`An account with email "${sanitized.cleanEmail}" already exists.`);
+    }
+
+    const remoteAgent = await this.invokeCreateAgent(sanitized);
+    this.validateRemoteAgent(actor, remoteAgent, sanitized.cleanEmail);
+    const agent = this.buildAgent(
+      actor,
+      remoteAgent,
+      sanitized.cleanName,
+      sanitized.cleanEmail,
+      sanitized.cleanPhone,
+    );
+    await userRepo.putUser(agent);
+    const auditActivity = await this.logAgentCreated(actor, agent);
     return { agent, auditActivity };
   }
 
@@ -263,8 +298,7 @@ export class AgentManagementService {
     }
 
     // Prevent any role changes
-    delete (sanitizedUpdates as any).role;
-    delete (sanitizedUpdates as any).id;
+    delete sanitizedUpdates.role;
 
     const database = userRepo.getDatabase();
     return database.transaction('rw', [database.users, database.activities, database.outbox], async () => {
@@ -446,9 +480,9 @@ export class AgentManagementService {
           });
           if (error || data?.status !== 'APPLIED') throw new Error(error?.message || 'SYNC_CONFLICT: profile edit retained.');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Non-fatal: sync will pick this up on next outbox push
-        console.warn('Cloud profile delete update failed (will sync later):', err?.message);
+        console.warn('Cloud profile delete update failed (will sync later):', err instanceof Error ? err.message : String(err));
       }
     }
 

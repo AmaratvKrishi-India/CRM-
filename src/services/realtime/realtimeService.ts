@@ -1,3 +1,4 @@
+import { isSyncEntityType, remoteSyncRecord, syncTable } from '../sync/syncRecords';
 /**
  * Realtime Service (Phase 2K)
  * Manages organization-scoped Supabase Realtime WebSocket subscriptions,
@@ -13,7 +14,7 @@ import { SyncConflictResolver } from '../sync/syncConflictResolver';
 import { SyncPull } from '../sync/syncPull';
 import { serverRevision } from '../sync/syncTypes';
 import type { SyncEngine } from '../sync/syncEngine';
-import { accessScopeFromUser, canAccessLead, sameAccessScope } from '../../db/accessScope';
+import { accessScopeFromUser, canAccessLead, sameAccessScope, type AccessScope } from '../../db/accessScope';
 import { pruneLeadData } from '../../db/pruning';
 import type { User, Lead, Activity} from '../../db/types';
 import type {
@@ -24,6 +25,11 @@ import type {
   RealtimeNotificationListener,
   RealtimeEntityListener,
 } from './realtimeTypes';
+
+function metadataText(metadata: Record<string, unknown>, key: string, fallback = ''): string {
+  const value = metadata[key];
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
+}
 
 export class RealtimeService {
   private static customDb: SalesCRMDatabase | null = null;
@@ -265,189 +271,139 @@ export class RealtimeService {
   /**
    * Processes incoming postgres changes and non-destructively reconciles into local Dexie.
    */
+  private static notifyEntityListeners(table: string, eventType: 'INSERT' | 'UPDATE' | 'DELETE', record: Record<string, unknown>): void {
+    this.entityListeners.forEach((listener) => {
+      try {
+        listener(table, eventType, record);
+      } catch (error) {
+        console.warn('Entity listener error:', error);
+      }
+    });
+  }
+
+  private static async isAuthorizedRecord(
+    db: SalesCRMDatabase,
+    scope: AccessScope,
+    table: Parameters<typeof syncTable>[1],
+    transformed: Record<string, unknown>,
+  ): Promise<boolean> {
+    if (scope.role === 'ADMIN') return true;
+    if (table === 'leads') return canAccessLead(scope, transformed as unknown as Lead);
+    if (table === 'profiles') return transformed.id === scope.userId;
+    if (table === 'import_audits') return transformed.uploadedBy === scope.userId;
+    if (table === 'bulk_assignment_audits') return false;
+    if (typeof transformed.leadId === 'string') {
+      const lead = await db.leads.get(transformed.leadId);
+      return !!lead && canAccessLead(scope, lead);
+    }
+    return table === 'activities' && transformed.userId === scope.userId;
+  }
+
+  private static async applyDeleteEvent(
+    db: SalesCRMDatabase,
+    scope: AccessScope,
+    table: Parameters<typeof syncTable>[1],
+    row: Record<string, unknown>,
+  ): Promise<void> {
+    const tableRef = syncTable(db, table);
+    const existing = await tableRef.get(String(row.id));
+    if (serverRevision(existing) !== undefined && serverRevision(row) !== undefined &&
+        serverRevision(existing)! > serverRevision(row)!) return;
+    if (table === 'leads') await pruneLeadData(db, [String(row.id)], scope, true);
+    else await tableRef.delete(String(row.id));
+  }
+
+  private static async applyUpsertEvent(
+    db: SalesCRMDatabase,
+    scope: AccessScope,
+    table: Parameters<typeof syncTable>[1],
+    row: Record<string, unknown>,
+  ): Promise<void> {
+    switch (table) {
+      case 'activities': {
+        const record = SyncPull.transformFromPgRecord('activities', row);
+        if (!(await db.activities.get(record.id))) {
+          await db.activities.put(record);
+          const activity = record as Activity;
+          this.activityListeners.forEach((listener) => listener(activity));
+          this.evaluateInAppNotification(activity);
+        }
+        return;
+      }
+      case 'call_records': {
+        const record = SyncPull.transformFromPgRecord('call_records', row);
+        const resolved = SyncConflictResolver.resolveCallRecord(await db.callRecords.get(record.id), record);
+        if (resolved.winner === 'REMOTE') await db.callRecords.put(resolved.data);
+        return;
+      }
+      case 'profiles': {
+        const record = SyncPull.transformFromPgRecord('profiles', row);
+        if (record.id === scope.userId && this.currentUser &&
+            (record.status !== this.currentUser.status || record.role !== this.currentUser.role)) {
+          void this.syncEngineInstance?.triggerSync();
+          return;
+        }
+        const resolved = SyncConflictResolver.resolveMutable('profiles', await db.users.get(record.id), record);
+        if (resolved.winner === 'REMOTE') await db.users.put(resolved.data);
+        return;
+      }
+      case 'import_audits': {
+        const record = SyncPull.transformFromPgRecord('import_audits', row);
+        if (!(await db.importAudits.get(record.id))) await db.importAudits.put(record);
+        return;
+      }
+      case 'message_history': {
+        const record = SyncPull.transformFromPgRecord('message_history', row);
+        if (!(await db.messageHistory.get(record.id))) await db.messageHistory.put(record);
+        return;
+      }
+      case 'bulk_assignment_audits': {
+        const record = SyncPull.transformFromPgRecord('bulk_assignment_audits', row);
+        if (!(await db.bulkAssignmentAudits.get(record.id))) await db.bulkAssignmentAudits.put(record);
+        return;
+      }
+      default: {
+        const record = SyncPull.transformFromPgRecord(table, row);
+        const tableRef = syncTable(db, table);
+        const resolved = SyncConflictResolver.resolveMutable(table, await tableRef.get(record.id), record);
+        if (resolved.winner === 'REMOTE') await tableRef.put(resolved.data);
+      }
+    }
+  }
+
+  /** Processes incoming postgres changes and reconciles them into local Dexie. */
   static async handleIncomingPostgresChange(
     table: string,
     eventType: 'INSERT' | 'UPDATE' | 'DELETE',
-    row: any,
+    input: unknown,
     expectedGeneration: number = this.subscriptionGeneration
   ): Promise<void> {
-    if (!row || !row.id) return;
-    if (expectedGeneration !== this.subscriptionGeneration) return;
+    if (!isSyncEntityType(table) || expectedGeneration !== this.subscriptionGeneration) return;
 
     try {
+      const row = remoteSyncRecord(input);
       const db = this.getDb();
       await db.transaction('rw', db.tables, async () => {
-      const scope = db.requireAccessScope();
-      db.markRemoteSyncWrites();
-      if (this.currentUser && !sameAccessScope(accessScopeFromUser(this.currentUser), scope)) return;
-      if (row.organization_id !== scope.organizationId) return;
-      const names: Record<string, string> = { leads:'leads',call_records:'callRecords',activities:'activities',
-        remarks:'remarks',follow_ups:'followUps',message_history:'messageHistory',profiles:'users',
-        import_audits:'importAudits',bulk_assignment_audits:'bulkAssignmentAudits' };
-      const current = names[table] ? await db.table(names[table]).get(row.id) : undefined;
-      if (serverRevision(current) !== undefined && serverRevision(row) !== undefined &&
-          serverRevision(current)! > serverRevision(row)!) return;
+        const scope = db.requireAccessScope();
+        db.markRemoteSyncWrites();
+        if (this.currentUser && !sameAccessScope(accessScopeFromUser(this.currentUser), scope)) return;
+        if (row.organization_id !== scope.organizationId) return;
 
-      const transformed = SyncPull.transformFromPgRecord(table as any, row);
-      const leadId = transformed.leadId;
-      let authorized = scope.role === 'ADMIN';
-      if (scope.role === 'AGENT') {
-        if (table === 'leads') authorized = canAccessLead(scope, transformed as Lead);
-        else if (table === 'profiles') authorized = transformed.id === scope.userId;
-        else if (table === 'import_audits') authorized = transformed.uploadedBy === scope.userId;
-        else if (table === 'bulk_assignment_audits') authorized = false;
-        else if (typeof leadId === 'string') {
-          const lead = await db.leads.get(leadId);
-          authorized = !!lead && canAccessLead(scope, lead);
-        } else {
-          authorized = table === 'activities' && transformed.userId === scope.userId;
-        }
-      }
+        const tableRef = syncTable(db, table);
+        const current = await tableRef.get(row.id);
+        if (serverRevision(current) !== undefined && serverRevision(row) !== undefined &&
+            serverRevision(current)! > serverRevision(row)!) return;
 
-      if (!authorized) {
-        if (table === 'leads') await pruneLeadData(db, [row.id], scope);
-        return;
-      }
-
-      // DELETE events (REPLICA IDENTITY FULL carries the full old row):
-      // remove the local row. Without this branch the upsert path below
-      // would re-insert the deleted row on every other device. Pull sync
-      // only fetches rows that still exist in the cloud, so realtime is
-      // the only mechanism that can propagate hard deletes — it must
-      // delete, not resurrect. Dexie delete of an unknown id is a no-op.
-      if (eventType === 'DELETE') {
-        const deleteTableMap: Record<string, any> = {
-          leads: db.leads,
-          call_records: db.callRecords,
-          activities: db.activities,
-          remarks: db.remarks,
-          follow_ups: db.followUps,
-          message_history: db.messageHistory,
-          profiles: db.users,
-          import_audits: db.importAudits,
-        };
-        const deleteTable = deleteTableMap[table];
-        const existing = deleteTable ? await deleteTable.get(row.id) : undefined;
-        // A delayed delete for an older incarnation must not remove a newer
-        // authoritative row already delivered by pull or Realtime.
-        if (serverRevision(existing) !== undefined && serverRevision(row) !== undefined &&
-            serverRevision(existing)! > serverRevision(row)!) return;
-        if (table === 'leads') {
-          await pruneLeadData(db, [row.id], scope, true);
-        } else if (deleteTable) {
-          await deleteTable.delete(row.id);
+        const transformed = SyncPull.transformFromPgRecord(table, row);
+        if (!(await this.isAuthorizedRecord(db, scope, table, transformed))) {
+          if (table === 'leads') await pruneLeadData(db, [row.id], scope);
+          return;
         }
 
-        // Notify generic entity listeners so the UI refreshes.
-        this.entityListeners.forEach((l) => {
-          try {
-            l(table, eventType, transformed);
-          } catch (e) {
-            console.warn('Entity listener error:', e);
-          }
-        });
-        return;
-      }
+        if (eventType === 'DELETE') await this.applyDeleteEvent(db, scope, table, row);
+        else await this.applyUpsertEvent(db, scope, table, row);
 
-      switch (table) {
-        case 'activities': {
-          const existing = await db.activities.get(transformed.id);
-          if (!existing) {
-            await db.activities.put(transformed as any);
-            const act = transformed as Activity;
-            this.activityListeners.forEach((l) => l(act));
-
-            // Check if in-app notification should be dispatched
-            this.evaluateInAppNotification(act);
-          }
-          break;
-        }
-
-        case 'call_records': {
-          const existing = await db.callRecords.get(transformed.id);
-          const resolved = SyncConflictResolver.resolveCallRecord(existing, transformed as any);
-          if (resolved.winner === 'REMOTE') {
-            await db.callRecords.put(resolved.data as any);
-          }
-          break;
-        }
-
-        case 'leads': {
-          const existing = await db.leads.get(transformed.id);
-          const resolved = SyncConflictResolver.resolveMutable('leads', existing, transformed as any);
-          if (resolved.winner === 'REMOTE') {
-            await db.leads.put(resolved.data as any);
-          }
-          break;
-        }
-
-        case 'follow_ups': {
-          const existing = await db.followUps.get(transformed.id);
-          const resolved = SyncConflictResolver.resolveMutable('follow_ups', existing, transformed as any);
-          if (resolved.winner === 'REMOTE') {
-            await db.followUps.put(resolved.data as any);
-          }
-          break;
-        }
-
-        case 'remarks': {
-          const existing = await db.remarks.get(transformed.id);
-          const resolved = SyncConflictResolver.resolveMutable('remarks', existing, transformed as any);
-          if (resolved.winner === 'REMOTE') {
-            await db.remarks.put(resolved.data as any);
-          }
-          break;
-        }
-
-        case 'profiles': {
-          if (transformed.id === scope.userId && this.currentUser && (
-            transformed.status !== this.currentUser.status || transformed.role !== this.currentUser.role
-          )) {
-            // Recalculate the database/sync context through server-authoritative
-            // authentication; never mutate the active role in place.
-            void this.syncEngineInstance?.triggerSync();
-            break;
-          }
-          const existing = await db.users.get(transformed.id);
-          const resolved = SyncConflictResolver.resolveMutable('profiles', existing, transformed as any);
-          if (resolved.winner === 'REMOTE') {
-            await db.users.put(resolved.data as any);
-          }
-          break;
-        }
-
-        case 'import_audits': {
-          const existing = await db.importAudits.get(transformed.id);
-          if (!existing) {
-            await db.importAudits.put(transformed as any);
-          }
-          break;
-        }
-
-        case 'message_history': {
-          // Append-only entity: insert-if-absent, same pattern as import_audits.
-          const existing = await db.messageHistory.get(transformed.id);
-          if (!existing) {
-            await db.messageHistory.put(transformed as any);
-          }
-          break;
-        }
-
-        case 'bulk_assignment_audits': {
-          const existing = await db.bulkAssignmentAudits.get(transformed.id);
-          if (!existing) await db.bulkAssignmentAudits.put(transformed as any);
-          break;
-        }
-      }
-
-      // Notify generic entity listeners for UI refresh
-      this.entityListeners.forEach((l) => {
-        try {
-          l(table, eventType, transformed);
-        } catch (e) {
-          console.warn('Entity listener error:', e);
-        }
-      });
+        this.notifyEntityListeners(table, eventType, transformed);
       });
     } catch (err) {
       console.warn('Error processing realtime event for table %s:', table, err);
@@ -457,53 +413,54 @@ export class RealtimeService {
   /**
    * Generates lightweight in-app notifications for the active user.
    */
+  private static assignmentNotification(activity: Activity, user: User): RealtimeInAppNotification | null {
+    if (activity.activityType !== 'LEAD_ASSIGNED' && activity.activityType !== 'LEAD_REASSIGNED') return null;
+    const meta = activity.metadata || {};
+    const base = {
+      id: `notif_${activity.id}`,
+      type: 'ASSIGNMENT' as const,
+      timestamp: activity.createdAt,
+      leadId: activity.leadId || undefined,
+      actorName: String(meta.assignedByAdminName ?? '') || 'Admin',
+    };
+    if (metadataText(meta, 'newAssigneeId') === user.id) {
+      return {
+        ...base,
+        title: 'New Lead Assigned',
+        message: `Admin assigned "${String(meta.leadName ?? '') || 'a lead'}" to you.`,
+      };
+    }
+    if (metadataText(meta, 'previousAssigneeId') === user.id) {
+      return {
+        ...base,
+        title: 'Lead Reassigned',
+        message: `Lead "${String(meta.leadName ?? '') || ''}" was reassigned by Admin.`,
+      };
+    }
+    return null;
+  }
+
+  private static followUpNotification(activity: Activity, user: User): RealtimeInAppNotification | null {
+    const meta = activity.metadata || {};
+    if (activity.activityType !== 'FOLLOW_UP_CREATED' || metadataText(meta, 'assignedTo') !== user.id) return null;
+    const scheduledAt = String(meta.scheduledAt ?? '');
+    return {
+      id: `notif_${activity.id}`,
+      type: 'FOLLOW_UP',
+      title: 'New Follow-Up Scheduled',
+      message: `${String(meta.title ?? '') || 'Follow-up'} scheduled for ${scheduledAt ? new Date(scheduledAt).toLocaleDateString() : 'soon'}.`,
+      timestamp: activity.createdAt,
+      leadId: activity.leadId || undefined,
+      actorName: String(meta.createdByName ?? '') || 'Sales Rep',
+    };
+  }
+
+  /** Generates lightweight in-app notifications for the active user. */
   private static evaluateInAppNotification(activity: Activity): void {
     if (!this.currentUser) return;
-    const meta = activity.metadata || {};
-
-    // Assignment alert for agent
-    if (
-      activity.activityType === 'LEAD_ASSIGNED' ||
-      activity.activityType === 'LEAD_REASSIGNED'
-    ) {
-      if (meta.newAssigneeId === this.currentUser.id) {
-        const notif: RealtimeInAppNotification = {
-          id: `notif_${activity.id}`,
-          type: 'ASSIGNMENT',
-          title: 'New Lead Assigned',
-          message: `Admin assigned "${meta.leadName || 'a lead'}" to you.`,
-          timestamp: activity.createdAt,
-          leadId: activity.leadId || undefined,
-          actorName: meta.assignedByAdminName || 'Admin',
-        };
-        this.notificationListeners.forEach((l) => l(notif));
-      } else if (meta.previousAssigneeId === this.currentUser.id) {
-        const notif: RealtimeInAppNotification = {
-          id: `notif_${activity.id}`,
-          type: 'ASSIGNMENT',
-          title: 'Lead Reassigned',
-          message: `Lead "${meta.leadName || ''}" was reassigned by Admin.`,
-          timestamp: activity.createdAt,
-          leadId: activity.leadId || undefined,
-          actorName: meta.assignedByAdminName || 'Admin',
-        };
-        this.notificationListeners.forEach((l) => l(notif));
-      }
-    }
-
-    // Follow-up alert for agent
-    if (activity.activityType === 'FOLLOW_UP_CREATED' && meta.assignedTo === this.currentUser.id) {
-      const notif: RealtimeInAppNotification = {
-        id: `notif_${activity.id}`,
-        type: 'FOLLOW_UP',
-        title: 'New Follow-Up Scheduled',
-        message: `${meta.title || 'Follow-up'} scheduled for ${meta.scheduledAt ? new Date(meta.scheduledAt).toLocaleDateString() : 'soon'}.`,
-        timestamp: activity.createdAt,
-        leadId: activity.leadId || undefined,
-        actorName: meta.createdByName || 'Sales Rep',
-      };
-      this.notificationListeners.forEach((l) => l(notif));
-    }
+    const notification = this.assignmentNotification(activity, this.currentUser)
+      || this.followUpNotification(activity, this.currentUser);
+    if (notification) this.notificationListeners.forEach((listener) => listener(notification));
   }
 
   /**

@@ -3,8 +3,9 @@
 Use Node 26 and the committed package lock. Run `npm ci` in a fresh checkout, then
 `npm run dev` for the web app. Copy environment templates only into ignored local
 files. Never commit passwords, session tokens, service-role keys or customer exports.
-Start with [README](README.md) and the [documentation guide](docs/README.md), then use [local setup](docs/project-knowledge/23_LOCAL_DEV_SETUP.md);
-the machine-state table in the latter is historical, not a current prerequisite check.
+Start with [README](README.md), then check [GATES.md](GATES.md) for the current
+acceptance state. Verify local prerequisites directly on the machine; historical
+reports are not maintained in this repository.
 
 For live integration tests, Docker must be running. Use `npx supabase start`, then
 `npx supabase migration up --local` to apply pending migrations without resetting
@@ -15,10 +16,10 @@ data; use it only for an explicitly disposable stack after preserving needed dat
 
 ## Change and review workflow
 
-- Read the repository instructions and graph context before discovery. Check the
+- Read the release-gate document before discovery. Check the
   branch, HEAD and working tree; preserve changes made by others.
-- Use a `codex/` branch for assistant-created branches. Keep each defect scoped to
-  its root cause and link its finding or issue in the review description.
+- Use a short task-specific branch name. Keep each defect scoped to its root cause
+  and link its finding or issue in the review description.
 - Keep repository writes and their outbox/audit writes atomic. Preserve stable
   mutation IDs and server revisions. Never clear unsynced work to make a test pass.
 - Add a regression at the failing boundary. Distinguish mocks, real IndexedDB
@@ -26,8 +27,7 @@ data; use it only for an explicitly disposable stack after preserving needed dat
 - Describe behavior, why it changed, commands and exact results, migrations,
   compatibility and remaining runtime checks. Record every failed attempt before
   a justified rerun. Do not claim staging or device verification from a local build.
-- Commits, pushes and deployments require task authorization. This remediation
-  pass authorizes none of them.
+- Commits, pushes and deployments require explicit task authorization.
 
 ## Required local checks
 
@@ -56,6 +56,5 @@ default budget. Review budget changes as product/performance decisions.
 For browser changes run applicable Playwright cases (`npm run test:e2e:chromium`).
 For native changes build/sync the intended environment and record device identity,
 WebView version and lifecycle results. Never point local test writers at staging
-or production. The [current state](docs/project-knowledge/16_CURRENT_STATE.md), [release gates](GATES.md),
-and [latest release sign-off](docs/project-knowledge/FINAL_RELEASE_SIGNOFF_2026-09-09.md)
-list the remaining runtime evidence and release prerequisites.
+or production. [GATES.md](GATES.md) lists the remaining runtime evidence and release
+prerequisites.

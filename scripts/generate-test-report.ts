@@ -10,6 +10,7 @@ import { join } from 'path';
 interface TestResult {
   suite: string;
   passed: boolean;
+  status?: 'PASSED' | 'FAILED' | 'SKIPPED' | 'NOT RUN';
   duration: number;
   coverage?: {
     lines: { pct: number; total: number; covered: number };
@@ -18,14 +19,19 @@ interface TestResult {
     statements: { pct: number; total: number; covered: number };
   };
   error?: string;
+  reason?: string;
+  classification?: 'APPLICATION_FAILURE' | 'INFRASTRUCTURE_LIMITATION' | 'OPTIONAL_UNAVAILABLE' | 'NOT_STARTED';
 }
 
 interface UnifiedReport {
   timestamp: string;
+  profile?: string;
+  completeReleaseDecision?: boolean;
+  releaseDecision?: 'PASS' | 'PARTIAL' | 'FAIL';
   git: { branch: string; commit: string; author: string };
   suites: TestResult[];
-  summary: { total: number; passed: number; failed: number; skipped: number; duration: number };
-  qualityGate: { passed: boolean; failures: string[] };
+  summary: { total: number; passed: number; failed: number; skipped: number; notRun?: number; duration: number };
+  qualityGate: { passed: boolean; enabled?: boolean; failures: string[]; evaluatedSuites?: string[]; limitations?: string[] };
 }
 
 function parseJUnitXml(xmlPath: string): TestResult[] {
@@ -65,15 +71,19 @@ function generateHtmlReport(report: UnifiedReport): string {
   const total = report.summary.total;
   const passRate = total > 0 ? ((passed / total) * 100).toFixed(1) : '0.0';
 
-  const suiteRows = report.suites.map(suite => `
-    <tr class="${suite.passed ? 'passed' : 'failed'}">
+  const suiteRows = report.suites.map(suite => {
+    const status = suite.status ?? (suite.passed ? 'PASSED' : 'FAILED');
+    const rowClass = status === 'SKIPPED' ? 'skipped' : status === 'NOT RUN' ? 'not-run' : status === 'PASSED' ? 'passed' : 'failed';
+    return `
+    <tr class="${rowClass}">
       <td>${escapeHtml(suite.suite)}</td>
-      <td class="status">${suite.passed ? '✅ PASSED' : '❌ FAILED'}</td>
+      <td class="status">${status === 'PASSED' ? '✅ PASSED' : status === 'SKIPPED' ? '⏭️ SKIPPED' : status === 'NOT RUN' ? '⏸️ NOT RUN' : '❌ FAILED'}</td>
       <td>${(suite.duration / 1000).toFixed(1)}s</td>
       <td>${suite.coverage ? `${suite.coverage.lines.pct}%` : 'N/A'}</td>
-      <td>${suite.error ? `<span class="error" title="${escapeHtml(suite.error)}">Error</span>` : ''}</td>
+      <td>${suite.classification ? `<strong>${escapeHtml(suite.classification)}</strong> — ` : ''}${suite.error ? `<span class="error" title="${escapeHtml(suite.error)}">Error</span>` : suite.reason ? escapeHtml(suite.reason) : ''}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const qualityGateClass = report.qualityGate.passed ? 'passed' : 'failed';
   const qualityGateText = report.qualityGate.passed ? '✅ PASSED' : '❌ FAILED';
@@ -117,6 +127,7 @@ function generateHtmlReport(report: UnifiedReport): string {
     th { background: #f9fafb; font-weight: 600; color: #374151; }
     tr.passed td { background: #f0fdf4; }
     tr.failed td { background: #fef2f2; }
+    tr.skipped td, tr.not-run td { background: #fffbeb; }
     .status { font-weight: 600; }
     .status.passed { color: #166534; }
     .status.failed { color: #991b1b; }
@@ -137,7 +148,9 @@ function generateHtmlReport(report: UnifiedReport): string {
         <strong>Branch:</strong> ${report.git.branch} |
         <strong>Commit:</strong> ${report.git.commit.slice(0, 8)} |
         <strong>Author:</strong> ${report.git.author} |
-        <strong>Generated:</strong> ${new Date(report.timestamp).toLocaleString()}
+        <strong>Generated:</strong> ${new Date(report.timestamp).toLocaleString()} |
+        <strong>Profile:</strong> ${escapeHtml(report.profile ?? 'legacy')} |
+        <strong>Decision:</strong> ${escapeHtml(report.releaseDecision ?? 'UNKNOWN')}
       </div>
     </div>
 
@@ -158,6 +171,10 @@ function generateHtmlReport(report: UnifiedReport): string {
         <div class="value skipped">${report.summary.skipped}</div>
         <div class="label">Skipped</div>
       </div>
+      <div class="stat skipped">
+        <div class="value skipped">${report.summary.notRun ?? 0}</div>
+        <div class="label">Not Run</div>
+      </div>
       <div class="stat total">
         <div class="value total">${passRate}%</div>
         <div class="label">Pass Rate</div>
@@ -169,12 +186,15 @@ function generateHtmlReport(report: UnifiedReport): string {
     </div>
 
     <div class="quality-gate ${qualityGateClass}">
-      <h2>🔍 Quality Gate: <span class="status">${qualityGateText}</span></h2>
+      <h2>🔍 Quality Gate: <span class="status">${qualityGateText}</span>${report.qualityGate.enabled === false ? ' (diagnostic run)' : ''}</h2>
       ${!report.qualityGate.passed ? `
         <div class="failures">
           <strong>Failures:</strong>
           <ul>${failuresList}</ul>
         </div>
+      ` : ''}
+      ${(report.qualityGate.limitations?.length ?? 0) > 0 ? `
+        <div class="failures"><strong>Limitations:</strong><ul>${report.qualityGate.limitations!.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul></div>
       ` : ''}
     </div>
 
@@ -241,7 +261,7 @@ async function main(): Promise<void> {
 
   for (const file of jsonFiles) {
     const result = loadJsonResults(file);
-    if (result && !report.suites.some(s => s.suite === result.suite)) {
+    if (result?.suite && !report.suites.some(s => s.suite === result.suite)) {
       additionalResults.push(result);
     }
   }
@@ -249,8 +269,10 @@ async function main(): Promise<void> {
   // Merge additional results
   report.suites.push(...additionalResults);
   report.summary.total = report.suites.length;
-  report.summary.passed = report.suites.filter(s => s.passed).length;
-  report.summary.failed = report.suites.filter(s => !s.passed).length;
+  report.summary.passed = report.suites.filter(s => (s.status ?? (s.passed ? 'PASSED' : 'FAILED')) === 'PASSED').length;
+  report.summary.failed = report.suites.filter(s => (s.status ?? (s.passed ? 'PASSED' : 'FAILED')) === 'FAILED').length;
+  report.summary.skipped = report.suites.filter(s => s.status === 'SKIPPED').length;
+  report.summary.notRun = report.suites.filter(s => s.status === 'NOT RUN').length;
 
   // Generate HTML
   const html = generateHtmlReport(report);

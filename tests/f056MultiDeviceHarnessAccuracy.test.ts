@@ -30,3 +30,12 @@ test('F056 emulator login retries a missing request without accepting a non-200 
   assert.match(source, /for \(let attempt = 1; attempt <= AUTH_RESPONSE_ATTEMPTS; attempt\+\+\)/);
   assert.match(source, /assert\.strictEqual\(response\.status\(\), 200/);
 });
+
+test('F056 local Android builds use the explicit local-test mode', () => {
+  assert.match(source, /run', 'build:local-test'/);
+  assert.doesNotMatch(source, /run', 'build'\]/);
+});
+
+test('F056 package cleanup matches the exact application id', () => {
+  assert.match(source, /line\.trim\(\) === `package:\$\{APP_PACKAGE\}`/);
+});

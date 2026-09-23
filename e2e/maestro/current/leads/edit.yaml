@@ -1,0 +1,64 @@
+# Current UI contract: agent edits a seeded lead and changes its pipeline status.
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- tapOn:
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
+
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 30000
+- tapOn:
+    id: "app-tab-LEADS"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 30000
+- tapOn:
+    id: "leads-search"
+- inputText: "Gold Gym Hazratganj"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 30000
+- tapOn:
+    text: ".*Gold Gym Hazratganj.*"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 30000
+- tapOn:
+    id: "edit-lead-button"
+- extendedWaitUntil:
+    visible:
+      id: "edit-status"
+    timeout: 30000
+- tapOn:
+    id: "edit-status"
+- scrollUntilVisible:
+    element: "Contacted"
+    direction: DOWN
+    timeout: 10000
+- tapOn: "Contacted"
+- tapOn:
+    id: "save-edit-lead-button"
+
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 30000
+- assertVisible: "Contacted"

@@ -1,5 +1,5 @@
 # Admin Excel Import Flow
-# Tests bulk lead import via Excel file
+# Uses the bundled Lucknow dataset so no host file picker, production file, or shell command is involved.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,90 +7,57 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-
-- tapOn: "email-input"
-- inputText: "admin@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "admin-dashboard"
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "import-tab"
-
-- waitFor:
-    id: "import-screen"
-
-- # Upload Excel file
+    id: "login-email"
+- inputText: ${MAESTRO_ADMIN_EMAIL}
 - tapOn:
-    id: "file-picker-button"
-- runCommand: "adb push test-data/leads-import.xlsx /sdcard/Download/leads-import.xlsx"
-- runCommand: "adb shell am start -a android.intent.action.PICK -d file:///sdcard/Download/leads-import.xlsx -t application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    id: "login-password"
+- inputText: ${MAESTRO_ADMIN_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
-    id: "column-mapping-screen"
-    timeout: 10000
-
-- # Map columns
+- extendedWaitUntil:
+    visible:
+      id: "admin-main-content"
+    timeout: 60000
 - tapOn:
-    id: "name-column-dropdown"
+    id: "admin-tab-data"
+- extendedWaitUntil:
+    visible:
+      id: "data-tab-IMPORTS"
+    timeout: 60000
 - tapOn:
-    text: "Name"
-
+    id: "data-tab-IMPORTS"
+- tapOn: "Launch Importer"
+- extendedWaitUntil:
+    visible: "Excel Lead Importer"
+    timeout: 60000
+- tapOn: "Load 141 Leads"
+- extendedWaitUntil:
+    visible: ".*Column Field Mapping.*"
+    timeout: 60000
+- assertVisible: ".*Auto-detected.*"
 - tapOn:
-    id: "phone-column-dropdown"
-- tapOn:
-    text: "Phone"
-
-- tapOn:
-    id: "email-column-dropdown"
-- tapOn:
-    text: "Email"
-
-- tapOn:
-    id: "source-column-dropdown"
-- tapOn:
-    text: "Source"
-
-- tapOn:
-    id: "next-button"
-
-- waitFor:
-    id: "preview-screen"
-
-- # Review preview
-- assertVisible:
-    text: "Row 1"
-- assertVisible:
-    text: "Row 2"
-
-- tapOn:
-    id: "import-button"
-
-- waitFor:
-    id: "import-progress"
-    timeout: 10000
-
-- waitFor:
-    id: "import-complete"
-    timeout: 30000
-
-- # Verify import results
-- assertVisible:
-    text: "Imported"
-- assertVisible:
-    text: "Skipped"
-- assertVisible:
-    text: "Errors"
-
-- # Navigate to leads to verify
-- tapOn:
-    id: "leads-tab"
-- waitFor:
-    id: "admin-leads-list"
-- assertVisible:
-    text: "Imported Lead"
+    id: "import-preview-search"
+- inputText: "Fitness Point"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Import 140 Valid Leads"
+    direction: DOWN
+    timeout: 120000
+- tapOn: "Import 140 Valid Leads"
+- extendedWaitUntil:
+    visible: "Importing Leads into CRM..."
+    timeout: 60000
+- extendedWaitUntil:
+    visible: "Import Completed!"
+    timeout: 120000
+- assertVisible: "Imported New"
+- assertVisible: "Total Processed"
+- tapOn: "View Leads in CRM"
+- extendedWaitUntil:
+    visible: "Batch Import History"
+    timeout: 60000

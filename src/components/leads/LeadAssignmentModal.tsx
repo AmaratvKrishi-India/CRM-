@@ -52,8 +52,8 @@ export const LeadAssignmentModal: React.FC<LeadAssignmentModalProps> = ({
       const allAgents = await AgentManagementService.getAgents(currentUser);
       // Filter for ACTIVE agents only
       setAgents(allAgents.filter((a) => a.status === 'ACTIVE'));
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to load sales agents.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to load sales agents.');
     } finally {
       setLoading(false);
     }
@@ -76,8 +76,8 @@ export const LeadAssignmentModal: React.FC<LeadAssignmentModalProps> = ({
       );
       onAssignmentComplete(updatedLead);
       onClose();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update lead assignment.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update lead assignment.');
     } finally {
       setSubmitting(false);
     }
@@ -94,8 +94,8 @@ export const LeadAssignmentModal: React.FC<LeadAssignmentModalProps> = ({
       );
       onAssignmentComplete(updatedLead);
       onClose();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to remove assignment.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to remove assignment.');
     } finally {
       setSubmitting(false);
     }

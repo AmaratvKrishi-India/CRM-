@@ -6,19 +6,10 @@
 import type { SalesCRMDatabase } from '../database';
 import type { MessageTemplate, TemplateCategory, Lead } from '../types';
 
+import { createUuid } from '../../utils/id';
+
 export class MessageTemplateRepository {
   constructor(private db: SalesCRMDatabase) {}
-
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
 
   /**
    * Retrieves all active templates.
@@ -107,7 +98,7 @@ export class MessageTemplateRepository {
     const isDefault = params.isDefault || false;
 
     const template: MessageTemplate = {
-      id: this.generateId(),
+      id: createUuid(),
       title: params.title.trim(),
       category: params.category || 'INTRO',
       body: params.body.trim(),

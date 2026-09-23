@@ -1,28 +1,36 @@
 # Logout Flow
-# Tests the logout flow and session clearing
+# Admin session is created inside this flow so it is independently runnable.
 
 appId: "com.amaratvkrishi.salescrm"
 
 ---
 - launchApp:
-    clearState: false
+    clearState: true
 
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "profile-menu"
-
+    id: "login-email"
+- inputText: ${MAESTRO_ADMIN_EMAIL}
 - tapOn:
-    id: "logout-button"
+    id: "login-password"
+- inputText: ${MAESTRO_ADMIN_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
-    id: "login-screen"
-    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: "admin-main-content"
+    timeout: 60000
+- tapOn:
+    id: "admin-sign-out-button"
 
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 60000
 - assertVisible:
-    id: "login-form"
-
+    id: "login-password"
 - assertNotVisible:
-    id: "agent-dashboard"
+    id: "admin-main-content"

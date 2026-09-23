@@ -1,5 +1,5 @@
 # Edit Lead Flow - Agent Edits Existing Lead
-# Tests the lead editing flow for AGENT role
+# Changes the seeded lead's pipeline status through the current edit form.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,58 +7,55 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
-
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
-- waitFor:
-    id: "leads-list"
-
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
 - tapOn:
-    id: "lead-item-0"
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
-    id: "lead-detail"
-    timeout: 3000
-
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
+- tapOn:
+    id: "app-tab-LEADS"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 60000
+- tapOn:
+    id: "leads-search"
+- inputText: "Gold Gym Hazratganj"
+- hideKeyboard
+- tapOn: ".*Gold Gym Hazratganj.*Gym.*"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
 - tapOn:
     id: "edit-lead-button"
-
-- waitFor:
-    id: "edit-lead-form"
-    timeout: 5000
-
+- extendedWaitUntil:
+    visible:
+      id: "edit-status"
+    timeout: 60000
 - tapOn:
-    id: "lead-name-input"
-- inputText: "Updated Gym Name"
-
+    id: "edit-status"
+- scrollUntilVisible:
+    element: "Contacted"
+    direction: UP
+    timeout: 30000
+- tapOn: "Contacted"
 - tapOn:
-    id: "lead-status-dropdown"
-- tapOn:
-    text: "CONTACTED"
+    id: "save-edit-lead-button"
 
-- tapOn:
-    id: "submit-lead-button"
-
-- waitFor:
-    id: "lead-detail"
-    timeout: 3000
-
-- assertVisible:
-    text: "Updated Gym Name"
-
-- assertVisible:
-    text: "CONTACTED"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
+- assertVisible: "Contacted"

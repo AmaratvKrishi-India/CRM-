@@ -16,6 +16,7 @@ import {
 import { SyncQueue } from './sync/syncQueue';
 import { ImportAuditRepository } from '../db/repositories/importAuditRepository';
 
+import { createUuid } from '../utils/id';
 export interface ColumnMapping {
   businessName: string;
   phone: string;
@@ -72,7 +73,7 @@ export type RecordValidationStatus = 'VALID' | 'DUPLICATE' | 'INVALID';
 export interface ParsedLeadRecord {
   tempId: string;
   sourceRow: number;
-  originalData: Record<string, any>;
+  originalData: Record<string, unknown>;
   validationStatus: RecordValidationStatus;
   validationIssues: string[];
 
@@ -464,6 +465,84 @@ export class ExcelParserService {
     return mapping;
   }
 
+  private static parseLeadRow(
+    row: Record<string, unknown>,
+    mapping: ColumnMapping,
+    existingPhoneMap: Map<string, Lead>,
+    seenBatchPhones: Set<string>,
+    index: number,
+  ): ParsedLeadRecord {
+    const asText = (value: unknown): string => value === null || value === undefined ? '' : String(value);
+    const rawTitle = asText(row[mapping.businessName]);
+    const rawPhoneValue = row[mapping.phone];
+    const rawPhone = typeof rawPhoneValue === 'number' || typeof rawPhoneValue === 'string' ? rawPhoneValue : null;
+    const rawAddress = asText(row[mapping.address]);
+    const rawCategory = asText(row[mapping.category]);
+    const rawAltPhoneValue = mapping.alternatePhone ? row[mapping.alternatePhone] : undefined;
+    const rawAltPhone = typeof rawAltPhoneValue === 'number' || typeof rawAltPhoneValue === 'string' ? rawAltPhoneValue : null;
+    const rawContact = mapping.contactPerson ? asText(row[mapping.contactPerson]) : '';
+    const rawWeb = mapping.website ? asText(row[mapping.website]) : '';
+
+    const businessName = cleanBusinessName(rawTitle);
+    const normPhone = normalizePhoneNumber(rawPhone);
+    const parsedAddr = parseAddress(rawAddress);
+    const normAlt = rawAltPhone ? normalizePhoneNumber(rawAltPhone) : null;
+    const issues: string[] = [];
+    if (!rawTitle.trim()) issues.push('Missing business name');
+    if (!rawPhone || !String(rawPhone).trim()) issues.push('Missing phone number');
+    else if (!normPhone.isValid) issues.push(`Invalid phone format: "${String(rawPhone)}"`);
+    if (normPhone.type === 'landline') issues.push('Lucknow Landline (0522) - Calling supported, WhatsApp unavailable');
+
+    let validationStatus: RecordValidationStatus = 'VALID';
+    let existingLeadContext: ParsedLeadRecord['existingLead'];
+    const hasBlockingIssue = issues.some((issue) => issue.startsWith('Missing') || issue.startsWith('Invalid'));
+    if (hasBlockingIssue) {
+      validationStatus = 'INVALID';
+    } else if (normPhone.clean) {
+      const existingInDb = existingPhoneMap.get(normPhone.clean);
+      if (existingInDb) {
+        validationStatus = 'DUPLICATE';
+        issues.push(`Duplicate phone: matches existing lead "${existingInDb.businessName}"`);
+        existingLeadContext = {
+          id: existingInDb.id,
+          businessName: existingInDb.businessName,
+          status: existingInDb.status,
+          callCount: existingInDb.callCount,
+          lastContactedAt: existingInDb.lastContactedAt,
+        };
+      } else if (seenBatchPhones.has(normPhone.clean)) {
+        validationStatus = 'DUPLICATE';
+        issues.push('Duplicate phone: appears multiple times in this Excel file');
+      } else {
+        seenBatchPhones.add(normPhone.clean);
+      }
+    }
+
+    return {
+      tempId: `tmp_${index}_${Math.random().toString(36).substring(7)}`,
+      sourceRow: index + 2,
+      originalData: row,
+      validationStatus,
+      validationIssues: issues,
+      businessName,
+      phoneRaw: normPhone.raw || String(rawPhone || ''),
+      phoneClean: normPhone.clean,
+      phoneE164: normPhone.e164,
+      phoneType: normPhone.type,
+      canWhatsApp: normPhone.canWhatsApp,
+      alternatePhone: normAlt?.clean || null,
+      contactPerson: rawContact ? rawContact.trim() : null,
+      address: parsedAddr.fullAddress,
+      locality: parsedAddr.locality,
+      pincode: parsedAddr.pincode,
+      city: parsedAddr.city,
+      state: parsedAddr.state,
+      category: rawCategory.trim() || 'Gym',
+      website: rawWeb ? rawWeb.trim() : null,
+      existingLead: existingLeadContext,
+    };
+  }
+
   /**
    * Parses and validates a specific worksheet in the workbook against existing DB records.
    */
@@ -475,18 +554,14 @@ export class ExcelParserService {
     fileName: string = 'leads.xlsx'
   ): Promise<ParseResult> {
     const sheet = workbook.sheets.find((candidate) => candidate.name === sheetName);
-    if (!sheet) {
-      throw new Error(`Sheet "${sheetName}" not found in workbook.`);
-    }
+    if (!sheet) throw new Error(`Sheet "${sheetName}" not found in workbook.`);
 
     const nonEmptyRows = sheet.rows.filter((row) => row.some((cell) => cell !== ''));
     const headerRow = nonEmptyRows[0] || [];
     const headers = headerRow.map((header, index) => String(header || `Column ${index + 1}`).trim());
-    const rawRows: Array<Record<string, unknown>> = nonEmptyRows.slice(1).map((row) => {
+    const rawRows = nonEmptyRows.slice(1).map((row) => {
       const record = Object.create(null) as Record<string, unknown>;
-      headers.forEach((header, index) => {
-        record[header] = row[index] ?? '';
-      });
+      headers.forEach((header, index) => { record[header] = row[index] ?? ''; });
       return record;
     });
 
@@ -502,138 +577,25 @@ export class ExcelParserService {
       };
     }
 
-    const detectedMapping = {
-      ...this.detectColumnMapping(headers),
-      ...customMapping,
-    };
-
-    // Pre-fetch all active phone numbers from Dexie to perform high-speed deduplication
-    const existingLeads = await db.leads
-      .filter((l) => l.deletedAt === null && Boolean(l.phone))
-      .toArray();
-
-    const existingPhoneMap = new Map<string, Lead>();
-    existingLeads.forEach((l) => existingPhoneMap.set(l.phone, l));
-
+    const detectedMapping: ColumnMapping = { ...this.detectColumnMapping(headers), ...customMapping };
+    const existingLeads = await db.leads.filter((lead) => lead.deletedAt === null && Boolean(lead.phone)).toArray();
+    const existingPhoneMap = new Map(existingLeads.map((lead) => [lead.phone, lead]));
     const seenBatchPhones = new Set<string>();
-    const parsedRecords: ParsedLeadRecord[] = [];
-
-    let validCount = 0;
-    let duplicateCount = 0;
-    let invalidCount = 0;
-
-    for (let i = 0; i < rawRows.length; i++) {
-      const row = rawRows[i];
-      const sourceRow = i + 2; // +1 for 0-index, +1 for header
-      const issues: string[] = [];
-
-      const asText = (value: unknown): string =>
-        value === null || value === undefined ? '' : String(value);
-      const rawTitle = asText(row[detectedMapping.businessName]);
-      const rawPhoneValue = row[detectedMapping.phone];
-      const rawPhone =
-        typeof rawPhoneValue === 'number' || typeof rawPhoneValue === 'string' ? rawPhoneValue : null;
-      const rawAddress = asText(row[detectedMapping.address]);
-      const rawCategory = asText(row[detectedMapping.category]);
-      const rawAltPhoneValue = detectedMapping.alternatePhone
-        ? row[detectedMapping.alternatePhone]
-        : undefined;
-      const rawAltPhone =
-        typeof rawAltPhoneValue === 'number' || typeof rawAltPhoneValue === 'string'
-          ? rawAltPhoneValue
-          : null;
-      const rawContact = detectedMapping.contactPerson
-        ? asText(row[detectedMapping.contactPerson])
-        : '';
-      const rawWeb = detectedMapping.website ? asText(row[detectedMapping.website]) : '';
-
-      const businessName = cleanBusinessName(rawTitle);
-      const normPhone = normalizePhoneNumber(rawPhone);
-      const parsedAddr = parseAddress(rawAddress);
-      const normAlt = rawAltPhone ? normalizePhoneNumber(rawAltPhone) : null;
-
-      if (rawTitle.trim() === '') {
-        issues.push('Missing business name');
-      }
-
-      if (!rawPhone || String(rawPhone).trim() === '') {
-        issues.push('Missing phone number');
-      } else if (!normPhone.isValid) {
-          issues.push(`Invalid phone format: "${String(rawPhone)}"`);
-      }
-
-      if (normPhone.type === 'landline') {
-        issues.push('Lucknow Landline (0522) - Calling supported, WhatsApp unavailable');
-      }
-
-      let validationStatus: RecordValidationStatus = 'VALID';
-      let existingLeadContext: ParsedLeadRecord['existingLead'] = undefined;
-
-      if (issues.some((iss) => iss.startsWith('Missing') || iss.startsWith('Invalid'))) {
-        validationStatus = 'INVALID';
-        invalidCount++;
-      } else if (normPhone.clean) {
-        // Check for duplicates in DB or current batch
-        const existingInDb = existingPhoneMap.get(normPhone.clean);
-        if (existingInDb) {
-          validationStatus = 'DUPLICATE';
-          issues.push(`Duplicate phone: matches existing lead "${existingInDb.businessName}"`);
-          existingLeadContext = {
-            id: existingInDb.id,
-            businessName: existingInDb.businessName,
-            status: existingInDb.status,
-            callCount: existingInDb.callCount,
-            lastContactedAt: existingInDb.lastContactedAt,
-          };
-          duplicateCount++;
-        } else if (seenBatchPhones.has(normPhone.clean)) {
-          validationStatus = 'DUPLICATE';
-          issues.push('Duplicate phone: appears multiple times in this Excel file');
-          duplicateCount++;
-        } else {
-          seenBatchPhones.add(normPhone.clean);
-          validCount++;
-        }
-      }
-
-      parsedRecords.push({
-        tempId: `tmp_${i}_${Math.random().toString(36).substring(7)}`,
-        sourceRow,
-        originalData: row,
-        validationStatus,
-        validationIssues: issues,
-        businessName,
-        phoneRaw: normPhone.raw || String(rawPhone || ''),
-        phoneClean: normPhone.clean,
-        phoneE164: normPhone.e164,
-        phoneType: normPhone.type,
-        canWhatsApp: normPhone.canWhatsApp,
-        alternatePhone: normAlt?.clean || null,
-        contactPerson: rawContact ? rawContact.trim() : null,
-        address: parsedAddr.fullAddress,
-        locality: parsedAddr.locality,
-        pincode: parsedAddr.pincode,
-        city: parsedAddr.city,
-        state: parsedAddr.state,
-        category: rawCategory.trim() || 'Gym',
-        website: rawWeb ? rawWeb.trim() : null,
-        existingLead: existingLeadContext,
-      });
-    }
+    const records = rawRows.map((row, index) =>
+      this.parseLeadRow(row, detectedMapping, existingPhoneMap, seenBatchPhones, index)
+    );
+    const valid = records.filter((record) => record.validationStatus === 'VALID').length;
+    const duplicates = records.filter((record) => record.validationStatus === 'DUPLICATE').length;
+    const invalid = records.length - valid - duplicates;
 
     return {
       fileName,
-        sheetNames: workbook.sheets.map((candidate) => candidate.name),
+      sheetNames: workbook.sheets.map((candidate) => candidate.name),
       selectedSheet: sheetName,
       availableColumns: headers,
       detectedMapping,
-      records: parsedRecords,
-      summary: {
-        total: rawRows.length,
-        valid: validCount,
-        duplicates: duplicateCount,
-        invalid: invalidCount,
-      },
+      records,
+      summary: { total: records.length, valid, duplicates, invalid },
     };
   }
 
@@ -670,16 +632,6 @@ export class ExcelParserService {
     let skippedDuplicates = 0;
     let skippedInvalid = 0;
 
-    const generateUUID = (): string => {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-      }
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
-    };
 
     const newLeadsToInsert: Lead[] = [];
     const updatesToPerform: Array<{ id: string; changes: Partial<Lead> }> = [];
@@ -714,7 +666,7 @@ export class ExcelParserService {
         }
       } else if (rec.validationStatus === 'VALID') {
         newLeadsToInsert.push({
-          id: generateUUID(),
+          id: createUuid(),
           businessName: rec.businessName,
           category: rec.category,
           phone: rec.phoneClean,

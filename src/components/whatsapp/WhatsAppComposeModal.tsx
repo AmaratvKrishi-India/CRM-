@@ -34,6 +34,319 @@ interface WhatsAppComposeModalProps {
   onOpenSettings?: () => void;
 }
 
+const WhatsAppNotices: React.FC<{
+  isLandline: boolean;
+  isInvalidPhone: boolean;
+  errorMessage: string | null;
+  catalogueWarning: string | null;
+}> = ({ isLandline, isInvalidPhone, errorMessage, catalogueWarning }) => (
+  <>
+    {isLandline && (
+      <div className="p-3 bg-info-soft border border-info/30 rounded-xl text-sm text-info-text flex items-start gap-2">
+        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+        <div>
+          <strong>WhatsApp unavailable for landlines</strong>
+          <p className="mt-0.5">
+            This contact has a Lucknow landline number (0522). Please use the <strong>Call</strong> button instead.
+          </p>
+        </div>
+      </div>
+    )}
+    {isInvalidPhone && !isLandline && (
+      <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text flex items-center gap-2">
+        <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+        <span>Invalid phone number. WhatsApp messaging cannot be initiated.</span>
+      </div>
+    )}
+    {errorMessage && (
+      <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text flex items-center gap-2">
+        <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+        <span>{errorMessage}</span>
+      </div>
+    )}
+    {catalogueWarning && (
+      <div role="alert" className="p-3 bg-warning-soft border border-warning/30 rounded-xl text-sm text-warning-text flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+        <span>{catalogueWarning}</span>
+      </div>
+    )}
+  </>
+);
+
+const FirstTimeSetupPrompt: React.FC<{
+  onCreateDefaultIntro: () => void;
+  onClose: () => void;
+  onOpenSettings?: () => void;
+}> = ({ onCreateDefaultIntro, onClose, onOpenSettings }) => (
+  <div className="p-4 bg-accent-soft border border-accent/30 rounded-2xl space-y-3 text-center">
+    <div className="w-10 h-10 rounded-2xl bg-accent text-on-accent flex items-center justify-center mx-auto shadow-xs">
+      <Sparkles className="w-5 h-5" aria-hidden="true" />
+    </div>
+    <div>
+      <h4 className="font-bold text-sm text-ink">Create your default WhatsApp message</h4>
+      <p className="text-sm text-soft mt-0.5">
+        Save a generic message once. Amaratv CRM will automatically insert the gym name and locality for every lead.
+      </p>
+    </div>
+    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+      <button
+        type="button"
+        onClick={onCreateDefaultIntro}
+        className="flex-1 min-h-11 py-2.5 px-3 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm transition-colors"
+      >
+        Use Amaratv intro pitch
+      </button>
+      {onOpenSettings && (
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOpenSettings();
+          }}
+          className="flex-1 min-h-11 py-2.5 px-3 rounded-xl bg-surface hover:bg-inset border border-line text-soft font-bold text-sm transition-colors"
+        >
+          Write my own
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+const TemplateControls: React.FC<{
+  templates: MessageTemplate[];
+  selectedTemplateId: string;
+  onTemplateChange: (templateId: string) => void;
+  isEditingMessage: boolean;
+  onToggleEditing: () => void;
+  onClose: () => void;
+  onOpenSettings?: () => void;
+}> = ({
+  templates,
+  selectedTemplateId,
+  onTemplateChange,
+  isEditingMessage,
+  onToggleEditing,
+  onClose,
+  onOpenSettings,
+}) => (
+  <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="flex items-center gap-1.5">
+      <label htmlFor="wa-template-select" className="text-sm font-bold text-soft">
+        Pitch template:
+      </label>
+      <select
+        id="wa-template-select"
+        value={selectedTemplateId}
+        onChange={(e) => onTemplateChange(e.target.value)}
+        className="min-h-11 text-sm bg-inset hover:bg-inset-strong border border-line rounded-lg py-1 px-2 text-ink font-bold focus:outline-none focus:ring-2 focus:ring-focus-ring"
+      >
+        {templates.map((tpl) => (
+          <option key={tpl.id} value={tpl.id}>
+            {tpl.isDefault ? '★ [Default] ' + tpl.title : tpl.title}
+          </option>
+        ))}
+      </select>
+    </div>
+    <div className="flex items-center gap-1">
+      {onOpenSettings && (
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOpenSettings();
+          }}
+          aria-label="Manage pitch templates and catalogue in settings"
+          className="min-h-11 min-w-11 px-2 text-soft hover:text-ink rounded-lg hover:bg-inset transition-colors flex items-center justify-center"
+        >
+          <Settings className="w-5 h-5" aria-hidden="true" />
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={onToggleEditing}
+        aria-pressed={isEditingMessage}
+        className={'min-h-11 text-sm font-bold px-2.5 rounded-lg flex items-center gap-1 transition-colors ' +
+          (isEditingMessage ? 'bg-accent-soft text-accent-text' : 'text-soft hover:text-ink hover:bg-inset')}
+      >
+        <Edit3 className="w-4 h-4" aria-hidden="true" />
+        <span>{isEditingMessage ? 'Done editing' : 'Edit'}</span>
+      </button>
+    </div>
+  </div>
+);
+
+const MessageEditor: React.FC<{
+  isEditingMessage: boolean;
+  messageText: string;
+  onMessageTextChange: (value: string) => void;
+  lead: Lead;
+}> = ({ isEditingMessage, messageText, onMessageTextChange, lead }) => (
+  <div className="space-y-1">
+    {isEditingMessage ? (
+      <textarea
+        rows={6}
+        aria-label="WhatsApp message text"
+        value={messageText}
+        onChange={(e) => onMessageTextChange(e.target.value)}
+        placeholder="Type your WhatsApp message..."
+        className="w-full text-sm bg-inset border border-line rounded-xl p-3 text-ink font-mono leading-relaxed placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
+      />
+    ) : (
+      <div className="p-3.5 bg-inset border border-line rounded-2xl space-y-1">
+        <p className="text-sm text-ink font-mono whitespace-pre-wrap leading-relaxed">{messageText}</p>
+        <p className="text-xs text-success-text font-semibold pt-1 border-t border-line">
+          ✓ Personalised with {lead.businessName} &amp; {lead.locality || 'Lucknow'}
+        </p>
+      </div>
+    )}
+  </div>
+);
+
+const AttachmentPicker: React.FC<{
+  attachment: AttachmentMetadata | null;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveAttachment: () => void;
+}> = ({ attachment, fileInputRef, onFileSelect, onRemoveAttachment }) => (
+  <div className="space-y-2 pt-2 border-t border-line">
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept=".pdf,image/*,.doc,.docx"
+      onChange={onFileSelect}
+      className="hidden"
+      aria-hidden="true"
+      tabIndex={-1}
+    />
+    {attachment ? (
+      <div className="bg-accent-soft/70 border border-accent/30 rounded-xl p-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {attachment.isPdf ? (
+            <FileText className="w-6 h-6 text-danger flex-shrink-0" aria-hidden="true" />
+          ) : (
+            <ImageIcon className="w-6 h-6 text-success flex-shrink-0" aria-hidden="true" />
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-ink truncate">{attachment.name}</p>
+            <p className="text-xs text-soft">
+              {attachment.sizeFormatted} • {attachment.isPdf ? 'PDF document' : 'Image'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRemoveAttachment}
+          aria-label={'Remove attachment ' + attachment.name}
+          className="min-h-11 min-w-11 p-1.5 text-faint hover:text-danger rounded-lg hover:bg-surface transition-colors flex items-center justify-center"
+        >
+          <Trash2 className="w-4 h-4" aria-hidden="true" />
+        </button>
+      </div>
+    ) : (
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        className="w-full min-h-11 py-2 px-3 border border-dashed border-line-strong hover:border-accent rounded-xl bg-inset hover:bg-accent-soft/40 text-soft hover:text-accent-text text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+      >
+        <Paperclip className="w-4 h-4 text-faint" aria-hidden="true" />
+        <span>Attach product catalogue PDF (optional)</span>
+      </button>
+    )}
+  </div>
+);
+
+const WhatsAppComposerBody: React.FC<{
+  isFirstTimeSetup: boolean;
+  templates: MessageTemplate[];
+  selectedTemplateId: string;
+  onTemplateChange: (templateId: string) => void;
+  isEditingMessage: boolean;
+  onToggleEditing: () => void;
+  messageText: string;
+  onMessageTextChange: (value: string) => void;
+  lead: Lead;
+  attachment: AttachmentMetadata | null;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemoveAttachment: () => void;
+  onCreateDefaultIntro: () => void;
+  onClose: () => void;
+  onOpenSettings?: () => void;
+}> = (props) => {
+  if (props.isFirstTimeSetup) {
+    return (
+      <FirstTimeSetupPrompt
+        onCreateDefaultIntro={props.onCreateDefaultIntro}
+        onClose={props.onClose}
+        onOpenSettings={props.onOpenSettings}
+      />
+    );
+  }
+  return (
+    <>
+      <TemplateControls
+        templates={props.templates}
+        selectedTemplateId={props.selectedTemplateId}
+        onTemplateChange={props.onTemplateChange}
+        isEditingMessage={props.isEditingMessage}
+        onToggleEditing={props.onToggleEditing}
+        onClose={props.onClose}
+        onOpenSettings={props.onOpenSettings}
+      />
+      <MessageEditor
+        isEditingMessage={props.isEditingMessage}
+        messageText={props.messageText}
+        onMessageTextChange={props.onMessageTextChange}
+        lead={props.lead}
+      />
+      <AttachmentPicker
+        attachment={props.attachment}
+        fileInputRef={props.fileInputRef}
+        onFileSelect={props.onFileSelect}
+        onRemoveAttachment={props.onRemoveAttachment}
+      />
+    </>
+  );
+};
+
+const WhatsAppActionButtons: React.FC<{
+  isLaunching: boolean;
+  isLandline: boolean;
+  isInvalidPhone: boolean;
+  messageText: string;
+  attachment: AttachmentMetadata | null;
+  onSend: () => void;
+  onClose: () => void;
+}> = ({ isLaunching, isLandline, isInvalidPhone, messageText, attachment, onSend, onClose }) => (
+  <div className="pt-3 border-t border-line flex flex-col gap-2">
+    <button
+      type="button"
+      onClick={onSend}
+      disabled={isLaunching || isLandline || isInvalidPhone || !messageText.trim()}
+      className="w-full min-h-12 py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {isLaunching ? (
+        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+      ) : attachment ? (
+        <Share2 className="w-4 h-4" aria-hidden="true" />
+      ) : (
+        <Send className="w-4 h-4" aria-hidden="true" />
+      )}
+      <span>
+        {attachment ? 'Quick send: catalogue & message in WhatsApp' : 'Quick send: open in WhatsApp'}
+      </span>
+    </button>
+    <button
+      type="button"
+      onClick={onClose}
+      disabled={isLaunching}
+      className="w-full min-h-11 py-2.5 px-4 rounded-xl font-medium text-sm text-soft hover:text-ink hover:bg-inset transition-colors"
+    >
+      Cancel
+    </button>
+  </div>
+);
+
 export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
   isOpen,
   lead,
@@ -244,233 +557,39 @@ export const WhatsAppComposeModal: React.FC<WhatsAppComposeModalProps> = ({
     >
       {/* Modal Content */}
       <div className="space-y-4">
-        {/* Landline Warning */}
-        {isLandline && (
-          <div className="p-3 bg-info-soft border border-info/30 rounded-xl text-sm text-info-text flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
-            <div>
-              <strong>WhatsApp unavailable for landlines</strong>
-              <p className="mt-0.5">
-                This contact has a Lucknow landline number (0522). Please use the <strong>Call</strong> button instead.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isInvalidPhone && !isLandline && (
-          <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-            <span>Invalid phone number. WhatsApp messaging cannot be initiated.</span>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {catalogueWarning && (
-          <div role="alert" className="p-3 bg-warning-soft border border-warning/30 rounded-xl text-sm text-warning-text flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
-            <span>{catalogueWarning}</span>
-          </div>
-        )}
-
-        {/* First-Time Setup Prompt */}
-        {isFirstTimeSetup ? (
-          <div className="p-4 bg-accent-soft border border-accent/30 rounded-2xl space-y-3 text-center">
-            <div className="w-10 h-10 rounded-2xl bg-accent text-on-accent flex items-center justify-center mx-auto shadow-xs">
-              <Sparkles className="w-5 h-5" aria-hidden="true" />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm text-ink">Create your default WhatsApp message</h4>
-              <p className="text-sm text-soft mt-0.5">
-                Save a generic message once. Amaratv CRM will automatically insert the gym name and locality for every lead.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleCreateDefaultIntro}
-                className="flex-1 min-h-11 py-2.5 px-3 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm transition-colors"
-              >
-                Use Amaratv intro pitch
-              </button>
-
-              {onOpenSettings && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenSettings();
-                  }}
-                  className="flex-1 min-h-11 py-2.5 px-3 rounded-xl bg-surface hover:bg-inset border border-line text-soft font-bold text-sm transition-colors"
-                >
-                Write my own
-              </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Template Selector Header */}
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                <label htmlFor="wa-template-select" className="text-sm font-bold text-soft">
-                  Pitch template:
-                </label>
-                <select
-                  id="wa-template-select"
-                  value={selectedTemplateId}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="min-h-11 text-sm bg-inset hover:bg-inset-strong border border-line rounded-lg py-1 px-2 text-ink font-bold focus:outline-none focus:ring-2 focus:ring-focus-ring"
-                >
-                  {templates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.isDefault ? `★ [Default] ${tpl.title}` : tpl.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-1">
-                {onOpenSettings && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onClose();
-                      onOpenSettings();
-                    }}
-                    aria-label="Manage pitch templates and catalogue in settings"
-                    className="min-h-11 min-w-11 px-2 text-soft hover:text-ink rounded-lg hover:bg-inset transition-colors flex items-center justify-center"
-                  >
-                    <Settings className="w-5 h-5" aria-hidden="true" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsEditingMessage(!isEditingMessage)}
-                  aria-pressed={isEditingMessage}
-                  className={`min-h-11 text-sm font-bold px-2.5 rounded-lg flex items-center gap-1 transition-colors ${
-                    isEditingMessage
-                      ? 'bg-accent-soft text-accent-text'
-                      : 'text-soft hover:text-ink hover:bg-inset'
-                  }`}
-                >
-                  <Edit3 className="w-4 h-4" aria-hidden="true" />
-                  <span>{isEditingMessage ? 'Done editing' : 'Edit'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Message Preview / Editor Box */}
-            <div className="space-y-1">
-              {isEditingMessage ? (
-                <textarea
-                  rows={6}
-                  aria-label="WhatsApp message text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder="Type your WhatsApp message..."
-                  className="w-full text-sm bg-inset border border-line rounded-xl p-3 text-ink font-mono leading-relaxed placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
-                />
-              ) : (
-                <div className="p-3.5 bg-inset border border-line rounded-2xl space-y-1">
-                  <p className="text-sm text-ink font-mono whitespace-pre-wrap leading-relaxed">
-                    {messageText}
-                  </p>
-                  <p className="text-xs text-success-text font-semibold pt-1 border-t border-line">
-                    ✓ Personalised with {lead.businessName} &amp; {lead.locality || 'Lucknow'}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Product Catalogue Attachment Section */}
-            <div className="space-y-2 pt-2 border-t border-line">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,image/*,.doc,.docx"
-                onChange={handleFileSelect}
-                className="hidden"
-                aria-hidden="true"
-                tabIndex={-1}
-              />
-
-              {attachment ? (
-                <div className="bg-accent-soft/70 border border-accent/30 rounded-xl p-3 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {attachment.isPdf ? (
-                      <FileText className="w-6 h-6 text-danger flex-shrink-0" aria-hidden="true" />
-                    ) : (
-                      <ImageIcon className="w-6 h-6 text-success flex-shrink-0" aria-hidden="true" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-ink truncate">{attachment.name}</p>
-                      <p className="text-xs text-soft">
-                        {attachment.sizeFormatted} • {attachment.isPdf ? 'PDF document' : 'Image'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleRemoveAttachment}
-                    aria-label={`Remove attachment ${attachment.name}`}
-                    className="min-h-11 min-w-11 p-1.5 text-faint hover:text-danger rounded-lg hover:bg-surface transition-colors flex items-center justify-center"
-                  >
-                    <Trash2 className="w-4 h-4" aria-hidden="true" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full min-h-11 py-2 px-3 border border-dashed border-line-strong hover:border-accent rounded-xl bg-inset hover:bg-accent-soft/40 text-soft hover:text-accent-text text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-                >
-                  <Paperclip className="w-4 h-4 text-faint" aria-hidden="true" />
-                  <span>Attach product catalogue PDF (optional)</span>
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Action Buttons */}
-        <div className="pt-3 border-t border-line flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={handleOpenWhatsApp}
-            disabled={isLaunching || isLandline || isInvalidPhone || !messageText.trim()}
-            className="w-full min-h-12 py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLaunching ? (
-              <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-            ) : attachment ? (
-              <Share2 className="w-4 h-4" aria-hidden="true" />
-            ) : (
-              <Send className="w-4 h-4" aria-hidden="true" />
-            )}
-            <span>
-              {attachment
-                ? 'Quick send: catalogue & message in WhatsApp'
-                : 'Quick send: open in WhatsApp'}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLaunching}
-            className="w-full min-h-11 py-2.5 px-4 rounded-xl font-medium text-sm text-soft hover:text-ink hover:bg-inset transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
+        <WhatsAppNotices
+          isLandline={isLandline}
+          isInvalidPhone={isInvalidPhone}
+          errorMessage={errorMessage}
+          catalogueWarning={catalogueWarning}
+        />
+        <WhatsAppComposerBody
+          isFirstTimeSetup={isFirstTimeSetup}
+          templates={templates}
+          selectedTemplateId={selectedTemplateId}
+          onTemplateChange={handleTemplateChange}
+          isEditingMessage={isEditingMessage}
+          onToggleEditing={() => setIsEditingMessage(!isEditingMessage)}
+          messageText={messageText}
+          onMessageTextChange={setMessageText}
+          lead={lead}
+          attachment={attachment}
+          fileInputRef={fileInputRef}
+          onFileSelect={handleFileSelect}
+          onRemoveAttachment={handleRemoveAttachment}
+          onCreateDefaultIntro={handleCreateDefaultIntro}
+          onClose={onClose}
+          onOpenSettings={onOpenSettings}
+        />
+        <WhatsAppActionButtons
+          isLaunching={isLaunching}
+          isLandline={isLandline}
+          isInvalidPhone={isInvalidPhone}
+          messageText={messageText}
+          attachment={attachment}
+          onSend={handleOpenWhatsApp}
+          onClose={onClose}
+        />
       </div>
     </Modal>
   );

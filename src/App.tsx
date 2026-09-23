@@ -683,7 +683,7 @@ function MainAppRouter() {
   );
 }
 
-export function App() {
+function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>

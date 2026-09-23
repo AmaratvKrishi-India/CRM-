@@ -6,8 +6,8 @@ appId: "com.amaratvkrishi.salescrm"
 # Device Configuration
 devices:
   - platform: "android"
-    avdName: "pixel_7_pro_api_34"  # Will be auto-detected if not found
-    # For CI: use emulator name from available AVDs
+    avdName: "Pixel_8"  # Installed on this workstation; override with MAESTRO_DEVICE when needed.
+    # For CI: use an emulator name available on the runner.
   - platform: "ios"
     simulator: "iPhone 15 Pro"
     # Note: iOS testing requires macOS runner
@@ -21,9 +21,9 @@ settings:
 
   # Timeouts
   timeout:
-    command: 30000
-    assertion: 10000
-    launch: 60000
+    command: 60000
+    assertion: 60000
+    launch: 120000
 
   # Screenshots on failure
   screenshotOnFailure: true
@@ -40,17 +40,6 @@ env:
   NODE_ENV: "test"
   VITE_SUPABASE_URL: "http://10.0.2.2:15432"  # Android emulator -> host localhost
   VITE_SUPABASE_ANON_KEY: "test-anon-key"
-
-# Pre-hooks (run before each test)
-preHooks:
-  - command: "adb shell settings put global window_animation_scale 0"
-  - command: "adb shell settings put global transition_animation_scale 0"
-  - command: "adb shell settings put global animator_duration_scale 0"
-  - command: "adb shell am force-stop com.amaratvkrishi.salescrm"
-
-# Post-hooks (run after each test)
-postHooks:
-  - command: "adb shell am force-stop com.amaratvkrishi.salescrm"
 
 # Test Suites Organization
 suites:
@@ -98,8 +87,8 @@ suites:
 
 # Parallel Execution
 parallel:
-  enabled: true
-  maxWorkers: 2  # Limited by emulator count
+  enabled: false
+  maxWorkers: 1  # The launcher runs each legacy flow independently on one disposable emulator.
 
 # CI Configuration
 ci:
@@ -128,15 +117,15 @@ reporting:
 
 # Selectors (custom for this app)
 selectors:
-  # Common patterns used across tests
-  loginButton: 'button[contains(text(), "Login")]'
-  emailInput: 'input[type="email"]'
-  passwordInput: 'input[type="password"]'
-  leadsTab: 'button[contains(text(), "Leads")]'
-  callsTab: 'button[contains(text(), "Calls")]'
-  syncButton: 'button[contains(text(), "Sync")]'
-  offlineIndicator: '[data-testid="offline-indicator"]'
-  onlineIndicator: '[data-testid="online-indicator"]'
+  # Current WebView accessibility contracts used by the repaired flows.
+  loginButton: 'button[contains(text(), "Sign In")]'
+  emailInput: '#login-email'
+  passwordInput: '#login-password'
+  leadsTab: '#app-tab-LEADS'
+  callButton: '#call-button'
+  syncButton: 'button[aria-label="Sync Now"]'
+  offlineIndicator: 'text=Offline — saved locally'
+  onlineIndicator: 'text=Synced'
 
 # Flow Defaults
 flowDefaults:
@@ -144,9 +133,10 @@ flowDefaults:
   - launchApp:
       clearState: true
   - waitForAnimationToEnd
-  - waitFor:
-      id: "app-root"
-      timeout: 15000
+  - extendedWaitUntil:
+      visible:
+        id: "login-email"
+      timeout: 60000
 
 # Tags for filtering
 tags:

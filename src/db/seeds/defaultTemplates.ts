@@ -82,17 +82,3 @@ Best regards,
 Amaratv Krishi`,
   },
 ];
-
-export const PREDEFINED_REMARK_OPTIONS = [
-  'Interested in 1kg sample batch',
-  'Wants gym front-desk retail placement',
-  'Requested callback in evening (after 5 PM)',
-  'Spoke with trainer; owner will decide',
-  'Asked for wholesale price list & margin sheet',
-  'Currently using commercial whey; open to natural alternatives',
-  'Sample delivered; follow up for feedback in 3 days',
-  'Price sensitive; requested volume discount',
-  'Not interested at this moment',
-  'Gym permanently closed / relocated',
-  'Wrong number / individual personal line',
-];

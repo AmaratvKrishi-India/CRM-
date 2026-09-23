@@ -2,6 +2,4 @@
 <resources>
     <string name="app_name">Amaratv Krishi Sales CRM</string>
     <string name="title_activity_main">Amaratv Krishi Sales CRM</string>
-    <string name="package_name">com.amaratvkrishi.salescrm</string>
-    <string name="custom_url_scheme">com.amaratvkrishi.salescrm</string>
 </resources>

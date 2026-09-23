@@ -31,8 +31,32 @@ describe('F050: audit CLI command safety', () => {
 
     assert.match(verifySource, /execFileSync\(adbPath,/);
     assert.doesNotMatch(verifySource, /execSync\(`"\$\{adbPath\}/);
-    assert.match(multiDeviceSource, /execFileSync\(ADB,/);
+    assert.match(multiDeviceSource, /command:\s*ADB,/);
+    assert.match(multiDeviceSource, /runProcessWithWatchdog\(/);
+    assert.doesNotMatch(multiDeviceSource, /execFileSync\(ADB,/);
     assert.doesNotMatch(multiDeviceSource, /execSync\(`"\$\{ADB\}/);
+  });
+
+
+  it('invokes the Android Gradle wrapper without interpolating a spaced path into cmd.exe', () => {
+    const androidAuditSource = fs.readFileSync(path.resolve(here, '../scripts/audit-android.ts'), 'utf8');
+    const watchdogSource = fs.readFileSync(path.resolve(here, '../scripts/process-watchdog.ts'), 'utf8');
+
+    assert.match(androidAuditSource, /command: 'cmd\.exe', args: \['\/d', '\/s', '\/c', 'gradlew\.bat lint'\]/);
+    assert.doesNotMatch(androidAuditSource, /`\$\{gradleWrapper\} lint`/);
+    assert.match(androidAuditSource, /cwd:\s*androidDir/);
+    assert.match(androidAuditSource, /runProcessWithWatchdog\(/);
+    assert.match(watchdogSource, /shell:\s*false/);
+    assert.match(watchdogSource, /taskkill\.exe/);
+    assert.match(watchdogSource, /process\.kill\(-pid/);
+  });
+
+  it('keeps the secret scan scoped to release-relevant files', () => {
+    const secretScannerSource = fs.readFileSync(path.resolve(here, '../scripts/secret-scanner-test.ts'), 'utf8');
+
+    for (const ignoredPath of ['scratch/**', 'local/**', 'strix/**', 'reports/**']) {
+      assert.match(secretScannerSource, new RegExp(ignoredPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    }
   });
 
 });

@@ -5,7 +5,7 @@ import { getSupabaseClient } from './supabaseClient';
 type Operation = 'sync_push' | 'sync_cycle' | 'render' | 'unhandled_error' | 'unhandled_rejection';
 type Category = 'network' | 'timeout' | 'authentication' | 'authorization' | 'validation' | 'conflict' | 'unexpected';
 
-export function operationalCategory(error: unknown): Category {
+function operationalCategory(error: unknown): Category {
   const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
   if (/CONFLICT|REVISION/i.test(message)) return 'conflict';
   if (/TIMEOUT|TIMED OUT/i.test(message)) return 'timeout';

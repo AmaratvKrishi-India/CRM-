@@ -8,22 +8,43 @@ const root = process.cwd();
 const scanRoot = mkdtempSync(join(tmpdir(), 'crm-gitleaks-'));
 
 try {
-  const tracked = execFileSync('git', ['ls-files', '-z'], {
+  const tracked = execFileSync('git', ['ls-files', '--stage', '-z'], {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   }).split('\0').filter(Boolean);
 
   let copied = 0;
-  for (const relativePath of tracked) {
+  let skippedNonRegular = 0;
+  let skippedMissing = 0;
+  for (const entry of tracked) {
+    const tab = entry.indexOf('\t');
+    if (tab < 0) continue;
+    const metadata = entry.slice(0, tab).trim().split(/\s+/);
+    const mode = metadata[0] || '';
+    const relativePath = entry.slice(tab + 1);
+
+    // Only regular tracked blobs can be copied into the disposable scan tree.
+    // Gitlinks/submodules (mode 160000), symlinks, and other special entries
+    // are represented by Git metadata rather than regular file bytes.
+    if (!/^100\d{3}$/.test(mode)) {
+      skippedNonRegular++;
+      continue;
+    }
+
     const source = join(root, relativePath);
-    if (!existsSync(source)) continue;
+    if (!existsSync(source)) {
+      skippedMissing++;
+      continue;
+    }
     const destination = join(scanRoot, relativePath);
     mkdirSync(dirname(destination), { recursive: true });
     copyFileSync(source, destination);
     copied++;
   }
-  console.log(`Prepared ${copied} tracked files for Gitleaks.`);
+  console.log(
+    `Prepared ${copied} regular tracked files for Gitleaks (skipped ${skippedNonRegular} non-regular entries and ${skippedMissing} missing working-tree files).`
+  );
 
   const volumeArg = `${scanRoot}:/repo:ro`;
   const result = spawnSync(

@@ -16,6 +16,7 @@ import { ActivityRepository } from '../db/repositories/activityRepository';
 import { SyncQueue } from './sync/syncQueue';
 import { DeviceService } from './deviceService';
 import { NativePlatformService } from './nativePlatform';
+import { createUuid } from '../utils/id';
 import type {
   User,
   Lead,
@@ -106,16 +107,6 @@ export class CallLifecycleService {
     return customDb ? new SyncQueue(customDb) : crmData.syncQueue;
   }
 
-  private static generateUUID(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
 
   /**
    * Loads current pending attempt from memory or storage.
@@ -168,7 +159,7 @@ export class CallLifecycleService {
       throw new Error('Cannot dial lead: No phone number present.');
     }
 
-    const attemptId = this.generateUUID();
+    const attemptId = createUuid();
     const now = new Date().toISOString();
 
     const attempt: PendingDialAttempt = {

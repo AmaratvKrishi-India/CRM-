@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Loader2,
   Archive,
+  RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { crmData } from '../../../db';
@@ -83,6 +84,7 @@ export const AdminDataManagementView: React.FC = () => {
 
   // Sub-tab 3: Cleanup & Duplicates State
   const [duplicateClusters, setDuplicateClusters] = useState<Array<{ phone: string; leads: Lead[] }>>([]);
+  const [archivedLeads, setArchivedLeads] = useState<Lead[]>([]);
   const [loadingDuplicates, setLoadingDuplicates] = useState(false);
   const [duplicatesError, setDuplicatesError] = useState<string | null>(null);
   const [cleanupSuccessMessage, setCleanupSuccessMessage] = useState<string | null>(null);
@@ -217,10 +219,19 @@ export const AdminDataManagementView: React.FC = () => {
     setLoadingDuplicates(true);
     setDuplicatesError(null);
     try {
-      const allLeads = await crmData.db.leads.filter((l) => l.deletedAt === null).toArray();
+      // The admin cleanup view is also the recovery surface for an accidental
+      // archive. Read the current account partition once, then keep active and
+      // archived rows separate so restoring a lead is visible and auditable.
+      const allLeads = await crmData.db.leads.toArray();
+      const activeLeads = allLeads.filter((lead) => lead.deletedAt === null);
+      setArchivedLeads(
+        allLeads
+          .filter((lead) => lead.deletedAt !== null)
+          .sort((left, right) => (right.deletedAt ?? '').localeCompare(left.deletedAt ?? ''))
+      );
       const phoneMap = new Map<string, Lead[]>();
 
-      for (const lead of allLeads) {
+      for (const lead of activeLeads) {
         const cleanPhone = (lead.phone || '').trim();
         if (!cleanPhone) continue;
 
@@ -296,6 +307,22 @@ export const AdminDataManagementView: React.FC = () => {
         message: 'Could not archive the duplicate lead. Please try again.',
         tone: 'error',
         action: { label: 'Retry', onClick: () => void handleArchiveDuplicate(leadId) },
+      });
+    }
+  };
+
+  const handleRestoreLead = async (lead: Lead) => {
+    try {
+      await crmData.leads.restoreLead(lead.id);
+      setCleanupSuccessMessage(`${lead.businessName} restored successfully.`);
+      setTimeout(() => setCleanupSuccessMessage(null), 4000);
+      await loadDuplicates();
+    } catch (err) {
+      console.error('Failed to restore lead:', err);
+      showToast({
+        message: 'Could not restore the archived lead. Please try again.',
+        tone: 'error',
+        action: { label: 'Retry', onClick: () => void handleRestoreLead(lead) },
       });
     }
   };
@@ -570,7 +597,7 @@ export const AdminDataManagementView: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-ink">{audit.filename}</span>
                       <span className="text-xs text-faint font-mono">
-                        {new Date(audit.completedAt).toLocaleDateString()}
+                        {audit.completedAt ? new Date(audit.completedAt).toLocaleDateString() : 'In progress'}
                       </span>
                     </div>
 
@@ -716,6 +743,56 @@ export const AdminDataManagementView: React.FC = () => {
                   </div>
                 ))}
               </div>
+            )}
+
+            {archivedLeads.length > 0 && (
+              <section
+                aria-labelledby="archived-leads-heading"
+                className="p-3 bg-surface border border-line rounded-2xl space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 id="archived-leads-heading" className="text-sm font-bold text-ink">
+                      Archived leads ({archivedLeads.length})
+                    </h4>
+                    <p className="text-xs text-soft mt-0.5">
+                      Restore a lead if it was archived by mistake. Restoration is written to the sync outbox and activity audit.
+                    </p>
+                  </div>
+                  <RotateCcw className="w-4 h-4 text-accent-text shrink-0" aria-hidden="true" />
+                </div>
+
+                <div className="space-y-1.5">
+                  {archivedLeads.slice(0, 50).map((lead) => (
+                    <div
+                      key={lead.id}
+                      className="p-2 bg-inset rounded-xl flex items-center justify-between gap-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-ink truncate">{lead.businessName}</p>
+                        <p className="text-xs text-soft truncate">
+                          {lead.phone || 'No phone'} • Archived {lead.deletedAt ? new Date(lead.deletedAt).toLocaleDateString() : 'recently'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void handleRestoreLead(lead)}
+                        aria-label={`Restore archived lead ${lead.businessName}`}
+                        className="min-h-11 px-3 bg-accent-soft hover:bg-accent text-accent-text hover:text-on-accent border border-accent/40 rounded-xl text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {archivedLeads.length > 50 && (
+                  <p className="text-xs text-soft">
+                    Showing the 50 most recently archived leads. Export a backup before bulk recovery work.
+                  </p>
+                )}
+              </section>
             )}
           </div>
         )}

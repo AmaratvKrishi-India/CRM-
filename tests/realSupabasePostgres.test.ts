@@ -284,6 +284,123 @@ describe('Real Supabase Local & PostgreSQL Integration Tests (Docker Stack)', ()
     assert.strictEqual(agentAudits.length, 0, 'Agent must receive 0 import audits under RLS');
   });
 
+  it('12b. RLS: reassignment revokes author-only child reads while preserving history for the new assignee', async () => {
+    const leadId = crypto.randomUUID();
+    const childIds = {
+      call_records: crypto.randomUUID(),
+      follow_ups: crypto.randomUUID(),
+      remarks: crypto.randomUUID(),
+      activities: crypto.randomUUID(),
+      message_history: crypto.randomUUID(),
+    };
+
+    const { error: leadErr } = await serviceClient.from('leads').insert({
+      id: leadId,
+      organization_id: ORG_1_ID,
+      business_name: 'Reassignment Boundary Gym',
+      phone: '9876504321',
+      address: 'Lucknow',
+      locality: 'Lucknow',
+      status: 'NEW',
+      created_by: ADMIN_ID,
+      assigned_to: AGENT_A_ID,
+    });
+    assert.strictEqual(leadErr, null);
+
+    const now = new Date().toISOString();
+    const tomorrow = new Date(Date.now() + 86400000).toISOString();
+
+    const inserts = [
+      await agentAClient.from('call_records').insert({
+        id: childIds.call_records,
+        organization_id: ORG_1_ID,
+        lead_id: leadId,
+        user_id: AGENT_A_ID,
+        started_at: now,
+        outcome: 'NO_ANSWER',
+      }),
+      await agentAClient.from('follow_ups').insert({
+        id: childIds.follow_ups,
+        organization_id: ORG_1_ID,
+        lead_id: leadId,
+        user_id: AGENT_A_ID,
+        scheduled_at: tomorrow,
+        title: 'Reassignment boundary follow-up',
+        priority: 'MEDIUM',
+        status: 'PENDING',
+      }),
+      await agentAClient.from('remarks').insert({
+        id: childIds.remarks,
+        organization_id: ORG_1_ID,
+        lead_id: leadId,
+        user_id: AGENT_A_ID,
+        content: 'Reassignment boundary remark',
+        type: 'CUSTOM',
+        author: 'Agent A',
+      }),
+      await agentAClient.from('activities').insert({
+        id: childIds.activities,
+        organization_id: ORG_1_ID,
+        lead_id: leadId,
+        user_id: AGENT_A_ID,
+        activity_type: 'LEAD_UPDATED',
+        metadata: { source: 'finding-002-regression' },
+      }),
+      await agentAClient.from('message_history').insert({
+        id: childIds.message_history,
+        organization_id: ORG_1_ID,
+        lead_id: leadId,
+        user_id: AGENT_A_ID,
+        channel: 'WHATSAPP',
+        recipient_phone: '9876504321',
+        message_content: 'Reassignment boundary message',
+        sent_status: 'SENT',
+        sent_at: now,
+      }),
+    ];
+    for (const result of inserts) assert.strictEqual(result.error, null);
+
+    const { data: leadBefore, error: leadReadErr } = await adminClient
+      .from('leads')
+      .select('sync_revision')
+      .eq('id', leadId)
+      .single();
+    assert.strictEqual(leadReadErr, null);
+
+    const { error: reassignErr } = await adminClient
+      .from('leads')
+      .update({
+        assigned_to: AGENT_B_ID,
+        sync_expected_revision: leadBefore.sync_revision,
+      })
+      .eq('id', leadId);
+    assert.strictEqual(reassignErr, null);
+
+    for (const [table, id] of Object.entries(childIds)) {
+      const { data: revokedRows, error: revokedErr } = await agentAClient
+        .from(table)
+        .select('id')
+        .eq('id', id);
+      assert.strictEqual(revokedErr, null, table);
+      assert.strictEqual(
+        revokedRows.length,
+        0,
+        `Revoked agent must not retain author-only SELECT access to ${table}`,
+      );
+
+      const { data: newAssigneeRows, error: newAssigneeErr } = await agentBClient
+        .from(table)
+        .select('id')
+        .eq('id', id);
+      assert.strictEqual(newAssigneeErr, null, table);
+      assert.strictEqual(
+        newAssigneeRows.length,
+        1,
+        `New assignee must retain preserved lead history from ${table}`,
+      );
+    }
+  });
+
   // -------------------------------------------------------------
   // 6. REAL CRUD LIFECYCLE ON POSTGRESQL
   // -------------------------------------------------------------

@@ -1,220 +1,115 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('API Tests', () => {
-  const BASE_URL = process.env.E2E_API_BASE_URL;
+/**
+ * The app is a local-first React client. It does not expose a separate /api/*
+ * server; its authenticated HTTP boundary is the local Supabase gateway.
+ *
+ * Run this suite only with an explicit loopback E2E_API_BASE_URL, for example:
+ * E2E_API_BASE_URL=http://127.0.0.1:15432
+ */
+const BASE_URL = process.env.E2E_API_BASE_URL?.trim();
 
+function assertLoopbackURL(value: string): void {
+  const parsed = new URL(value);
+  if (!['http:', 'https:'].includes(parsed.protocol) || !['127.0.0.1', 'localhost', '::1'].includes(parsed.hostname)) {
+    throw new Error('E2E_API_BASE_URL must point to a loopback-only local test service');
+  }
+}
+
+function endpoint(path: string): string {
+  return [BASE_URL, path].join('');
+}
+
+test.describe('Local API boundary', () => {
   test.beforeAll(() => {
     if (!BASE_URL) {
-      throw new Error('E2E_API_BASE_URL must point to a non-production test API before running api.spec.ts');
+      throw new Error('E2E_API_BASE_URL must explicitly point to a loopback-only local test service');
     }
+    assertLoopbackURL(BASE_URL);
   });
 
-  test('health check endpoint', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/health`);
+  test('Supabase Auth health endpoint is available', async ({ request }) => {
+    const response = await request.get(endpoint('/auth/v1/health'));
     expect(response.status()).toBe(200);
-    
+
     const body = await response.json();
-    expect(body).toHaveProperty('status', 'ok');
+    expect(body).toHaveProperty('version');
+    expect(body).toHaveProperty('name');
   });
 
-  test('auth endpoints - login', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/auth/login`, {
+  test('REST gateway protects lead data without an API key', async ({ request }) => {
+    const response = await request.get(endpoint('/rest/v1/leads'));
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('REST gateway protects call records without an API key', async ({ request }) => {
+    const response = await request.get(endpoint('/rest/v1/call_records'));
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('REST gateway protects follow-ups without an API key', async ({ request }) => {
+    const response = await request.get(endpoint('/rest/v1/follow_ups'));
+    expect([401, 403]).toContain(response.status());
+  });
+
+  test('Auth login rejects invalid credentials without creating data', async ({ request }) => {
+    const response = await request.post(endpoint('/auth/v1/token?grant_type=password'), {
       data: {
-        email: 'test@example.com',
-        password: 'testpassword',
+        email: 'invalid-local-test@example.invalid',
+        password: 'invalid-password',
       },
     });
-    
-    // Should return 400 for invalid credentials or 200 for valid
-    expect([200, 400, 401]).toContain(response.status());
+    expect([400, 401, 422]).toContain(response.status());
   });
 
-  test('auth endpoints - signup', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/auth/signup`, {
+  test('Auth signup rejects invalid input without creating data', async ({ request }) => {
+    const response = await request.post(endpoint('/auth/v1/signup'), {
       data: {
-        email: 'newuser@example.com',
-        password: 'testpassword123',
-        name: 'Test User',
+        email: 'not-an-email',
+        password: 'short',
       },
     });
-    
-    // Should return 400 for existing email or 201 for new user
-    expect([201, 400, 409]).toContain(response.status());
+    expect([400, 401, 422]).toContain(response.status());
   });
 
-  test('leads API - list leads', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/leads`);
-    
-    // Should require authentication
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('leads API - create lead', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/leads`, {
-      data: {
-        businessName: 'Test Gym',
-        phone: '9876543210',
-        locality: 'Gomti Nagar',
-        category: 'Gym',
-      },
-    });
-    
-    // Should require authentication
-    expect([201, 401, 403]).toContain(response.status());
-  });
-
-  test('leads API - get lead by id', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/leads/test-id`);
-    
-    // Should require authentication
-    expect([200, 401, 403, 404]).toContain(response.status());
-  });
-
-  test('leads API - update lead', async ({ request }) => {
-    const response = await request.patch(`${BASE_URL}/api/leads/test-id`, {
-      data: {
-        status: 'INTERESTED',
-      },
-    });
-    
-    // Should require authentication
-    expect([200, 401, 403, 404]).toContain(response.status());
-  });
-
-  test('leads API - delete lead', async ({ request }) => {
-    const response = await request.delete(`${BASE_URL}/api/leads/test-id`);
-    
-    // Should require authentication
-    expect([200, 204, 401, 403, 404]).toContain(response.status());
-  });
-
-  test('call records API', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/call-records`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('follow-ups API', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/follow-ups`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('sync API - status', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/sync/status`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('sync API - trigger sync', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/sync/trigger`);
-    
-    expect([200, 202, 401, 403]).toContain(response.status());
-  });
-
-  test('backup API - create backup', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/backup`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('backup API - restore', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/backup/restore`, {
-      data: { backupData: {} },
-    });
-    
-    expect([200, 400, 401, 403]).toContain(response.status());
-  });
-
-  test('import API - upload', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/import`, {
-      multipart: {
-        file: Buffer.from('test,content'),
-      },
-    });
-    
-    expect([200, 400, 401, 403]).toContain(response.status());
-  });
-
-  test('agents API - list agents', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/agents`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('agents API - create agent', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/agents`, {
-      data: {
-        email: 'newagent@example.com',
-        name: 'New Agent',
-        phone: '9876543210',
-      },
-    });
-    
-    expect([201, 400, 401, 403, 409]).toContain(response.status());
-  });
-
-  test('reports API - dashboard metrics', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/reports/dashboard`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('reports API - leads report', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/reports/leads`);
-    
-    expect([200, 401, 403]).toContain(response.status());
-  });
-
-  test('CORS headers', async ({ request }) => {
-    const response = await request.get(`${BASE_URL}/api/health`, {
+  test('health endpoint returns CORS headers for a local origin', async ({ request }) => {
+    const response = await request.get(endpoint('/auth/v1/health'), {
       headers: {
-        'Origin': 'http://localhost:3000',
+        Origin: 'http://localhost:3000',
       },
     });
-    
     expect(response.status()).toBe(200);
-    const corsHeader = response.headers()['access-control-allow-origin'];
-    expect(corsHeader).toBeDefined();
+    expect(response.headers()['access-control-allow-origin']).toBeDefined();
   });
 
-  test('rate limiting', async ({ request }) => {
-    // Make multiple rapid requests to test rate limiting
-    const promises = Array(20).fill(null).map(() => 
-      request.get(`${BASE_URL}/api/health`)
-    );
-    
-    const responses = await Promise.all(promises);
-    const statusCodes = responses.map(r => r.status());
-    
-    // At least some should succeed (200) or be rate limited (429)
-    expect(statusCodes.every(code => [200, 429].includes(code))).toBe(true);
-  });
+  test('health endpoint responds within two seconds', async ({ request }) => {
+    const startedAt = Date.now();
+    const response = await request.get(endpoint('/auth/v1/health'));
+    const duration = Date.now() - startedAt;
 
-  test('response time', async ({ request }) => {
-    const start = Date.now();
-    const response = await request.get(`${BASE_URL}/api/health`);
-    const duration = Date.now() - start;
-    
     expect(response.status()).toBe(200);
-    // API should respond within 2 seconds
     expect(duration).toBeLessThan(2000);
   });
 
-  test('error response format', async ({ request }) => {
-    const response = await request.post(`${BASE_URL}/api/auth/login`, {
+  test('health endpoint tolerates a bounded burst', async ({ request }) => {
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, () => request.get(endpoint('/auth/v1/health'))),
+    );
+    expect(responses.every((response) => [200, 429].includes(response.status()))).toBe(true);
+  });
+
+  test('invalid Auth input returns a structured error response', async ({ request }) => {
+    const response = await request.post(endpoint('/auth/v1/token?grant_type=password'), {
       data: {
-        email: 'invalid',
-        password: 'invalid',
+        email: 'invalid-local-test@example.invalid',
+        password: 'invalid-password',
       },
     });
-    
     expect(response.status()).toBeGreaterThanOrEqual(400);
-    
+
     const body = await response.json();
-    // Error responses should have a consistent format
-    expect(body).toHaveProperty('error');
-    // or
-    // expect(body).toHaveProperty('message');
+    expect(
+      ['error', 'error_description', 'msg', 'message'].some((field) => Object.prototype.hasOwnProperty.call(body, field)),
+    ).toBe(true);
   });
 });

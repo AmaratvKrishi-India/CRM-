@@ -1,0 +1,38 @@
+# Current UI contract: agent session survives a relaunch without clearing app state.
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+
+- tapOn:
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
+
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 30000
+- assertVisible:
+    id: "app-tab-DASHBOARD"
+
+- launchApp:
+    clearState: false
+
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 30000
+- assertVisible:
+    id: "app-tab-LEADS"
+- assertNotVisible:
+    id: "login-email"

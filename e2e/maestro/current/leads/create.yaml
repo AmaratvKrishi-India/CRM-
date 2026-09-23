@@ -1,0 +1,55 @@
+# Current UI contract: agent creates a locally queued lead through the real form.
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- tapOn:
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
+
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 30000
+- tapOn:
+    id: "app-tab-LEADS"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 30000
+- tapOn: "Add Lead"
+- extendedWaitUntil:
+    visible:
+      id: "create-business-name"
+    timeout: 30000
+
+- tapOn:
+    id: "create-business-name"
+- inputText: "Maestro Smoke Gym"
+- tapOn:
+    id: "create-phone"
+- inputText: "9000000001"
+- tapOn:
+    id: "create-locality"
+- inputText: "Hazratganj"
+- tapOn:
+    id: "save-create-lead-button"
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Maestro Smoke Gym.*"
+    timeout: 30000
+- assertVisible:
+    text: ".*Maestro Smoke Gym.*"
+- assertVisible:
+    text: ".*9000000001.*"

@@ -102,6 +102,21 @@ describe('Dexie to Supabase synchronization integration', () => {
     expect(await database.outbox.get(item.id)).toBeUndefined();
   });
 
+  it('should drain causally released outbox operations in one synchronization cycle', async () => {
+    const first = await enqueue('CREATE');
+    await enqueue('UPDATE', first.entityId);
+    const push = vi.fn(async () => {
+      const pending = await queue.getPendingItems();
+      await queue.markSynced(pending.map((entry) => entry.id));
+      return { pushedCount: pending.length, failedCount: 0 };
+    });
+    const { engine } = createEngine({ push });
+
+    await expect(engine.synchronizeNow()).resolves.toMatchObject({ pushedCount: 2, failedCount: 0 });
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(await queue.getPendingItems()).toHaveLength(0);
+  });
+
   it('should retain failed operations for later retry', async () => {
     const item = await enqueue();
     const { engine, state } = createEngine({

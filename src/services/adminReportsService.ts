@@ -9,6 +9,22 @@ import type { SalesCRMDatabase} from '../db/database';
 import { getDatabase } from '../db/database';
 import type { User, LeadStatus } from '../db/types';
 
+const CSV_FORMULA_PREFIX = /^[\s]*[=+\-@]/;
+
+/**
+ * Serializes a value as a spreadsheet-safe CSV cell.
+ *
+ * Spreadsheet applications may evaluate cells beginning with formula
+ * operators even when the value is quoted. Prefixing those values with a
+ * single quote keeps the exported value as text while preserving the
+ * original content for ordinary CSV consumers.
+ */
+export function sanitizeCsvCell(value: unknown): string {
+  const stringValue = String(value ?? '');
+  const safeValue = CSV_FORMULA_PREFIX.test(stringValue) ? `'${stringValue}` : stringValue;
+  return `"${safeValue.replace(/"/g, '""')}"`;
+}
+
 export type ReportDatePreset =
   | 'TODAY'
   | 'YESTERDAY'
@@ -107,7 +123,7 @@ export interface ImportReportData {
     filename: string;
     uploadedByName: string;
     startedAt: string;
-    completedAt: string;
+    completedAt: string | null;
     totalRows: number;
     imported: number;
     duplicates: number;
@@ -121,7 +137,7 @@ export interface ActivityReportItem {
   actorName: string;
   leadName?: string;
   createdAt: string;
-  metadata: any;
+  metadata: Record<string, unknown>;
 }
 
 export class AdminReportsService {
@@ -673,7 +689,7 @@ export class AdminReportsService {
       return {
         id: a.id,
         filename: a.filename,
-        uploadedByName: userMap.get(a.uploadedBy) || 'Administrator',
+        uploadedByName: a.uploadedBy ? (userMap.get(a.uploadedBy) || 'Administrator') : 'Unknown/removed user',
         startedAt: a.startedAt,
         completedAt: a.completedAt,
         totalRows: a.totalRows,
@@ -733,7 +749,7 @@ export class AdminReportsService {
   ): Promise<string> {
     this.assertAdmin(actor);
     const db = this.getDb();
-    const sanitize = (val: any) => `"${String(val || '').replace(/"/g, '""')}"`;
+    const sanitize = sanitizeCsvCell;
 
     if (reportType === 'LEADS') {
       await this.getLeadReport(actor, filters);

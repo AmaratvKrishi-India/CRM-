@@ -7,29 +7,13 @@ import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
 import type { Activity, ActivityType } from '../types';
 
-export class ActivityRepository {
-  private syncQueue?: SyncQueue;
+import { createUuid } from '../../utils/id';
 
-  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
-    this.syncQueue = syncQueue;
-  }
+export class ActivityRepository {
+  constructor(private db: SalesCRMDatabase, private syncQueue?: SyncQueue) {}
 
   private getSyncQueue(): SyncQueue {
-    if (!this.syncQueue) {
-      this.syncQueue = new SyncQueue(this.db);
-    }
-    return this.syncQueue;
-  }
-
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return (this.syncQueue ??= new SyncQueue(this.db));
   }
 
   /**
@@ -40,7 +24,7 @@ export class ActivityRepository {
     leadId?: string | null;
     userId: string;
     activityType: ActivityType;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     deviceId?: string | null;
   }): Promise<Activity> {
     const scope = this.db.requireAccessScope();
@@ -52,7 +36,7 @@ export class ActivityRepository {
     }
     const now = new Date().toISOString();
     const activity: Activity = {
-      id: input.id || this.generateId(),
+      id: input.id || createUuid(),
       leadId: input.leadId || null,
       userId: input.userId,
       deviceId: input.deviceId || null,

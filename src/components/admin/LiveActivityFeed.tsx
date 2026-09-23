@@ -31,6 +31,21 @@ interface LiveActivityFeedProps {
 
 const FILTER_TABS = ['ALL', 'CALLS', 'ASSIGNMENTS', 'FOLLOW_UPS', 'LEADS'] as const;
 
+function metadataText(metadata: Record<string, unknown>, key: string, fallback = ''): string {
+  const value = metadata[key];
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
+}
+
+function metadataNumber(metadata: Record<string, unknown>, key: string): number {
+  const value = metadata[key];
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
+}
+
 export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
   limit = 50,
   showFilters = true,
@@ -113,19 +128,21 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
     const meta = act.metadata || {};
     switch (act.activityType) {
       case 'CALL_COMPLETED': {
-        const isVerified = meta.verificationStatus === 'VERIFIED' && meta.durationSeconds > 0;
+        const durationSeconds = metadataNumber(meta, 'durationSeconds');
+        const reportedDurationSeconds = metadataNumber(meta, 'reportedDurationSeconds');
+        const isVerified = metadataText(meta, 'verificationStatus') === 'VERIFIED' && durationSeconds > 0;
         const durStr = isVerified
-          ? `${Math.floor(meta.durationSeconds / 60)}m ${meta.durationSeconds % 60}s • Verified`
-          : meta.reportedDurationSeconds
-          ? `Reported ${Math.floor(meta.reportedDurationSeconds / 60)}m ${meta.reportedDurationSeconds % 60}s • Unverified`
+          ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s • Verified`
+          : reportedDurationSeconds
+          ? `Reported ${Math.floor(reportedDurationSeconds / 60)}m ${reportedDurationSeconds % 60}s • Unverified`
           : 'Duration unavailable • Unverified';
 
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.repName || 'Rep'}</span> called{' '}
-            <span className="font-semibold text-ink">{meta.leadName || 'Lead'}</span>
+            <span className="font-semibold text-ink">{metadataText(meta, 'repName', 'Rep')}</span> called{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'leadName', 'Lead')}</span>
             <div className="text-xs text-soft mt-0.5">
-              Outcome: <span className="text-ink font-medium">{meta.outcome || 'Completed'}</span> • {durStr}
+              Outcome: <span className="text-ink font-medium">{metadataText(meta, 'outcome', 'Completed')}</span> • {durStr}
             </div>
           </div>
         );
@@ -134,27 +151,27 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
       case 'LEAD_ASSIGNED':
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.assignedByAdminName || 'Admin'}</span> assigned{' '}
-            <span className="font-semibold text-ink">{meta.leadName || 'Lead'}</span> to{' '}
-            <span className="text-accent-text font-semibold">{meta.newAssigneeName || 'Agent'}</span>
+            <span className="font-semibold text-ink">{metadataText(meta, 'assignedByAdminName', 'Admin')}</span> assigned{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'leadName', 'Lead')}</span> to{' '}
+            <span className="text-accent-text font-semibold">{metadataText(meta, 'newAssigneeName', 'Agent')}</span>
           </div>
         );
 
       case 'LEAD_REASSIGNED':
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.assignedByAdminName || 'Admin'}</span> reassigned{' '}
-            <span className="font-semibold text-ink">{meta.leadName || 'Lead'}</span> from{' '}
-            <span className="text-soft">{meta.previousAssigneeName || 'Previous Agent'}</span> to{' '}
-            <span className="text-accent-text font-semibold">{meta.newAssigneeName || 'New Agent'}</span>
+            <span className="font-semibold text-ink">{metadataText(meta, 'assignedByAdminName', 'Admin')}</span> reassigned{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'leadName', 'Lead')}</span> from{' '}
+            <span className="text-soft">{metadataText(meta, 'previousAssigneeName', 'Previous Agent')}</span> to{' '}
+            <span className="text-accent-text font-semibold">{metadataText(meta, 'newAssigneeName', 'New Agent')}</span>
           </div>
         );
 
       case 'LEAD_UNASSIGNED':
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.unassignedByAdminName || 'Admin'}</span> unassigned{' '}
-            <span className="font-semibold text-ink">{meta.leadName || 'Lead'}</span>
+            <span className="font-semibold text-ink">{metadataText(meta, 'unassignedByAdminName', 'Admin')}</span> unassigned{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'leadName', 'Lead')}</span>
           </div>
         );
 
@@ -162,26 +179,26 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
         return (
           <div>
             New lead created:{' '}
-            <span className="font-semibold text-ink">{meta.businessName || meta.leadName || 'New Lead'}</span> by{' '}
-            <span className="text-info font-medium">{meta.createdByName || 'Sales Rep'}</span>
+            <span className="font-semibold text-ink">{metadataText(meta, 'businessName') || metadataText(meta, 'leadName') || 'New Lead'}</span> by{' '}
+            <span className="text-info font-medium">{metadataText(meta, 'createdByName', 'Sales Rep')}</span>
           </div>
         );
 
       case 'LEAD_IMPORTED':
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.uploadedByName || 'User'}</span> imported{' '}
-            <span className="text-info font-bold">{meta.totalRows || 'new'}</span> leads from spreadsheet
+            <span className="font-semibold text-ink">{metadataText(meta, 'uploadedByName', 'User')}</span> imported{' '}
+            <span className="text-info font-bold">{metadataText(meta, 'totalRows') || 'new'}</span> leads from spreadsheet
           </div>
         );
 
       case 'FOLLOW_UP_CREATED':
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.createdByName || 'Rep'}</span> scheduled follow-up for{' '}
-            <span className="font-semibold text-ink">{meta.leadName || 'Lead'}</span> on{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'createdByName', 'Rep')}</span> scheduled follow-up for{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'leadName', 'Lead')}</span> on{' '}
             <span className="text-warning-text font-medium">
-              {meta.scheduledAt ? new Date(meta.scheduledAt).toLocaleDateString() : 'soon'}
+              {metadataText(meta, 'scheduledAt') ? new Date(metadataText(meta, 'scheduledAt')).toLocaleDateString() : 'soon'}
             </span>
           </div>
         );
@@ -189,8 +206,8 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({
       case 'REMARK_ADDED':
         return (
           <div>
-            <span className="font-semibold text-ink">{meta.author || 'Rep'}</span> added remark for{' '}
-            <span className="font-semibold text-ink">{meta.leadName || 'Lead'}</span>: &ldquo;{meta.content || meta.remark}&rdquo;
+            <span className="font-semibold text-ink">{metadataText(meta, 'author', 'Rep')}</span> added remark for{' '}
+            <span className="font-semibold text-ink">{metadataText(meta, 'leadName', 'Lead')}</span>: &ldquo;{metadataText(meta, 'content') || metadataText(meta, 'remark')}&rdquo;
           </div>
         );
 

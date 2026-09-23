@@ -8,7 +8,7 @@
 
 import { serverRevision, type SyncEntityType, type SyncConflict } from './syncTypes';
 
-export interface ResolutionResult<T = any> {
+export interface ResolutionResult<T = unknown> {
   winner: 'LOCAL' | 'REMOTE';
   data: T;
   conflict?: SyncConflict;
@@ -103,8 +103,8 @@ export class SyncConflictResolver {
       return this.resolveMutable('call_records', local, remote);
     }
 
-    const localVerified = (local.verificationStatus || (local as any).verification_status) === 'VERIFIED';
-    const remoteVerified = ((remote as any).verification_status || remote.verificationStatus) === 'VERIFIED';
+    const localVerified = (local.verificationStatus || local.verification_status) === 'VERIFIED';
+    const remoteVerified = (remote.verification_status || remote.verificationStatus) === 'VERIFIED';
 
     if (remoteVerified && !localVerified) {
       // Remote is verified, local is unverified: remote strictly wins

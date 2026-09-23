@@ -133,9 +133,9 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
 
       onSaved();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to schedule follow up:', err);
-      setError(err.message || 'Failed to schedule follow up.');
+      setError(err instanceof Error ? err.message : 'Failed to schedule follow up.');
     } finally {
       setIsSubmitting(false);
     }

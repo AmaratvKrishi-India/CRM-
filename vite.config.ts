@@ -22,7 +22,7 @@ function cspMetaPlugin() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), cspMetaPlugin()],
-  server: { port: 3000, host: true },
+  server: { port: 3000, host: true, warmup: { clientFiles: ['./src/main.tsx'] } },
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {

@@ -145,6 +145,17 @@ describe('F005 backup shape, scope, and atomicity', () => {
     assert.deepEqual((await db.users.get('user-current'))?.status, 'ACTIVE');
   });
 
+  test('14b provisioned users may retain an intentionally blank phone number', async () => {
+    const { service } = setup('blank-user-phone');
+    const payload = await emptyPayload(service);
+    payload.data.users = [{
+      id: 'user-current', organizationId: 'org-current', name: 'No Phone', email: 'no-phone@example.test',
+      phone: '', role: 'AGENT', status: 'ACTIVE', createdAt: now, createdBy: 'user-current',
+      updatedAt: now, lastLoginAt: null, isSynced: 1, deletedAt: null,
+    }];
+    assert.equal(service.validateBackupPayload(payload).isValid, true);
+  });
+
   test('15 mixed valid and invalid records cause no partial write', async () => {
     const { db, service } = setup('mixed');
     const payload = await emptyPayload(service);
@@ -201,5 +212,35 @@ describe('F005 backup shape, scope, and atomicity', () => {
     assert.equal((await service.mergeRestore(payload)).added, 1);
     assert.equal((await service.mergeRestore(payload)).skipped, 1);
     assert.equal(await db.leads.count(), 1);
+  });
+
+  test('21 server-retained import audits may have nullable actor and completion fields', async () => {
+    const { service } = setup('nullable-import-audit');
+    const payload = await emptyPayload(service);
+    payload.data.importAudits = [{
+      id: 'audit-nullable', uploadedBy: null, deviceId: null,
+      filename: 'historical-import.csv', source: 'Excel Import',
+      startedAt: now, completedAt: null, totalRows: 0, imported: 0,
+      updated: 0, duplicates: 0, invalid: 0, createdAt: now,
+      updatedAt: now, isSynced: 1,
+    }];
+    const validation = service.validateBackupPayload(payload);
+    assert.equal(validation.isValid, true, validation.errors.join('\n'));
+  });
+
+  test('22 restore file-size guard accepts the boundary and rejects one byte over it', () => {
+    const validateRestoreFileSize = (BackupService as unknown as {
+      validateRestoreFileSize?: (sizeBytes: number) => string | null;
+    }).validateRestoreFileSize;
+
+    assert.equal(
+      typeof validateRestoreFileSize,
+      'function',
+      'BackupService must expose an early restore file-size guard',
+    );
+
+    const maxBytes = 25 * 1024 * 1024;
+    assert.equal(validateRestoreFileSize!(maxBytes), null);
+    assert.match(validateRestoreFileSize!(maxBytes + 1) ?? '', /25 MB/i);
   });
 });

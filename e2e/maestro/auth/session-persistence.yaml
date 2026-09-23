@@ -1,5 +1,5 @@
 # Session Persistence Flow
-# Tests that login session persists across app restarts
+# Agent session survives a relaunch when local app state is retained.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,36 +7,33 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
+- tapOn:
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
 - assertVisible:
-    id: "leads-tab"
+    id: "app-tab-DASHBOARD"
 
-# Close and relaunch app
 - launchApp:
     clearState: false
 
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
 - assertVisible:
-    id: "leads-tab"
-
-- assertVisible:
-    id: "calls-tab"
-
+    id: "app-tab-LEADS"
 - assertNotVisible:
-    id: "login-screen"
+    id: "login-email"

@@ -1,5 +1,5 @@
 # Agent Management Flow
-# Tests agent provisioning, editing, deactivation
+# Provisions, edits, deactivates, and rejects a local-only test agent account.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,115 +7,116 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-
-- tapOn: "email-input"
-- inputText: "admin@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "admin-dashboard"
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "agents-tab"
-
-- waitFor:
-    id: "agents-list"
-
-- # Verify existing agents listed
-- assertVisible:
-    id: "agent-item-0"
-
-- # Add new agent
+    id: "login-email"
+- inputText: ${MAESTRO_ADMIN_EMAIL}
 - tapOn:
-    id: "add-agent-button"
-
-- waitFor:
-    id: "create-agent-form"
-
+    id: "login-password"
+- inputText: ${MAESTRO_ADMIN_PASSWORD}
+- hideKeyboard
 - tapOn:
-    id: "agent-name-input"
-- inputText: "New Test Agent"
+    id: "login-submit-button"
 
+- extendedWaitUntil:
+    visible:
+      id: "admin-main-content"
+    timeout: 60000
 - tapOn:
-    id: "agent-phone-input"
-- inputText: "9876543219"
-
+    id: "admin-tab-agents"
+- extendedWaitUntil:
+    visible: "Sales Representatives"
+    timeout: 60000
+- tapOn: "Provision New Agent"
+- extendedWaitUntil:
+    visible: "Create New Sales Agent"
+    timeout: 30000
 - tapOn:
-    id: "agent-email-input"
-- inputText: "newagent@test.com"
-
+    id: "agent-name"
+- inputText: "Legacy Maestro Agent"
 - tapOn:
-    id: "agent-role-dropdown"
+    id: "agent-email"
+- inputText: ${MAESTRO_PROVISIONED_AGENT_EMAIL}
 - tapOn:
-    text: "AGENT"
-
+    id: "agent-phone"
+- inputText: "9${MAESTRO_RUN_TAG}018"
 - tapOn:
-    id: "submit-agent-button"
-
-- waitFor:
-    id: "agents-list"
-    timeout: 10000
-
-- # Verify agent added
-- assertVisible:
-    text: "New Test Agent"
-- assertVisible:
-    text: "newagent@test.com"
-- assertVisible:
-    text: "ACTIVE"
-
-- # Edit agent
+    id: "agent-password"
+- inputText: ${MAESTRO_PROVISIONED_AGENT_PASSWORD}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "agent-confirm-password"
+    direction: DOWN
+    timeout: 30000
 - tapOn:
-    id: "agent-item-new"
-- waitFor:
-    id: "agent-detail"
-
+    id: "agent-confirm-password"
+- inputText: ${MAESTRO_PROVISIONED_AGENT_PASSWORD}
+- hideKeyboard
+- tapOn: "Create Agent"
+- extendedWaitUntil:
+    notVisible:
+      id: "agent-name"
+    timeout: 120000
+- extendedWaitUntil:
+    visible:
+      text: ".*Legacy Maestro Agent.*"
+    timeout: 120000
+- assertVisible: "ACTIVE"
+- assertVisible: ${MAESTRO_PROVISIONED_AGENT_EMAIL}
 - tapOn:
-    id: "edit-agent-button"
-- waitFor:
-    id: "edit-agent-form"
-
+    id: "admin-agents-search"
+- inputText: ${MAESTRO_PROVISIONED_AGENT_EMAIL}
+- hideKeyboard
 - tapOn:
-    id: "agent-phone-input"
-- inputText: "9876543220"
-
+    id: "agent-edit-${MAESTRO_PROVISIONED_AGENT_EMAIL}"
+- extendedWaitUntil:
+    visible:
+      id: "edit-agent-phone"
+    timeout: 30000
 - tapOn:
-    id: "save-agent-button"
-- waitFor:
-    id: "agent-detail"
-
-- assertVisible:
-    text: "9876543220"
-
-- # Deactivate agent
+    id: "edit-agent-phone"
+- eraseText: 30
+- inputText: "9${MAESTRO_RUN_TAG}019"
+- hideKeyboard
+- tapOn: "Save Changes"
+- extendedWaitUntil:
+    visible:
+      text: ".*Legacy Maestro Agent.*"
+    timeout: 60000
+- assertVisible: "9${MAESTRO_RUN_TAG}019"
 - tapOn:
-    id: "deactivate-agent-button"
-- waitFor:
-    id: "confirm-deactivate-dialog"
+    id: "agent-deactivate-${MAESTRO_PROVISIONED_AGENT_EMAIL}"
+- extendedWaitUntil:
+    visible: "Deactivate Agent"
+    timeout: 30000
+- tapOn: "Deactivate Account"
+- extendedWaitUntil:
+    visible:
+      text: ".*Legacy Maestro Agent.*"
+    timeout: 60000
+- assertVisible: "INACTIVE"
+
+# The next session check must reject the deactivated local account.
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 60000
 - tapOn:
-    id: "confirm-button"
-
-- waitFor:
-    id: "agents-list"
-- assertVisible:
-    text: "INACTIVE"
-
-- # Verify agent can't login
-- runCommand: "adb shell am force-stop com.amaratvkrishi.salescrm"
-- runCommand: "adb shell am start -n com.amaratvkrishi.salescrm/.MainActivity"
-- waitFor:
-    id: "login-screen"
-- tapOn: "email-input"
-- inputText: "newagent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-- waitFor:
-    id: "error-message"
-    timeout: 5000
-- assertVisible:
-    text: "Account deactivated"
+    id: "login-email"
+- inputText: ${MAESTRO_PROVISIONED_AGENT_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_PROVISIONED_AGENT_PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "login-submit-button"
+- extendedWaitUntil:
+    visible: ".*Your account is inactive.*"
+    timeout: 60000
+- assertVisible: ".*Your account is inactive.*"

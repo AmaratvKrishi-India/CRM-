@@ -14,9 +14,9 @@ export interface AttachmentMetadata {
   localUrl: string;
 }
 
-export const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB WhatsApp limit
+const MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB WhatsApp limit
 
-export const ALLOWED_MIME_TYPES = [
+const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
   'image/png',

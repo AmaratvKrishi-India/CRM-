@@ -14,7 +14,6 @@ export interface SupabaseConfigStatus {
   anonKey: string | null;
   error: string | null;
 }
-
 let customClient: SupabaseClient | null = null;
 
 /**
@@ -90,12 +89,4 @@ export function getSupabaseClient(): SupabaseClient | null {
  */
 export function setCustomSupabaseClient(client: SupabaseClient | null): void {
   customClient = client;
-}
-
-/**
- * Resets the client singleton (for testing).
- */
-export function resetSupabaseClient(): void {
-  customClient = null;
-  supabaseInstance = null;
 }

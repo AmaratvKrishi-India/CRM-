@@ -1,5 +1,5 @@
 # Online Sync Flow - Agent Syncs When Online
-# Tests the sync flow when network is available
+# Creates local work, invokes the current sync action, and verifies SYNCED state.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,62 +7,51 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
-
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
-- # Verify online indicator
-- assertVisible:
-    id: "online-indicator"
-
-- # Create some data locally
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
 - tapOn:
-    id: "add-lead-button"
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
+- extendedWaitUntil:
+    visible: "Synced"
+    timeout: 60000
+- tapOn:
+    id: "app-tab-LEADS"
+- tapOn: "Add Lead"
+- extendedWaitUntil:
+    visible:
+      id: "create-business-name"
+    timeout: 30000
+- tapOn:
+    id: "create-business-name"
+- inputText: "Legacy Maestro Online Sync ${MAESTRO_RUN_TAG} Gym"
+- tapOn:
+    id: "create-phone"
+- inputText: "9${MAESTRO_RUN_TAG}020"
+- tapOn:
+    id: "create-locality"
+- inputText: "Hazratganj"
+- hideKeyboard
+- tapOn:
+    id: "save-create-lead-button"
+- assertNotVisible:
     id: "create-lead-form"
-
+- extendedWaitUntil:
+    visible: ".*Legacy Maestro Online Sync ${MAESTRO_RUN_TAG} Gym.*"
+    timeout: 60000
 - tapOn:
-    id: "lead-name-input"
-- inputText: "Sync Test Lead"
-
-- tapOn:
-    id: "lead-phone-input"
-- inputText: "9876543210"
-
-- tapOn:
-    id: "submit-lead-button"
-
-- waitFor:
-    id: "leads-list"
-
-- # Tap sync button
-- tapOn:
-    id: "sync-button"
-
-- waitFor:
-    id: "sync-progress"
-    timeout: 10000
-
-- waitFor:
-    id: "sync-complete"
-    timeout: 15000
-
-- assertVisible:
-    id: "sync-complete"
-
-- assertVisible:
-    id: "last-sync-time"
+    id: "app-tab-DASHBOARD"
+- extendedWaitUntil:
+    visible: "Synced"
+    timeout: 60000

@@ -55,8 +55,8 @@ export const ConfirmStatusModal: React.FC<ConfirmStatusModalProps> = ({
         onStatusChanged(updated);
       }
       onClose();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Action failed.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Action failed.');
     } finally {
       setIsSubmitting(false);
     }

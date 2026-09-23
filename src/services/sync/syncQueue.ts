@@ -10,6 +10,7 @@ import Dexie from 'dexie';
 import { DeviceService } from '../deviceService';
 import { serverRevision, type OutboxItem, type SyncEntityType, type SyncOperation } from './syncTypes';
 
+import { createUuid } from '../../utils/id';
 export interface SyncQueueCapacity {
   unsyncedItems: number;
   unsyncedBytes: number;
@@ -57,16 +58,6 @@ export class SyncQueue {
     return this.database || defaultDb;
   }
 
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
 
   private byteSize(value: unknown): number {
     const json = JSON.stringify(value);
@@ -108,7 +99,7 @@ export class SyncQueue {
     entityType: SyncEntityType;
     entityId: string;
     operation: SyncOperation;
-    payload: Record<string, any>;
+    payload: object;
     userId: string;
     organizationId?: string | null;
     deviceId?: string | null;
@@ -125,14 +116,14 @@ export class SyncQueue {
     const deviceId = input.deviceId || DeviceService.getDeviceId();
 
     const item: OutboxItem = {
-      id: this.generateId(),
+      id: createUuid(),
       organizationId: scope.organizationId,
       userId: scope.userId,
       deviceId,
       entityType: input.entityType,
       entityId: input.entityId,
       operation: input.operation,
-      payload: input.payload,
+      payload: { ...input.payload },
       createdAt: now,
       updatedAt: now,
       retryCount: 0,
@@ -150,7 +141,7 @@ export class SyncQueue {
         .reverse()
         .first();
       item.sequence = (newest?.sequence || 0) + 1;
-      item.expectedRevision = serverRevision(input.payload) ?? (input.operation === 'CREATE' ? 0 : undefined);
+      item.expectedRevision = serverRevision(item.payload) ?? (input.operation === 'CREATE' ? 0 : undefined);
       // The predecessor is causal local enqueue order, independent of wall clocks.
       const previous = await database.outbox
         .where('[organizationId+userId+entityType+entityId+sequence]')
@@ -178,6 +169,29 @@ export class SyncQueue {
     return item;
   }
 
+  private async isReadyPendingItem(
+    database: SalesCRMDatabase,
+    item: OutboxItem,
+    nowMs: number,
+  ): Promise<boolean> {
+    if (item.status !== 'PENDING' && item.status !== 'FAILED') return false;
+
+    if (item.predecessorId) {
+      const predecessor = await database.outbox.get(item.predecessorId);
+      if (predecessor && predecessor.status !== 'SYNCED') return false;
+    }
+
+    if (item.retryCount >= SyncQueue.MAX_RETRY_COUNT) {
+      await database.outbox.update(item.id, {
+        status: 'DEAD_LETTER',
+        updatedAt: new Date().toISOString(),
+      });
+      return false;
+    }
+
+    return !item.nextAttemptAt || new Date(item.nextAttemptAt).getTime() <= nowMs;
+  }
+
   /**
    * Retrieves pending or retryable outbox items.
    * Items that exceeded MAX_RETRY_COUNT are parked as DEAD_LETTER and excluded.
@@ -203,20 +217,7 @@ export class SyncQueue {
       offset += page.length;
 
       for (const item of page) {
-        if (item.status !== 'PENDING' && item.status !== 'FAILED') continue;
-        if (item.predecessorId) {
-          const predecessor = await database.outbox.get(item.predecessorId);
-          if (predecessor && predecessor.status !== 'SYNCED') continue;
-        }
-        if (item.retryCount >= SyncQueue.MAX_RETRY_COUNT) {
-          // Park permanently failing items so they stop blocking the queue.
-          await database.outbox.update(item.id, {
-            status: 'DEAD_LETTER',
-            updatedAt: new Date().toISOString(),
-          });
-          continue;
-        }
-        if (item.nextAttemptAt && new Date(item.nextAttemptAt).getTime() > nowMs) continue;
+        if (!(await this.isReadyPendingItem(database, item, nowMs))) continue;
         retryable.push(item);
         if (retryable.length >= limit) break;
       }

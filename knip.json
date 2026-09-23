@@ -17,7 +17,10 @@
                   "scripts/generate-third-party-licenses.mjs",
                   "scripts/owasp-validation-test.ts",
                   "scripts/probeCloudSchema.ts",
-                  "scripts/security-deps-test.ts"
+                  "scripts/security-deps-test.ts",
+                  "scripts/run-maestro.ts",
+                  "scripts/run-native-lifecycle.ts",
+                  "src/index.css"
               ],
     "project":  [
                     "src/**/*.{ts,tsx}",
@@ -33,10 +36,10 @@
               },
     "ignoreBinaries":  [
                            "maestro",
-                           "gradlew.bat"
+                           "tasklist.exe",
+                           "taskkill.exe"
                        ],
     "ignoreDependencies":  [
-                               "@fontsource/inter",
                                "lighthouse",
                                "@stryker-mutator/vitest-runner"
                            ]

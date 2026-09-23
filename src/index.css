@@ -9,7 +9,9 @@
 @import "@fontsource/inter/latin-700.css";
 @import "@fontsource/inter/latin-800.css";
 @import "@fontsource/inter/latin-900.css";
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "./";
+@source "../index.html";
 
 /* ============================================================
    THEME TOKENS — Night Mode (default / dark theme)

@@ -46,7 +46,9 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
   const [contactPerson, setContactPerson] = useState(lead.contactPerson || '');
   const [category, setCategory] = useState(lead.category);
   const [address, setAddress] = useState(lead.address);
-  const [pincode, setPincode] = useState(lead.pincode);
+  // Seeded and server-originated leads may carry a nullable PIN code; keep
+  // the controlled input string-valued so submit validation cannot throw.
+  const [pincode, setPincode] = useState(lead.pincode ?? '');
   const [status, setStatus] = useState<LeadStatus>(lead.status);
   const [notes, setNotes] = useState(lead.customNotes);
   const [loading, setLoading] = useState(false);
@@ -117,7 +119,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
         </span>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <form id="edit-lead-form" onSubmit={handleSubmit} className="space-y-3.5">
         {errorMessage && (
           <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text font-medium">
             {errorMessage}
@@ -264,6 +266,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
           </button>
           <button
             type="submit"
+            id="save-edit-lead-button"
             disabled={loading}
             className="flex-1 min-h-11 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
           >

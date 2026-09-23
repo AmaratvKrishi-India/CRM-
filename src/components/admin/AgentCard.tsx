@@ -133,6 +133,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
             <button
               type="button"
               onClick={() => onEdit(agent)}
+              id={`agent-edit-${agent.email}`}
               aria-label={`Edit ${agent.name}`}
               className="min-h-11 py-1.5 px-3 rounded-xl bg-inset hover:bg-inset-strong text-ink text-sm font-semibold flex items-center gap-1.5 border border-line transition-all active:scale-95"
             >
@@ -146,6 +147,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleStatus(agent)}
+                id={`agent-deactivate-${agent.email}`}
                 aria-label={`Deactivate ${agent.name}`}
                 className="min-h-11 py-1.5 px-3 rounded-xl bg-danger-soft hover:opacity-80 text-danger-text text-sm font-semibold flex items-center gap-1.5 border border-danger transition-all active:scale-95"
               >
@@ -156,6 +158,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleStatus(agent)}
+                id={`agent-activate-${agent.email}`}
                 aria-label={`Activate ${agent.name}`}
                 className="min-h-11 py-1.5 px-3 rounded-xl bg-success-soft hover:opacity-80 text-success-text text-sm font-semibold flex items-center gap-1.5 border border-success transition-all active:scale-95"
               >
@@ -168,6 +171,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
             <button
               type="button"
               onClick={() => onDelete(agent)}
+              id={`agent-delete-${agent.email}`}
               aria-label={`Permanently delete ${agent.name}`}
               className="min-h-11 w-11 flex items-center justify-center rounded-xl bg-inset hover:bg-danger-soft text-faint hover:text-danger-text border border-line hover:border-danger transition-all active:scale-95"
             >

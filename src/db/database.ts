@@ -244,7 +244,7 @@ export class SalesCRMDatabase extends Dexie {
         const transaction = Dexie.currentTransaction;
         if (transaction && this.remoteSyncTransactions.has(transaction)) return;
         const now = new Date().toISOString();
-        const mods = modifications as Record<string, any>;
+        const mods = modifications as Record<string, unknown>;
         return {
           ...modifications,
           updatedAt: mods.updatedAt || now,

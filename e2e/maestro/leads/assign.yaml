@@ -1,5 +1,5 @@
 # Assign Lead Flow - Admin Assigns Lead to Agent
-# Tests the bulk and single lead assignment flow for ADMIN role
+# Selects an unassigned seeded lead and completes the current bulk assignment modal.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,52 +7,65 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
-
-- tapOn: "email-input"
-- inputText: "admin@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "admin-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
-- waitFor:
-    id: "leads-list"
-    timeout: 5000
-
-- # Select first lead
+    id: "login-email"
+- inputText: ${MAESTRO_ADMIN_EMAIL}
 - tapOn:
-    id: "lead-checkbox-0"
+    id: "login-password"
+- inputText: ${MAESTRO_ADMIN_PASSWORD}
+- tapOn: "Sign In"
 
-- # Tap assign button
+- extendedWaitUntil:
+    visible:
+      id: "admin-main-content"
+    timeout: 60000
 - tapOn:
-    id: "assign-leads-button"
-
-- waitFor:
-    id: "assign-modal"
-    timeout: 3000
-
-- # Select agent
+    id: "admin-tab-leads"
 - tapOn:
-    id: "agent-dropdown"
+    id: "admin-leads-search"
+- inputText: "Iron Paradise Alambagh"
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      text: ".*Iron Paradise Alambagh.*"
+    timeout: 60000
 - tapOn:
-    text: "Test Agent"
-
+    text: "Assign Iron Paradise Alambagh"
+    optional: true
 - tapOn:
-    id: "confirm-assign-button"
-
-- waitFor:
-    id: "leads-list"
-    timeout: 5000
-
-- # Verify assignment
-- assertVisible:
-    text: "Test Agent"
+    text: "Reassign Iron Paradise Alambagh"
+    optional: true
+- tapOn:
+    text: "Assign"
+    optional: true
+- extendedWaitUntil:
+    visible: "Assign / Reassign Lead"
+    timeout: 30000
+- tapOn:
+    text: "Unassign"
+    optional: true
+- tapOn:
+    text: "Assign Iron Paradise Alambagh"
+    optional: true
+- tapOn:
+    text: "Reassign Iron Paradise Alambagh"
+    optional: true
+- extendedWaitUntil:
+    visible: "Assign / Reassign Lead"
+    timeout: 30000
+- tapOn: ".*Rahul Verma.*"
+- tapOn:
+    text: ".*Assign Lead.*"
+    optional: true
+- tapOn:
+    text: ".*Reassign Lead.*"
+    optional: true
+- extendedWaitUntil:
+    visible: ".*Iron Paradise Alambagh.*"
+    timeout: 60000
+- assertVisible: "Assigned:.*"
+- assertVisible: "Rahul Verma"

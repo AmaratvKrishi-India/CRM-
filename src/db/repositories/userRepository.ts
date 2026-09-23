@@ -9,17 +9,10 @@ import { SyncQueue } from '../../services/sync/syncQueue';
 import type { User, UserRole, UserStatus } from '../types';
 
 export class UserRepository {
-  private syncQueue?: SyncQueue;
-
-  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
-    this.syncQueue = syncQueue;
-  }
+  constructor(private db: SalesCRMDatabase, private syncQueue?: SyncQueue) {}
 
   private getSyncQueue(): SyncQueue {
-    if (!this.syncQueue) {
-      this.syncQueue = new SyncQueue(this.db);
-    }
-    return this.syncQueue;
+    return (this.syncQueue ??= new SyncQueue(this.db));
   }
 
   private generateId(): string {

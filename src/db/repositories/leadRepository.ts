@@ -21,8 +21,10 @@ import {
   parseAddress,
   cleanBusinessName,
 } from '../services/leadNormalizer';
-import { canAccessLead } from '../accessScope';
+import { canAccessLead, type AccessScope } from '../accessScope';
 import { ActivityRepository } from './activityRepository';
+
+import { createUuid } from '../../utils/id';
 
 export interface LeadWithHistory {
   lead: Lead;
@@ -51,32 +53,84 @@ export interface RawLeadImportInput {
   sourceRow?: number;
 }
 
-export class LeadRepository {
-  private syncQueue?: SyncQueue;
+type LeadFilterContext = {
+  scope: AccessScope;
+  includeDeleted: boolean;
+  statuses: LeadStatus[];
+  localities: string[];
+  categories: string[];
+  hasFollowUp: boolean | undefined;
+  followUpDueBefore: string | undefined;
+  assignedTo: string | null | undefined;
+  createdBy: string | null | undefined;
+  searchTerm: string;
+  searchDigits: string;
+};
 
-  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
-    this.syncQueue = syncQueue;
+function prepareLeadFilterContext(
+  scope: AccessScope,
+  params: LeadFilterParams,
+  includeDeleted: boolean,
+): LeadFilterContext {
+  const searchTerm = params.searchTerm?.trim().toLowerCase() ?? '';
+  return {
+    scope,
+    includeDeleted,
+    statuses: params.status ? (Array.isArray(params.status) ? params.status : [params.status]) : [],
+    localities: params.locality ? (Array.isArray(params.locality) ? params.locality : [params.locality]) : [],
+    categories: params.category ? (Array.isArray(params.category) ? params.category : [params.category]) : [],
+    hasFollowUp: params.hasFollowUp,
+    followUpDueBefore: params.followUpDueBefore,
+    assignedTo: params.assignedTo,
+    createdBy: params.createdBy,
+    searchTerm,
+    searchDigits: searchTerm.replace(/\D/g, ''),
+  };
+}
+
+function matchesLeadAssignment(lead: Lead, assignedTo: string | null | undefined): boolean {
+  if (assignedTo === undefined) return true;
+  if (assignedTo === null || assignedTo === 'UNASSIGNED') return !lead.assignedTo;
+  if (assignedTo === 'ASSIGNED') return Boolean(lead.assignedTo);
+  return lead.assignedTo === assignedTo;
+}
+
+function matchesLeadFollowUp(lead: Lead, filters: LeadFilterContext): boolean {
+  if (filters.hasFollowUp !== undefined && (lead.nextFollowUpAt !== null) !== filters.hasFollowUp) {
+    return false;
   }
+  if (!filters.followUpDueBefore) return true;
+  return lead.nextFollowUpAt !== null && lead.nextFollowUpAt <= filters.followUpDueBefore;
+}
+
+function matchesLeadSearch(lead: Lead, filters: LeadFilterContext): boolean {
+  if (!filters.searchTerm) return true;
+  const term = filters.searchTerm;
+  const nameMatch = lead.businessName.toLowerCase().includes(term);
+  const localityMatch = lead.locality.toLowerCase().includes(term);
+  const contactMatch = Boolean(lead.contactPerson?.toLowerCase().includes(term));
+  const addressMatch = lead.address.toLowerCase().includes(term);
+  const phoneNeedle = filters.searchDigits || term;
+  return nameMatch || localityMatch || contactMatch || addressMatch || lead.phone.includes(phoneNeedle);
+}
+
+function leadMatchesFilters(lead: Lead, filters: LeadFilterContext): boolean {
+  if (!canAccessLead(filters.scope, lead)) return false;
+  if (!filters.includeDeleted && lead.deletedAt !== null) return false;
+  if (filters.statuses.length > 0 && !filters.statuses.includes(lead.status)) return false;
+  if (filters.localities.length > 0 && !filters.localities.includes(lead.locality)) return false;
+  if (filters.categories.length > 0 && !filters.categories.includes(lead.category)) return false;
+  if (!matchesLeadFollowUp(lead, filters)) return false;
+  if (!matchesLeadAssignment(lead, filters.assignedTo)) return false;
+  if (filters.createdBy !== undefined && lead.createdBy !== filters.createdBy) return false;
+  return matchesLeadSearch(lead, filters);
+}
+
+export class LeadRepository {
+  constructor(private db: SalesCRMDatabase, private syncQueue?: SyncQueue) {}
 
   private getSyncQueue(): SyncQueue {
-    if (!this.syncQueue) {
-      this.syncQueue = new SyncQueue(this.db);
-    }
-    return this.syncQueue;
-  }
-
-  /**
-   * Generates a UUID v4 string (browser/Node compatible).
-   */
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return (this.syncQueue ??= new SyncQueue(this.db));
   }
 
   /**
@@ -132,7 +186,7 @@ export class LeadRepository {
 
     const now = new Date().toISOString();
     const newLead: Lead = {
-      id: this.generateId(),
+      id: createUuid(),
       businessName: cleanedName,
       category: (input.category || 'Gym').trim(),
       phone: normPhone.clean,
@@ -246,7 +300,7 @@ export class LeadRepository {
 
       seenBatchPhones.add(normPhone.clean);
 
-      const leadId = this.generateId();
+      const leadId = createUuid();
       const lead: Lead = {
         id: leadId,
         businessName: cleanedName,
@@ -434,12 +488,8 @@ export class LeadRepository {
   async searchAndFilterLeads(params: LeadFilterParams = {}): Promise<{ leads: Lead[]; total: number }> {
     const scope = this.db.requireAccessScope();
     const {
-      searchTerm,
       status,
       locality,
-      category,
-      hasFollowUp,
-      followUpDueBefore,
       includeDeleted = false,
       limit = 50,
       offset = 0,
@@ -466,76 +516,11 @@ export class LeadRepository {
       }
     }
 
-    // Mandatory authorization filter. UI/index filters may narrow this set
-    // but can never broaden it.
-    collection = collection.filter((lead) => canAccessLead(scope, lead));
-
-    // Soft delete filter
-    if (!includeDeleted) {
-      collection = collection.filter((l) => l.deletedAt === null);
-    }
-
-    // Status filter
-    if (status) {
-      const statuses = Array.isArray(status) ? status : [status];
-      if (statuses.length > 0) {
-        collection = collection.filter((l) => statuses.includes(l.status));
-      }
-    }
-
-    // Locality filter
-    if (locality) {
-      const localities = Array.isArray(locality) ? locality : [locality];
-      if (localities.length > 0) {
-        collection = collection.filter((l) => localities.includes(l.locality));
-      }
-    }
-
-    // Category filter
-    if (category) {
-      const categories = Array.isArray(category) ? category : [category];
-      if (categories.length > 0) {
-        collection = collection.filter((l) => categories.includes(l.category));
-      }
-    }
-
-    // Follow-up filters
-    if (hasFollowUp !== undefined) {
-      collection = collection.filter((l) => (hasFollowUp ? l.nextFollowUpAt !== null : l.nextFollowUpAt === null));
-    }
-
-    if (followUpDueBefore) {
-      collection = collection.filter((l) => l.nextFollowUpAt !== null && l.nextFollowUpAt <= followUpDueBefore);
-    }
-
-    // Phase 2 Ownership filters
-    if (params.assignedTo !== undefined) {
-      if (params.assignedTo === null || params.assignedTo === 'UNASSIGNED') {
-        collection = collection.filter((l) => !l.assignedTo);
-      } else if (params.assignedTo === 'ASSIGNED') {
-        collection = collection.filter((l) => !!l.assignedTo);
-      } else {
-        collection = collection.filter((l) => l.assignedTo === params.assignedTo);
-      }
-    }
-
-    if (params.createdBy !== undefined) {
-      collection = collection.filter((l) => l.createdBy === params.createdBy);
-    }
-
-    // Search term filter across business name, phone, locality, contact person, address
-    if (searchTerm && searchTerm.trim() !== '') {
-      const term = searchTerm.trim().toLowerCase();
-      const termDigits = term.replace(/\D/g, '');
-      collection = collection.filter((l) => {
-        const nameMatch = l.businessName.toLowerCase().includes(term);
-        const localityMatch = l.locality.toLowerCase().includes(term);
-        const contactMatch = l.contactPerson ? l.contactPerson.toLowerCase().includes(term) : false;
-        const addressMatch = l.address.toLowerCase().includes(term);
-        const phoneMatch = termDigits ? l.phone.includes(termDigits) : l.phone.includes(term);
-        return nameMatch || localityMatch || contactMatch || addressMatch || phoneMatch;
-      });
-    }
+    // Apply authorization and every remaining in-memory predicate together.
+    // The optional indexed query above only narrows candidates; it never
+    // changes the final filtering semantics.
+    const filterContext = prepareLeadFilterContext(scope, params, includeDeleted);
+    collection = collection.filter((lead) => leadMatchesFilters(lead, filterContext));
 
     // Count every match while retaining only the first page window in sorted
     // order. Search terms and compound filters still require scanning the

@@ -7,29 +7,13 @@ import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
 import type { BulkAssignmentAudit } from '../types';
 
-export class BulkAssignmentAuditRepository {
-  private syncQueue?: SyncQueue;
+import { createUuid } from '../../utils/id';
 
-  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
-    this.syncQueue = syncQueue;
-  }
+export class BulkAssignmentAuditRepository {
+  constructor(private db: SalesCRMDatabase, private syncQueue?: SyncQueue) {}
 
   private getSyncQueue(): SyncQueue {
-    if (!this.syncQueue) {
-      this.syncQueue = new SyncQueue(this.db);
-    }
-    return this.syncQueue;
-  }
-
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return (this.syncQueue ??= new SyncQueue(this.db));
   }
 
   /**
@@ -45,7 +29,7 @@ export class BulkAssignmentAuditRepository {
     failedCount: number;
     startedAt: string;
     completedAt: string;
-    filterSnapshot?: Record<string, any>;
+    filterSnapshot?: Record<string, unknown>;
     status: 'PENDING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
     errorSummary?: string | null;
   }): Promise<BulkAssignmentAudit> {
@@ -55,7 +39,7 @@ export class BulkAssignmentAuditRepository {
       throw new Error('Assignment audits must be attributed to the signed-in administrator.');
     }
     const now = new Date().toISOString();
-    const id = input.id || this.generateId();
+    const id = input.id || createUuid();
 
     const auditRecord: BulkAssignmentAudit = {
       id,

@@ -94,8 +94,8 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
       setPassword('');
       setConfirmPassword('');
       setStatus('ACTIVE');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to create agent account.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to create agent account.');
     } finally {
       setIsSubmitting(false);
     }

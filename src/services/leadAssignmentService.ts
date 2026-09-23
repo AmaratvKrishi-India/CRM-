@@ -233,120 +233,93 @@ export class LeadAssignmentService {
     };
   }
 
-  /**
-   * Assigns multiple leads to an active sales agent in a single atomic batch operation.
-   * Creates individual immutable activity logs and a parent BulkAssignmentAudit record.
-   */
-  static async bulkAssignLeads(
-    actor: User | null,
-    leadIds: string[],
+  private static async validateBulkAssignmentTarget(
+    actor: User,
     targetAgentId: string,
-    filterSnapshot?: Record<string, any>
-  ): Promise<{
-    successfulCount: number;
-    failedCount: number;
-    updatedLeadIds: string[];
-    errors: string[];
-  }> {
-    this.assertAdmin(actor);
-
-    if (!leadIds || leadIds.length === 0) {
-      throw new Error('No leads selected for bulk assignment.');
-    }
-
-    const startedAt = new Date().toISOString();
-    const userRepo = this.getUserRepo();
-    const leadRepo = this.getLeadRepo();
-    const activityRepo = this.getActivityRepo();
-    const bulkAuditRepo = this.getBulkAuditRepo();
-
-    // 1. Validate Target Agent
+    userRepo: UserRepository,
+  ): Promise<User> {
     const targetAgent = await userRepo.getUserById(targetAgentId);
     if (!targetAgent) {
       throw new Error(`Target agent with ID "${targetAgentId}" not found.`);
     }
-
     if (targetAgent.role !== 'AGENT') {
       throw new Error('Leads can only be bulk assigned to sales representatives with the AGENT role.');
     }
-
     if (targetAgent.status !== 'ACTIVE') {
       throw new Error(`Cannot assign leads to inactive agent "${targetAgent.name}".`);
     }
-
-    // 2. Validate Organization Boundary
     if (actor.organizationId && targetAgent.organizationId && actor.organizationId !== targetAgent.organizationId) {
       throw new Error('Unauthorized: Cross-organization assignment is strictly prohibited.');
     }
+    return targetAgent;
+  }
 
-    const updatedLeadIds: string[] = [];
-    const errors: string[] = [];
-    const deviceId = DeviceService.getDeviceId();
+  private static async assignOneBulkLead(
+    actor: User,
+    leadId: string,
+    targetAgent: User,
+    leadRepo: LeadRepository,
+    userRepo: UserRepository,
+    activityRepo: ActivityRepository,
+    deviceId: string,
+  ): Promise<void> {
+    const lead = await leadRepo.getLeadById(leadId);
+    if (!lead) throw new Error(`Lead ${leadId} not found`);
 
-    for (const leadId of leadIds) {
-      try {
-        const lead = await leadRepo.getLeadById(leadId);
-        if (!lead) {
-          errors.push(`Lead ${leadId} not found`);
-          continue;
-        }
+    const previousAssigneeId = lead.assignedTo || null;
+    if (previousAssigneeId === targetAgent.id) return;
 
-        const previousAssigneeId = lead.assignedTo || null;
-        if (previousAssigneeId === targetAgentId) {
-          // Already assigned to target agent, count as success
-          updatedLeadIds.push(leadId);
-          continue;
-        }
-
-        let previousAssigneeName: string | null = null;
-        if (previousAssigneeId) {
-          const prevUser = await userRepo.getUserById(previousAssigneeId);
-          previousAssigneeName = prevUser ? prevUser.name : 'Unknown Agent';
-        }
-
-        const now = new Date().toISOString();
-        await leadRepo.updateLead(leadId, {
-          assignedTo: targetAgentId,
-          updatedBy: actor.id,
-        });
-
-        // Activity log
-        const activityType = previousAssigneeId ? 'LEAD_REASSIGNED' : 'LEAD_ASSIGNED';
-        await activityRepo.logActivity({
-          leadId,
-          userId: actor.id,
-          deviceId,
-          activityType,
-          metadata: {
-            leadId,
-            leadName: lead.businessName,
-            previousAssigneeId,
-            previousAssigneeName,
-            newAssigneeId: targetAgent.id,
-            newAssigneeName: targetAgent.name,
-            assignedByAdminId: actor.id,
-            assignedByAdminName: actor.name,
-            assignedAt: now,
-            bulkBatch: true,
-          },
-        });
-
-        updatedLeadIds.push(leadId);
-      } catch (err: unknown) {
-        errors.push(err instanceof Error ? err.message : `Failed lead ${leadId}`);
-      }
+    let previousAssigneeName: string | null = null;
+    if (previousAssigneeId) {
+      const previousUser = await userRepo.getUserById(previousAssigneeId);
+      previousAssigneeName = previousUser ? previousUser.name : 'Unknown Agent';
     }
 
-    const completedAt = new Date().toISOString();
-    const successfulCount = updatedLeadIds.length;
-    const failedCount = leadIds.length - successfulCount;
+    const assignedAt = new Date().toISOString();
+    await leadRepo.updateLead(leadId, {
+      assignedTo: targetAgent.id,
+      updatedBy: actor.id,
+    });
 
-    // Log parent BulkAssignmentAudit record
+    await activityRepo.logActivity({
+      leadId,
+      userId: actor.id,
+      deviceId,
+      activityType: previousAssigneeId ? 'LEAD_REASSIGNED' : 'LEAD_ASSIGNED',
+      metadata: {
+        leadId,
+        leadName: lead.businessName,
+        previousAssigneeId,
+        previousAssigneeName,
+        newAssigneeId: targetAgent.id,
+        newAssigneeName: targetAgent.name,
+        assignedByAdminId: actor.id,
+        assignedByAdminName: actor.name,
+        assignedAt,
+        bulkBatch: true,
+      },
+    });
+  }
+
+  private static async logBulkAssignmentSummary(
+    actor: User,
+    targetAgent: User,
+    leadIds: string[],
+    successfulCount: number,
+    failedCount: number,
+    errors: string[],
+    startedAt: string,
+    filterSnapshot: Record<string, unknown> | undefined,
+    bulkAuditRepo: BulkAssignmentAuditRepository,
+    activityRepo: ActivityRepository,
+    deviceId: string,
+  ): Promise<void> {
+    const completedAt = new Date().toISOString();
     try {
       await bulkAuditRepo.logAudit({
         organizationId: actor.organizationId || null,
         performedBy: actor.id,
-        targetAgentId,
+        targetAgentId: targetAgent.id,
         selectedLeadCount: leadIds.length,
         successfulCount,
         failedCount,
@@ -357,14 +330,13 @@ export class LeadAssignmentService {
         errorSummary: errors.length > 0 ? errors.slice(0, 5).join('; ') : null,
       });
 
-      // Log parent system activity
       await activityRepo.logActivity({
         leadId: null,
         userId: actor.id,
         deviceId,
         activityType: 'BULK_ASSIGNMENT_EXECUTED',
         metadata: {
-          targetAgentId,
+          targetAgentId: targetAgent.id,
           targetAgentName: targetAgent.name,
           selectedLeadCount: leadIds.length,
           successfulCount,
@@ -378,13 +350,72 @@ export class LeadAssignmentService {
     } catch (auditErr) {
       console.warn('Failed to write bulk assignment audit log:', auditErr);
     }
+  }
 
-    return {
+  /**
+   * Assigns multiple leads to an active sales agent in a single atomic batch operation.
+   * Creates individual immutable activity logs and a parent BulkAssignmentAudit record.
+   */
+  static async bulkAssignLeads(
+    actor: User | null,
+    leadIds: string[],
+    targetAgentId: string,
+    filterSnapshot?: Record<string, unknown>
+  ): Promise<{
+    successfulCount: number;
+    failedCount: number;
+    updatedLeadIds: string[];
+    errors: string[];
+  }> {
+    this.assertAdmin(actor);
+    if (!leadIds || leadIds.length === 0) {
+      throw new Error('No leads selected for bulk assignment.');
+    }
+
+    const startedAt = new Date().toISOString();
+    const userRepo = this.getUserRepo();
+    const leadRepo = this.getLeadRepo();
+    const activityRepo = this.getActivityRepo();
+    const bulkAuditRepo = this.getBulkAuditRepo();
+    const targetAgent = await this.validateBulkAssignmentTarget(actor, targetAgentId, userRepo);
+    const deviceId = DeviceService.getDeviceId();
+    const updatedLeadIds: string[] = [];
+    const errors: string[] = [];
+
+    for (const leadId of leadIds) {
+      try {
+        await this.assignOneBulkLead(
+          actor,
+          leadId,
+          targetAgent,
+          leadRepo,
+          userRepo,
+          activityRepo,
+          deviceId,
+        );
+        updatedLeadIds.push(leadId);
+      } catch (err: unknown) {
+        errors.push(err instanceof Error ? err.message : `Failed lead ${leadId}`);
+      }
+    }
+
+    const successfulCount = updatedLeadIds.length;
+    const failedCount = leadIds.length - successfulCount;
+    await this.logBulkAssignmentSummary(
+      actor,
+      targetAgent,
+      leadIds,
       successfulCount,
       failedCount,
-      updatedLeadIds,
       errors,
-    };
+      startedAt,
+      filterSnapshot,
+      bulkAuditRepo,
+      activityRepo,
+      deviceId,
+    );
+
+    return { successfulCount, failedCount, updatedLeadIds, errors };
   }
 
   /**

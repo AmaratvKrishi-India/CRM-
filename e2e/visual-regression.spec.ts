@@ -1,11 +1,22 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { setupAuthMocks, performLogin, MOCK_AGENT, MOCK_ADMIN } from './helpers/mockAuth';
 
 test.describe('Visual Regression Tests', () => {
   test.describe.configure({ retries: 0 }); // Visual tests need deterministic runs
 
+  test.afterEach(async ({ page, browser }, info) => {
+    if (page.isClosed()) return;
+    await info.attach('capture-environment', {
+      contentType: 'application/json',
+      body: JSON.stringify({
+        browser: browser.version(), platform: process.platform, viewport: page.viewportSize(),
+        geometry: await page.evaluate(() => ({ width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight, scale: devicePixelRatio })),
+      }),
+    });
+  });
+
   test('login page matches baseline - desktop', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     
     // Wait for page to fully render
     await page.waitForLoadState('networkidle');
@@ -20,7 +31,7 @@ test.describe('Visual Regression Tests', () => {
 
   test('login page matches baseline - mobile', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -32,9 +43,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('dashboard matches baseline - desktop (agent)', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT, { forceOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     // Wait for dashboard to load
@@ -50,9 +60,8 @@ test.describe('Visual Regression Tests', () => {
 
   test('dashboard matches baseline - mobile (agent)', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT, { forceOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -66,9 +75,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('leads list matches baseline - desktop', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT, { forceRealtimeOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -86,9 +94,8 @@ test.describe('Visual Regression Tests', () => {
 
   test('leads list matches baseline - mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -104,9 +111,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('create lead modal matches baseline', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT);
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -129,9 +135,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('theme toggle - night mode baseline', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT, { forceOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
@@ -149,9 +154,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('theme toggle - day mode baseline (via Settings tab)', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_ADMIN, { forceOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_ADMIN.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 10000 });
@@ -168,8 +172,12 @@ test.describe('Visual Regression Tests', () => {
     const settingsBtn = page.locator('button[aria-label="Settings and pitch templates"]');
     await expect(settingsBtn).toBeVisible({ timeout: 10000 });
     await settingsBtn.click();
-    
-    await expect(page.getByRole('dialog', { name: /Settings & Pitch Templates/i })).toBeVisible();
+
+    // Settings is a lazy-loaded modal. Give the chunk and React transition a
+    // bounded readiness window so a cold browser cache does not create a
+    // false visual-regression failure.
+    const settingsDialog = page.getByRole('dialog', { name: /Settings & Pitch Templates/i });
+    await expect(settingsDialog).toBeVisible({ timeout: 15000 });
     
     await page.getByRole('tab', { name: /Preferences/i }).click();
     
@@ -180,7 +188,7 @@ test.describe('Visual Regression Tests', () => {
     await expect(html).toHaveAttribute('data-theme', 'day');
     
     await page.getByRole('button', { name: /Close Settings/i }).click();
-    await expect(page.getByRole('dialog', { name: /Settings & Pitch Templates/i })).toBeHidden();
+    await expect(settingsDialog).toBeHidden({ timeout: 10000 });
     
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -192,9 +200,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('admin dashboard matches baseline', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_ADMIN, { forceOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_ADMIN.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Reports/i })).toBeVisible({ timeout: 15000 });
@@ -208,9 +215,8 @@ test.describe('Visual Regression Tests', () => {
   });
 
   test('follow-ups tab matches baseline', async ({ page }) => {
-    await page.goto('/');
     await setupAuthMocks(page, MOCK_AGENT, { forceOffline: true });
-    await page.reload();
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
     await expect(page.getByRole('tab', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });

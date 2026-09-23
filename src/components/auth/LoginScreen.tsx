@@ -49,8 +49,8 @@ export const LoginScreen: React.FC = () => {
     setIsSubmitting(true);
     try {
       await signIn(cleanEmail, password);
-    } catch (err: any) {
-      setLocalError(err.message || 'Authentication failed.');
+    } catch (err: unknown) {
+      setLocalError(err instanceof Error ? err.message : 'Authentication failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -187,6 +187,7 @@ export const LoginScreen: React.FC = () => {
 
             {/* Submit Button */}
             <button
+              id="login-submit-button"
               type="submit"
               disabled={isSubmitting || !isConfigured}
               className="min-h-11 w-full py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 mt-2"

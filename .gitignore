@@ -1,16 +1,32 @@
 # Dependencies
 node_modules/
 
-# Build outputs
+# Build and verification outputs
 dist/
 coverage/
 reports/
+/assets/
+/html.meta.json.gz
+/test-results.json
+test-results/
+playwright-report/
+pdf_pages/
+/docs/reference/generated/
+docs/AUTOMATED_VERIFICATION_*.md
+docs/TESTING_REPORT_*.md
 
-# Local generated research output
+# Local generated research/output
 public_apis_render/
 public_apis_render_updated/
+scratch/
+local/
+*.log
 
-# Environment & secrets
+# Local release-audit archives and remediation workspace
+docs/release-verification/
+strix/
+
+# Environment and secrets
 .env
 .env.*
 !.env.example
@@ -18,46 +34,28 @@ public_apis_render_updated/
 *.keystore
 keystore.properties
 
-# IDE
+# IDE and OS
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# Agent and workspace metadata (non-project files live here)
-local/
-.agents/
-.gemini/
-.claude/
-*.log
-
-# Supabase CLI temp cache
-supabase/.temp/
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Android build outputs (keep source, ignore build artifacts)
+# Supabase local cache
+supabase/.temp/
+
+# Android build outputs
 android/app/build/
 android/build/
 android/.gradle/
 android/local.properties
 android/capacitor-cordova-android-plugins/
 
-# E2E screenshots and reports (generated)
+# E2E generated evidence
 e2e/android/screenshots/
 e2e/android/reports/
 
-# Generated verification artifacts (PDF page renders, test runner output)
-pdf_pages/
-playwright-report/
-test-results/
-scratch/logs/
-
-.vercel
-
-# graft's local graph cache — regenerable, not committed (run `graft build`).
+# Local deployment/source-map caches
+.vercel/
 /graft/
-
-.vercel

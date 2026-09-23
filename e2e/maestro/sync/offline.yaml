@@ -1,5 +1,5 @@
 # Offline Sync Flow - Agent Works Offline Then Syncs
-# Tests offline-first capability with deferred sync
+# Uses Maestro's supported airplane-mode command; no shell or production network is involved.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,103 +7,85 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
-
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
-- # Verify online initially
-- assertVisible:
-    id: "online-indicator"
-
-- # Create lead while online
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
 - tapOn:
-    id: "add-lead-button"
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
+- tapOn:
+    id: "app-tab-LEADS"
+- tapOn: "Add Lead"
+- extendedWaitUntil:
+    visible:
+      id: "create-business-name"
+    timeout: 30000
+- tapOn:
+    id: "create-business-name"
+- inputText: "Legacy Maestro Online Queue ${MAESTRO_RUN_TAG} Gym"
+- tapOn:
+    id: "create-phone"
+- inputText: "9${MAESTRO_RUN_TAG}021"
+- tapOn:
+    id: "create-locality"
+- inputText: "Alambagh"
+- hideKeyboard
+- tapOn:
+    id: "save-create-lead-button"
+- assertNotVisible:
     id: "create-lead-form"
+- extendedWaitUntil:
+    visible: ".*Legacy Maestro Online Queue ${MAESTRO_RUN_TAG} Gym.*"
+    timeout: 60000
 
+- setAirplaneMode: enabled
 - tapOn:
-    id: "lead-name-input"
-- inputText: "Online Lead"
-
+    id: "app-tab-DASHBOARD"
 - tapOn:
-    id: "lead-phone-input"
-- inputText: "9876543210"
-
+    id: "app-tab-LEADS"
+- tapOn: "Add Lead"
+- extendedWaitUntil:
+    visible:
+      id: "create-business-name"
+    timeout: 30000
 - tapOn:
-    id: "submit-lead-button"
-
-- waitFor:
-    id: "leads-list"
-
-- # Simulate offline (airplane mode or network disconnect)
-- # Note: In Maestro, we can't directly control network, so we verify the offline indicator appears
-- # when the app detects offline state
-
-- # Create another lead (should queue locally)
+    id: "create-business-name"
+- inputText: "Legacy Maestro Offline Queue ${MAESTRO_RUN_TAG} Gym"
 - tapOn:
-    id: "add-lead-button"
-
-- waitFor:
+    id: "create-phone"
+- inputText: "9${MAESTRO_RUN_TAG}022"
+- tapOn:
+    id: "create-locality"
+- inputText: "Alambagh"
+- hideKeyboard
+- tapOn:
+    id: "save-create-lead-button"
+- assertNotVisible:
     id: "create-lead-form"
+- extendedWaitUntil:
+    visible: ".*Legacy Maestro Offline Queue ${MAESTRO_RUN_TAG} Gym.*"
+    timeout: 60000
 
 - tapOn:
-    id: "lead-name-input"
-- inputText: "Offline Lead"
-
+    id: "app-tab-DASHBOARD"
+- setAirplaneMode: disabled
+- launchApp:
+    clearState: false
+- tapOn: "Sync Now"
+- extendedWaitUntil:
+    visible: "Synced"
+    timeout: 120000
 - tapOn:
-    id: "lead-phone-input"
-- inputText: "9876543211"
-
-- tapOn:
-    id: "submit-lead-button"
-
-- waitFor:
-    id: "leads-list"
-
-- # Verify lead appears in list (optimistic UI)
-- assertVisible:
-    text: "Offline Lead"
-
-- # Check sync queue has pending items
-- tapOn:
-    id: "settings-tab"
-
-- tapOn:
-    id: "sync-settings"
-
-- assertVisible:
-    id: "pending-count"
-    text: "1"
-
-- # Simulate coming back online
-- # App should auto-sync or show sync available
-
-- # Force sync
-- tapOn:
-    id: "sync-button"
-
-- waitFor:
-    id: "sync-complete"
-    timeout: 15000
-
-- assertVisible:
-    id: "sync-complete"
-
-- # Verify both leads now synced
-- assertVisible:
-    id: "pending-count"
-    text: "0"
+    id: "app-tab-LEADS"
+- assertVisible: ".*Legacy Maestro Online Queue ${MAESTRO_RUN_TAG} Gym.*"
+- assertVisible: ".*Legacy Maestro Offline Queue ${MAESTRO_RUN_TAG} Gym.*"

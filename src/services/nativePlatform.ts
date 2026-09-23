@@ -22,7 +22,7 @@ export interface NotificationScheduleOptions {
   title: string;
   body: string;
   scheduledAt: Date;
-  extra?: Record<string, any>;
+  extra?: Record<string, unknown>;
 }
 
 export class NativePlatformService {

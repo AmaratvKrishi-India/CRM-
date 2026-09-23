@@ -49,4 +49,4 @@ export interface RealtimeInAppNotification {
 export type RealtimeStatusListener = (status: RealtimeConnectionStatus) => void;
 export type RealtimeActivityListener = (activity: Activity) => void;
 export type RealtimeNotificationListener = (notification: RealtimeInAppNotification) => void;
-export type RealtimeEntityListener = (table: string, eventType: 'INSERT' | 'UPDATE' | 'DELETE', record: any) => void;
+export type RealtimeEntityListener = (table: string, eventType: 'INSERT' | 'UPDATE' | 'DELETE', record: unknown) => void;

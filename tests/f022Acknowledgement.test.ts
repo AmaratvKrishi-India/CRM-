@@ -501,3 +501,39 @@ test('F022: newly reassigned lead backfills history older than the saved cursor'
   assert.equal((await database.leads.get(leadId))?.businessName, 'Reassigned lead');
   assert.equal((await database.remarks.get(remarkId))?.content, 'Older history must follow assignment');
 });
+
+for (const failedRead of [1, 2]) {
+  test(`F022: reassigned history survives restart after remarks read ${failedRead} fails`, async (t) => {
+    const database = isolatedDatabase(t, 'AGENT');
+    const transport = controlledTransport();
+    const leadId = randomUUID(), remarkId = randomUUID();
+    transport.rows.leads = [{
+      id: leadId, organization_id: scope.organizationId, assigned_to: scope.userId, created_by: 'admin-other',
+      business_name: 'Reassigned lead', phone: '9876543210', address: 'Test address', status: 'NEW',
+      created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-12T00:00:00.000Z', sync_revision: 200,
+    }];
+    transport.rows.remarks = [{
+      id: remarkId, organization_id: scope.organizationId, lead_id: leadId, user_id: 'admin-other',
+      content: 'Retried history', type: 'CUSTOM', author: 'Admin',
+      created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z', sync_revision: 10,
+    }];
+    let reads = 0;
+    const flakyClient = {
+      ...transport.client,
+      from(table: string) {
+        if (table === 'remarks' && ++reads === failedRead) throw new Error('Transient remarks failure');
+        return transport.client.from(table);
+      },
+    };
+    const cursor = revisionCursor(150);
+    await assert.rejects(new SyncPull(database).pullAllChanges(cursor, flakyClient as never), /Transient remarks failure/);
+    assert.ok(await database.leads.get(leadId), 'the interrupted pull already cached the lead');
+    assert.equal(await database.remarks.get(remarkId), undefined);
+    database.close();
+    await database.open();
+
+    const result = await new SyncPull(database).pullAllChanges(cursor, transport.client as never);
+    assert.equal((await database.remarks.get(remarkId))?.content, 'Retried history');
+    assert.equal(result.newCursor, revisionCursor(200));
+  });
+}

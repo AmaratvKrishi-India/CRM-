@@ -7,7 +7,7 @@
 import type { ReactNode} from 'react';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { AuthService } from '../services/authService';
+import type { AuthService } from '../services/authService';
 import { getSupabaseConfig } from '../services/supabaseClient';
 import { BackgroundSyncManager } from '../services/sync/backgroundSyncManager';
 import type { User } from '../db/types';
@@ -56,6 +56,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (validationInFlight) return;
       validationInFlight = true;
       try {
+        const { AuthService } = await import('../services/authService');
         const { user, error } = await AuthService.validateAndLoadCurrentProfile();
         if (!isMounted) return;
         if (!user) {
@@ -99,6 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       try {
+        const { AuthService } = await import('../services/authService');
         const { user, error } = await AuthService.validateAndLoadCurrentProfile();
         if (isMounted) {
           if (user) {
@@ -135,7 +137,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     initAuth();
 
     // Listen for Auth State Changes
-    const subscription = AuthService.onAuthStateChange(async (event, newSession) => {
+    let subscription: ReturnType<typeof AuthService.onAuthStateChange> | undefined;
+    const subscribe = async () => {
+      const { AuthService } = await import('../services/authService');
+      if (!isMounted) return;
+      subscription = AuthService.onAuthStateChange(async (event, newSession) => {
       if (!isMounted) return;
 
       if (event === 'SIGNED_OUT' || !newSession) {
@@ -154,6 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
           setSession(newSession);
         }
+        const { AuthService } = await import('../services/authService');
         const { user, error } = await AuthService.validateAndLoadCurrentProfile();
         if (isMounted) {
           setCurrentUser(user);
@@ -171,6 +178,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
     });
+
+    };
+    void subscribe().catch(error => console.warn('Auth subscription failed:', error));
 
     const revalidationTimer = setInterval(() => {
       void revalidateProfile();
@@ -190,13 +200,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         window.removeEventListener('focus', handleFocusOrOnline);
         window.removeEventListener('online', handleFocusOrOnline);
       }
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 
   const signIn = async (email: string, password: string): Promise<User> => {
     setAuthError(null);
     try {
+      const { AuthService } = await import('../services/authService');
       const { user, session: newSession } = await AuthService.signIn(email, password);
       setCurrentUser(user);
       setSession(newSession);
@@ -216,6 +227,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Stop background sync before signing out
       stopSynchronization();
+      const { AuthService } = await import('../services/authService');
       await AuthService.signOut();
     } finally {
       setCurrentUser(null);

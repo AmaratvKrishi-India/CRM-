@@ -12,7 +12,8 @@ import { SyncPull } from './syncPull';
 import { SyncStateRepository } from './syncStateRepository';
 import type { SyncState, SyncResult} from './syncTypes';
 import { SyncCancelledError } from './syncTypes';
-import { accessScopeFromUser, type AccessScope, sameAccessScope } from '../../db/accessScope';
+import { type AccessScope, sameAccessScope } from '../../db/accessScope';
+import { getVerifiedCurrentAccessScope } from '../verifiedProfileService';
 
 type SyncAuthorizer = () => Promise<AccessScope | null>;
 
@@ -23,7 +24,7 @@ export class SyncEngine {
   private stateRepo: SyncStateRepository;
 
   private isSyncing = false;
-  private autoSyncInterval: any = null;
+  private autoSyncInterval: ReturnType<typeof setInterval> | null = null;
   private listeners: Array<(state: SyncState) => void> = [];
   private onlineHandler: (() => void) | null = null;
   private offlineHandler: (() => void) | null = null;
@@ -48,14 +49,7 @@ export class SyncEngine {
     } catch {
       this.expectedScope = null;
     }
-    this.authorize = authorize || (async () => {
-      // Avoid an eager SyncEngine -> AuthService -> db/index -> SyncEngine
-      // cycle during application bootstrap. Authentication is needed only
-      // when a real sync begins.
-      const { AuthService } = await import('../authService');
-      const { user } = await AuthService.validateAndLoadCurrentProfile();
-      return user ? accessScopeFromUser(user) : null;
-    });
+    this.authorize = authorize || getVerifiedCurrentAccessScope;
 
     this.setupNetworkListeners();
   }
@@ -155,15 +149,156 @@ export class SyncEngine {
     return await this.synchronizeNow();
   }
 
+  private syncResult(error: string): SyncResult {
+    return {
+      pushedCount: 0,
+      pulledCount: 0,
+      failedCount: 0,
+      conflictsCount: 0,
+      durationMs: 0,
+      error,
+    };
+  }
+
+  private async prepareSyncRun(guard: () => void): Promise<
+    { client: NonNullable<ReturnType<typeof getSupabaseClient>>; result?: never } |
+    { client?: never; result: SyncResult }
+  > {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      guard();
+      await this.stateRepo.setStatus('OFFLINE');
+      return { result: this.syncResult('Device is offline') };
+    }
+
+    const client = getSupabaseClient();
+    if (!client) {
+      return { result: this.syncResult('Supabase unconfigured') };
+    }
+
+    const verifiedScope = await this.authorize();
+    guard();
+    if (!verifiedScope || !sameAccessScope(verifiedScope, this.expectedScope!)) {
+      await this.stateRepo.setStatus('AUTH_REQUIRED');
+      return { result: this.syncResult('Authentication required') };
+    }
+
+    await this.stateRepo.setStatus('SYNCING');
+    await this.notifyListeners();
+    return { client };
+  }
+
+  private async recoverStuckItems(guard: () => void): Promise<void> {
+    try {
+      guard();
+      await this.queue.recoverStuckItems();
+    } catch (err) {
+      if (err instanceof SyncCancelledError) throw err;
+      console.warn('recoverStuckItems failed:', err);
+    }
+  }
+
+  private async pushPendingUntilDrained(
+    client: NonNullable<ReturnType<typeof getSupabaseClient>>,
+    guard: () => void,
+  ): Promise<{ pushedCount: number; failedCount: number }> {
+    const maxPushPasses = 50;
+    let pushPasses = 0;
+    let readyWorkAfterPass = false;
+    let pushedCount = 0;
+    let failedCount = 0;
+    const pushErrors: string[] = [];
+
+    do {
+      guard();
+      const pushRes = await this.pushEngine.pushPending(client, guard);
+      guard();
+      pushedCount += pushRes.pushedCount;
+      failedCount += pushRes.failedCount;
+      if (Array.isArray(pushRes.errors)) pushErrors.push(...pushRes.errors);
+      pushPasses += 1;
+
+      if (pushRes.pushedCount === 0 && pushRes.failedCount === 0) {
+        readyWorkAfterPass = false;
+        break;
+      }
+
+      guard();
+      readyWorkAfterPass = (await this.queue.getPendingItems(1)).length > 0;
+    } while (readyWorkAfterPass && pushPasses < maxPushPasses);
+
+    if (readyWorkAfterPass) {
+      failedCount += 1;
+      pushErrors.push(`Sync drain limit reached after ${maxPushPasses} push passes.`);
+    }
+    if (failedCount > 0) {
+      void reportOperationalError('sync_push', pushErrors.join('; ') || 'Sync push failed', failedCount, client);
+    }
+
+    return { pushedCount, failedCount };
+  }
+
+  private async purgeSyncedItems(guard: () => void): Promise<void> {
+    try {
+      guard();
+      await this.queue.purgeSyncedItems();
+    } catch (err) {
+      console.warn('purgeSyncedItems failed:', err);
+    }
+  }
+
+  private async pullAndPersist(
+    client: NonNullable<ReturnType<typeof getSupabaseClient>>,
+    guard: () => void,
+    failedCount: number,
+  ): Promise<{ pulledCount: number; conflictsCount: number }> {
+    const currentState = await this.stateRepo.getSyncState();
+    guard();
+    const pullRes = await this.pullEngine.pullAllChanges(currentState.lastPullCursor, client, guard);
+    guard();
+
+    const pullTimestamp = new Date().toISOString();
+    const updates: Partial<Omit<SyncState, 'id' | 'organizationId' | 'userId' | 'deviceId'>> = {
+      lastPullAt: pullTimestamp,
+      lastSuccessfulSyncAt: pullTimestamp,
+      lastSyncError: null,
+      status: failedCount > 0 ? 'PENDING' : 'SYNCED',
+    };
+    if (pullRes.newCursor) updates.lastPullCursor = pullRes.newCursor;
+
+    await this.stateRepo.updateSyncState(updates);
+    return {
+      pulledCount: pullRes.pulledCount,
+      conflictsCount: pullRes.conflicts.length,
+    };
+  }
+
+  private async recordSyncFailure(
+    err: unknown,
+    failedCount: number,
+    guard: () => void,
+  ): Promise<string> {
+    const syncError = err instanceof Error ? err.message : 'Sync failed';
+    if (err instanceof SyncCancelledError) return syncError;
+
+    void reportOperationalError('sync_cycle', err, Math.max(1, failedCount), getSupabaseClient());
+    try {
+      guard();
+      await this.stateRepo.setStatus('ERROR', syncError);
+    } catch (stateError) {
+      if (!(stateError instanceof SyncCancelledError)) throw stateError;
+    }
+    return syncError;
+  }
+
   /**
    * Executes a full bidirectional sync cycle: Push -> Pull -> Update State.
    */
   async synchronizeNow(): Promise<SyncResult> {
     if (this.disposed || !this.expectedScope) {
-      return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Synchronization context is inactive' };
+      return this.syncResult('Synchronization context is inactive');
     }
     if (this.isSyncing) {
-      return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Sync already in progress' };
+      return this.syncResult('Sync already in progress');
     }
 
     const startTime = Date.now();
@@ -177,108 +312,36 @@ export class SyncEngine {
     let syncError: string | null = null;
 
     try {
+      const prepared = await this.prepareSyncRun(guard);
+      if (prepared.result) return prepared.result;
+      const client = prepared.client;
 
-    // 1. Check Offline / Network Connectivity
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      await this.recoverStuckItems(guard);
+
+      const pushResult = await this.pushPendingUntilDrained(client, guard);
+      pushedCount = pushResult.pushedCount;
+      failedCount = pushResult.failedCount;
+
+      await this.purgeSyncedItems(guard);
       guard();
-      await this.stateRepo.setStatus('OFFLINE');
-      return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Device is offline' };
-    }
+      await this.stateRepo.updateSyncState({ lastPushAt: new Date().toISOString() });
 
-    // 2. Check Supabase Client
-    const client = getSupabaseClient();
-    if (!client) {
-      return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Supabase unconfigured' };
-    }
-
-    // 3. Revalidate the server-authoritative identity and role for this exact
-    // account context. A cached session alone cannot authorize synchronization.
-    const verifiedScope = await this.authorize();
-    guard();
-    if (!verifiedScope || !sameAccessScope(verifiedScope, this.expectedScope)) {
-      await this.stateRepo.setStatus('AUTH_REQUIRED');
-      return { pushedCount: 0, pulledCount: 0, failedCount: 0, conflictsCount: 0, durationMs: 0, error: 'Authentication required' };
-    }
-
-    await this.stateRepo.setStatus('SYNCING');
-    await this.notifyListeners();
-
-    // Recover outbox items orphaned in SYNCING by a previously killed app run.
-    try {
-      guard();
-      await this.queue.recoverStuckItems();
-    } catch (err) {
-      if (err instanceof SyncCancelledError) throw err;
-      console.warn('recoverStuckItems failed:', err);
-    }
-
-      // 4. PUSH SYNC: Send local outbox mutations to Supabase
-      guard();
-      const pushRes = await this.pushEngine.pushPending(client, guard);
-      guard();
-      pushedCount = pushRes.pushedCount;
-      failedCount = pushRes.failedCount;
-      if (failedCount > 0) {
-        const pushErrors = Array.isArray(pushRes.errors) ? pushRes.errors.join('; ') : '';
-        void reportOperationalError('sync_push', pushErrors || 'Sync push failed', failedCount, client);
-      }
-
-      // Purge successfully-synced outbox rows so the queue does not grow unbounded.
-      try {
-        guard();
-        await this.queue.purgeSyncedItems();
-      } catch (err) {
-        console.warn('purgeSyncedItems failed:', err);
-      }
-
-      const pushTimestamp = new Date().toISOString();
-      guard();
-      await this.stateRepo.updateSyncState({ lastPushAt: pushTimestamp });
-
-      // 5. PULL SYNC: Pull remote incremental changes from Supabase
-      const currentState = await this.stateRepo.getSyncState();
-      guard();
-      const pullRes = await this.pullEngine.pullAllChanges(currentState.lastPullCursor, client, guard);
-      guard();
-      pulledCount = pullRes.pulledCount;
-      conflictsCount = pullRes.conflicts.length;
-
-      const pullTimestamp = new Date().toISOString();
-      const updates: Partial<Omit<SyncState, 'id' | 'organizationId' | 'userId' | 'deviceId'>> = {
-        lastPullAt: pullTimestamp,
-        lastSuccessfulSyncAt: pullTimestamp,
-        lastSyncError: null,
-        status: failedCount > 0 ? 'PENDING' : 'SYNCED',
-      };
-
-      if (pullRes.newCursor) {
-        updates.lastPullCursor = pullRes.newCursor;
-      }
-
-      await this.stateRepo.updateSyncState(updates);
+      const pullResult = await this.pullAndPersist(client, guard, failedCount);
+      pulledCount = pullResult.pulledCount;
+      conflictsCount = pullResult.conflictsCount;
     } catch (err: unknown) {
-      syncError = err instanceof Error ? err.message : 'Sync failed';
-      if (!(err instanceof SyncCancelledError)) {
-        void reportOperationalError('sync_cycle', err, Math.max(1, failedCount), getSupabaseClient());
-        try {
-          guard();
-          await this.stateRepo.setStatus('ERROR', syncError);
-        } catch (stateError) {
-          if (!(stateError instanceof SyncCancelledError)) throw stateError;
-        }
-      }
+      syncError = await this.recordSyncFailure(err, failedCount, guard);
     } finally {
       this.isSyncing = false;
       if (!this.disposed && runGeneration === this.generation) await this.notifyListeners();
     }
 
-    const durationMs = Date.now() - startTime;
     return {
       pushedCount,
       pulledCount,
       failedCount,
       conflictsCount,
-      durationMs,
+      durationMs: Date.now() - startTime,
       error: syncError,
     };
   }

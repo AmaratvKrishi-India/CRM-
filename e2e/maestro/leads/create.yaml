@@ -1,5 +1,5 @@
 # Create Lead Flow - Agent Creates New Lead
-# Tests the lead creation flow for AGENT role
+# Uses the current local-first lead form and verifies the created record.
 
 appId: "com.amaratvkrishi.salescrm"
 
@@ -7,59 +7,55 @@ appId: "com.amaratvkrishi.salescrm"
 - launchApp:
     clearState: true
 
-- waitFor:
-    id: "login-screen"
-    timeout: 15000
-
-- tapOn: "email-input"
-- inputText: "agent@test.com"
-- tapOn: "password-input"
-- inputText: "testpassword"
-- tapOn: "login-button"
-
-- waitFor:
-    id: "agent-dashboard"
-    timeout: 10000
-
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 120000
 - tapOn:
-    id: "leads-tab"
-
-- waitFor:
-    id: "leads-list"
-
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
 - tapOn:
-    id: "add-lead-button"
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
 
-- waitFor:
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 60000
+- tapOn:
+    id: "app-tab-LEADS"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 60000
+- tapOn: "Add Lead"
+- extendedWaitUntil:
+    visible:
+      id: "create-business-name"
+    timeout: 60000
+- tapOn:
+    id: "create-business-name"
+- inputText: "Legacy Maestro Create ${MAESTRO_RUN_TAG} Gym"
+- tapOn:
+    id: "create-phone"
+- inputText: "9${MAESTRO_RUN_TAG}017"
+- tapOn:
+    id: "create-locality"
+- inputText: "Hazratganj"
+- hideKeyboard
+- tapOn:
+    id: "save-create-lead-button"
+- assertNotVisible:
     id: "create-lead-form"
-    timeout: 5000
 
-- tapOn:
-    id: "lead-name-input"
-- inputText: "Test Gym Fitness Center"
-
-- tapOn:
-    id: "lead-phone-input"
-- inputText: "9876543210"
-
-- tapOn:
-    id: "lead-email-input"
-- inputText: "gym@testfitness.com"
-
-- tapOn:
-    id: "lead-source-dropdown"
-- tapOn:
-    text: "WALK_IN"
-
-- tapOn:
-    id: "submit-lead-button"
-
-- waitFor:
-    id: "leads-list"
-    timeout: 5000
-
-- assertVisible:
-    text: "Test Gym Fitness Center"
-
-- assertVisible:
-    text: "9876543210"
+- extendedWaitUntil:
+    visible:
+      text: ".*Legacy Maestro Create ${MAESTRO_RUN_TAG} Gym.*"
+    timeout: 60000
+- tapOn: ".*Legacy Maestro Create ${MAESTRO_RUN_TAG} Gym.*"
+- extendedWaitUntil:
+    visible:
+      id: "lead-detail"
+    timeout: 60000
+- assertVisible: ".*9${MAESTRO_RUN_TAG}017.*"

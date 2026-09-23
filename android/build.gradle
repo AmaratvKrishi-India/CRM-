@@ -24,6 +24,19 @@ allprojects {
     }
 }
 
+// Capacitor regenerates an empty flatDir repository for Cordova compatibility.
+// Keep it only when there are actual local artifacts to resolve.
+subprojects {
+    afterEvaluate {
+        repositories.findAll { repository ->
+            repository instanceof org.gradle.api.artifacts.repositories.FlatDirectoryArtifactRepository &&
+                repository.dirs.every { directory ->
+                    fileTree(directory).matching { include '*.jar', '*.aar' }.isEmpty()
+                }
+        }.each { repositories.remove(it) }
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
 }

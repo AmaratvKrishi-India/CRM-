@@ -75,8 +75,8 @@ export const EditAgentModal: React.FC<EditAgentModalProps> = ({
 
       onAgentUpdated(updated);
       onClose();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update agent profile.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update agent profile.');
     } finally {
       setIsSubmitting(false);
     }

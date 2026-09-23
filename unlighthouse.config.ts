@@ -1,8 +1,6 @@
-import { defineConfig } from 'unlighthouse';
-
-export default defineConfig({
+export default {
   // Site to audit
-  site: process.env.UNLIGHTHOUSE_URL || 'http://localhost:3000',
+  site: process.env.UNLIGHTHOUSE_URL || 'http://127.0.0.1:4174/',
 
   // CI configuration
   ci: {
@@ -10,8 +8,8 @@ export default defineConfig({
     failOnBudget: true,
     // Upload artifacts
     upload: {
-      enabled: true,
-      bucket: process.env.UNLIGHTHOUSE_BUCKET,
+      enabled: process.env.UNLIGHTHOUSE_UPLOAD === 'true',
+      bucket: process.env.UNLIGHTHOUSE_BUCKET || undefined,
     },
   },
 
@@ -97,4 +95,4 @@ export default defineConfig({
 
   // Debug
   debug: process.env.DEBUG === 'true',
-});
+};

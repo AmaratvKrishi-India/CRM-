@@ -7,29 +7,13 @@ import type { SalesCRMDatabase } from '../database';
 import { SyncQueue } from '../../services/sync/syncQueue';
 import type { ImportAudit } from '../types';
 
-export class ImportAuditRepository {
-  private syncQueue?: SyncQueue;
+import { createUuid } from '../../utils/id';
 
-  constructor(private db: SalesCRMDatabase, syncQueue?: SyncQueue) {
-    this.syncQueue = syncQueue;
-  }
+export class ImportAuditRepository {
+  constructor(private db: SalesCRMDatabase, private syncQueue?: SyncQueue) {}
 
   private getSyncQueue(): SyncQueue {
-    if (!this.syncQueue) {
-      this.syncQueue = new SyncQueue(this.db);
-    }
-    return this.syncQueue;
-  }
-
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    return (this.syncQueue ??= new SyncQueue(this.db));
   }
 
   /**
@@ -55,7 +39,7 @@ export class ImportAuditRepository {
     }
     const now = new Date().toISOString();
     const audit: ImportAudit = {
-      id: input.id || this.generateId(),
+      id: input.id || createUuid(),
       uploadedBy: input.uploadedBy,
       deviceId: input.deviceId || null,
       filename: input.filename,

@@ -6,19 +6,10 @@
 import type { SalesCRMDatabase } from '../database';
 import type { CallHistory, CallOutcome, LeadStatus, PhoneType } from '../types';
 
+import { createUuid } from '../../utils/id';
+
 export class CallHistoryRepository {
   constructor(private db: SalesCRMDatabase) {}
-
-  private generateId(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  }
 
   /**
    * Logs a call outcome and atomically updates the associated Lead's callCount, lastContactedAt, and status.
@@ -51,7 +42,7 @@ export class CallHistoryRepository {
     const callStart = startedAt || now;
 
     const callRecord: CallHistory = {
-      id: this.generateId(),
+      id: createUuid(),
       leadId,
       calledNumber,
       phoneType,

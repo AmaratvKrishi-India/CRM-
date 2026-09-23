@@ -4,7 +4,7 @@
  */
 
 import type { SalesCRMDatabase } from '../db/database';
-import type { LeadStatus } from '../db/types';
+import type { Lead, LeadStatus } from '../db/types';
 import type { EnrichedFollowUp } from '../db/repositories/followUpRepository';
 import { canAccessLead } from '../db/accessScope';
 
@@ -56,29 +56,36 @@ export interface FullDashboardData {
 export class DashboardService {
   constructor(private db: SalesCRMDatabase) {}
 
-  async getDashboardData(): Promise<FullDashboardData> {
-    const scope = this.db.requireAccessScope();
-    const now = new Date();
+  private getTodayRange(now = new Date()): { todayStart: string; todayEnd: string } {
     // Compute "today" in local time (IST on device). Using toISOString() would
     // bucket early-morning activity into the previous UTC day.
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+    return {
+      todayStart: new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString(),
+      todayEnd: new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString(),
+    };
+  }
 
-    // 1. Fetch active leads
-    const allLeads = await this.db.leads
-      .filter((l) => l.deletedAt === null && canAccessLead(scope, l))
+  private async getActiveLeads(): Promise<Lead[]> {
+    const scope = this.db.requireAccessScope();
+    return this.db.leads
+      .filter((lead) => lead.deletedAt === null && canAccessLead(scope, lead))
       .toArray();
+  }
 
-    const leadMap = new Map<string, (typeof allLeads)[0]>();
-    for (const lead of allLeads) {
-      leadMap.set(lead.id, lead);
-    }
+  private buildLeadMap(leads: Lead[]): Map<string, Lead> {
+    const leadMap = new Map<string, Lead>();
+    for (const lead of leads) leadMap.set(lead.id, lead);
+    return leadMap;
+  }
 
-    // 2. Fetch pending follow-ups
+  private async getFollowUpSummary(
+    leadMap: Map<string, Lead>,
+    todayStart: string,
+    todayEnd: string,
+  ): Promise<{ overdueCount: number; todayFollowUps: EnrichedFollowUp[] }> {
     const pendingFollowUps = await this.db.followUps
-      .filter((f) => leadMap.has(f.leadId) && f.deletedAt === null && f.status === 'PENDING')
+      .filter((item) => leadMap.has(item.leadId) && item.deletedAt === null && item.status === 'PENDING')
       .sortBy('scheduledAt');
-
     let overdueCount = 0;
     const todayFollowUps: EnrichedFollowUp[] = [];
 
@@ -98,7 +105,6 @@ export class DashboardService {
             }
           : undefined,
       };
-
       if (item.scheduledAt < todayStart) {
         overdueCount++;
       } else if (item.scheduledAt <= todayEnd) {
@@ -106,16 +112,37 @@ export class DashboardService {
       }
     }
 
-    // 3. Fetch Calls & Messages logged today
+    return { overdueCount, todayFollowUps };
+  }
+
+  private async getTodayActivityCounts(
+    leadMap: Map<string, Lead>,
+    todayStart: string,
+    todayEnd: string,
+  ): Promise<{ callsToday: number; whatsAppToday: number }> {
     const callsTodayList = await this.db.callRecords
-      .filter((c) => leadMap.has(c.leadId) && c.deletedAt === null && Boolean(c.startedAt && c.startedAt >= todayStart && c.startedAt <= todayEnd))
+      .filter(
+        (call) =>
+          leadMap.has(call.leadId) &&
+          call.deletedAt === null &&
+          Boolean(call.startedAt && call.startedAt >= todayStart && call.startedAt <= todayEnd),
+      )
       .toArray();
-
     const messagesTodayList = await this.db.messageHistory
-      .filter((m) => leadMap.has(m.leadId) && m.deletedAt === null && Boolean(m.sentAt && m.sentAt >= todayStart && m.sentAt <= todayEnd))
+      .filter(
+        (message) =>
+          leadMap.has(message.leadId) &&
+          message.deletedAt === null &&
+          Boolean(message.sentAt && message.sentAt >= todayStart && message.sentAt <= todayEnd),
+      )
       .toArray();
+    return { callsToday: callsTodayList.length, whatsAppToday: messagesTodayList.length };
+  }
 
-    // 4. Compute pipeline stage distribution
+  private aggregateLeads(leads: Lead[]): {
+    statusCounts: Record<LeadStatus, number>;
+    localities: LocalityBreakdown[];
+  } {
     const statusCounts: Record<LeadStatus, number> = {
       NEW: 0,
       CONTACTED: 0,
@@ -128,28 +155,20 @@ export class DashboardService {
       WRONG_NUMBER: 0,
       DO_NOT_CONTACT: 0,
     };
-
-    // Locality aggregation
     const localityMap = new Map<string, { total: number; interested: number; customers: number }>();
 
-    for (const lead of allLeads) {
-      if (statusCounts[lead.status] !== undefined) {
-        statusCounts[lead.status]++;
-      }
+    for (const lead of leads) {
+      if (statusCounts[lead.status] !== undefined) statusCounts[lead.status]++;
 
-      const locName = lead.locality || 'Other Lucknow';
-      const currentLoc = localityMap.get(locName) || { total: 0, interested: 0, customers: 0 };
-      currentLoc.total++;
-      if (lead.status === 'INTERESTED' || lead.status === 'SAMPLE_REQUESTED') {
-        currentLoc.interested++;
-      }
-      if (lead.status === 'CUSTOMER') {
-        currentLoc.customers++;
-      }
-      localityMap.set(locName, currentLoc);
+      const locality = lead.locality || 'Other Lucknow';
+      const current = localityMap.get(locality) || { total: 0, interested: 0, customers: 0 };
+      current.total++;
+      if (lead.status === 'INTERESTED' || lead.status === 'SAMPLE_REQUESTED') current.interested++;
+      if (lead.status === 'CUSTOMER') current.customers++;
+      localityMap.set(locality, current);
     }
 
-    const localities: LocalityBreakdown[] = Array.from(localityMap.entries())
+    const localities = Array.from(localityMap.entries())
       .map(([locality, data]) => ({
         locality,
         total: data.total,
@@ -157,9 +176,13 @@ export class DashboardService {
         customers: data.customers,
       }))
       .sort((a, b) => b.total - a.total)
-      .slice(0, 8); // Top 8 localities
+      .slice(0, 8);
 
-    const pipeline: PipelineStageCount[] = [
+    return { statusCounts, localities };
+  }
+
+  private buildPipeline(statusCounts: Record<LeadStatus, number>): PipelineStageCount[] {
+    return [
       { status: 'NEW', label: 'New Leads', count: statusCounts.NEW, colorClass: 'bg-blue-500 text-white' },
       { status: 'CONTACTED', label: 'Contacted', count: statusCounts.CONTACTED, colorClass: 'bg-purple-500 text-white' },
       { status: 'INTERESTED', label: 'Interested', count: statusCounts.INTERESTED, colorClass: 'bg-emerald-500 text-white' },
@@ -169,103 +192,127 @@ export class DashboardService {
       { status: 'CUSTOMER', label: 'Customers (Closed)', count: statusCounts.CUSTOMER, colorClass: 'bg-emerald-700 text-white' },
       { status: 'NOT_INTERESTED', label: 'Not Interested', count: statusCounts.NOT_INTERESTED, colorClass: 'bg-slate-500 text-white' },
     ];
+  }
 
-    const metrics: DashboardMetrics = {
-      totalLeads: allLeads.length,
+  private buildMetrics(
+    totalLeads: number,
+    statusCounts: Record<LeadStatus, number>,
+    todayFollowUps: EnrichedFollowUp[],
+    overdueCount: number,
+    callsToday: number,
+    whatsAppToday: number,
+  ): DashboardMetrics {
+    return {
+      totalLeads,
       notContacted: statusCounts.NEW,
-      callsToday: callsTodayList.length,
-      whatsAppToday: messagesTodayList.length,
+      callsToday,
+      whatsAppToday,
       interested: statusCounts.INTERESTED,
       samplesRequested: statusCounts.SAMPLE_REQUESTED,
       followUpsToday: todayFollowUps.length,
       overdueFollowUps: overdueCount,
       customers: statusCounts.CUSTOMER,
     };
+  }
 
-    // 5. Derive Recent Activity Feed
+  private async getRecentActivities(leadMap: Map<string, Lead>): Promise<RecentActivityItem[]> {
     const [recentCalls, recentRemarks, recentMessages, recentFollowUps] = await Promise.all([
       this.db.callRecords
-        .filter((c) => leadMap.has(c.leadId) && c.deletedAt === null)
+        .filter((call) => leadMap.has(call.leadId) && call.deletedAt === null)
         .reverse()
         .sortBy('startedAt')
-        .then((res) => res.slice(0, 10)),
+        .then((records) => records.slice(0, 10)),
       this.db.remarks
-        .filter((r) => leadMap.has(r.leadId) && r.deletedAt === null)
+        .filter((remark) => leadMap.has(remark.leadId) && remark.deletedAt === null)
         .reverse()
         .sortBy('createdAt')
-        .then((res) => res.slice(0, 10)),
+        .then((records) => records.slice(0, 10)),
       this.db.messageHistory
-        .filter((m) => leadMap.has(m.leadId) && m.deletedAt === null)
+        .filter((message) => leadMap.has(message.leadId) && message.deletedAt === null)
         .reverse()
         .sortBy('sentAt')
-        .then((res) => res.slice(0, 10)),
+        .then((records) => records.slice(0, 10)),
       this.db.followUps
-        .filter((f) => leadMap.has(f.leadId) && f.deletedAt === null && f.status === 'COMPLETED')
+        .filter((followUp) => leadMap.has(followUp.leadId) && followUp.deletedAt === null && followUp.status === 'COMPLETED')
         .reverse()
         .sortBy('completedAt')
-        .then((res) => res.slice(0, 10)),
+        .then((records) => records.slice(0, 10)),
     ]);
-
-    const activities: RecentActivityItem[] = [];
-
-    for (const call of recentCalls) {
-      const lead = leadMap.get(call.leadId);
-      activities.push({
-        id: `call-${call.id}`,
-        leadId: call.leadId,
-        businessName: lead ? lead.businessName : 'Gym Contact',
-        locality: lead ? lead.locality : 'Lucknow',
-        type: 'CALL',
-        title: `Call: ${call.outcome}`,
-        detail: call.remark,
-        timestamp: call.startedAt,
-      });
-    }
-
-    for (const rem of recentRemarks) {
-      const lead = leadMap.get(rem.leadId);
-      activities.push({
-        id: `rem-${rem.id}`,
-        leadId: rem.leadId,
-        businessName: lead ? lead.businessName : 'Gym Contact',
-        locality: lead ? lead.locality : 'Lucknow',
-        type: 'REMARK',
-        title: `Sales Remark`,
-        detail: rem.content,
-        timestamp: rem.createdAt,
-      });
-    }
-
-    for (const msg of recentMessages) {
-      const lead = leadMap.get(msg.leadId);
-      activities.push({
-        id: `msg-${msg.id}`,
-        leadId: msg.leadId,
-        businessName: lead ? lead.businessName : 'Gym Contact',
-        locality: lead ? lead.locality : 'Lucknow',
-        type: 'WHATSAPP',
-        title: `WhatsApp (${msg.sentStatus})`,
-        detail: msg.messageContent ? msg.messageContent.slice(0, 60) + '...' : null,
-        timestamp: msg.sentAt,
-      });
-    }
-
-    for (const fu of recentFollowUps) {
-      const lead = leadMap.get(fu.leadId);
-      activities.push({
-        id: `fu-${fu.id}`,
-        leadId: fu.leadId,
-        businessName: lead ? lead.businessName : 'Gym Contact',
-        locality: lead ? lead.locality : 'Lucknow',
-        type: 'FOLLOW_UP_COMPLETED',
-        title: `Completed Follow-up: ${fu.title}`,
-        detail: fu.notes,
-        timestamp: fu.completedAt || fu.updatedAt,
-      });
-    }
-
+    const activities: RecentActivityItem[] = [
+      ...recentCalls.map((call) => {
+        const lead = leadMap.get(call.leadId);
+        return {
+          id: 'call-' + call.id,
+          leadId: call.leadId,
+          businessName: lead ? lead.businessName : 'Gym Contact',
+          locality: lead ? lead.locality : 'Lucknow',
+          type: 'CALL' as const,
+          title: 'Call: ' + call.outcome,
+          detail: call.remark,
+          timestamp: call.startedAt,
+        };
+      }),
+      ...recentRemarks.map((remark) => {
+        const lead = leadMap.get(remark.leadId);
+        return {
+          id: 'rem-' + remark.id,
+          leadId: remark.leadId,
+          businessName: lead ? lead.businessName : 'Gym Contact',
+          locality: lead ? lead.locality : 'Lucknow',
+          type: 'REMARK' as const,
+          title: 'Sales Remark',
+          detail: remark.content,
+          timestamp: remark.createdAt,
+        };
+      }),
+      ...recentMessages.map((message) => {
+        const lead = leadMap.get(message.leadId);
+        return {
+          id: 'msg-' + message.id,
+          leadId: message.leadId,
+          businessName: lead ? lead.businessName : 'Gym Contact',
+          locality: lead ? lead.locality : 'Lucknow',
+          type: 'WHATSAPP' as const,
+          title: 'WhatsApp (' + message.sentStatus + ')',
+          detail: message.messageContent ? message.messageContent.slice(0, 60) + '...' : null,
+          timestamp: message.sentAt,
+        };
+      }),
+      ...recentFollowUps.map((followUp) => {
+        const lead = leadMap.get(followUp.leadId);
+        return {
+          id: 'fu-' + followUp.id,
+          leadId: followUp.leadId,
+          businessName: lead ? lead.businessName : 'Gym Contact',
+          locality: lead ? lead.locality : 'Lucknow',
+          type: 'FOLLOW_UP_COMPLETED' as const,
+          title: 'Completed Follow-up: ' + followUp.title,
+          detail: followUp.notes,
+          timestamp: followUp.completedAt || followUp.updatedAt,
+        };
+      }),
+    ];
     activities.sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1));
-    const recentActivities = activities.slice(0, 15);
+    return activities.slice(0, 15);
+  }
+
+  async getDashboardData(): Promise<FullDashboardData> {
+    const { todayStart, todayEnd } = this.getTodayRange();
+    const allLeads = await this.getActiveLeads();
+    const leadMap = this.buildLeadMap(allLeads);
+    const { overdueCount, todayFollowUps } = await this.getFollowUpSummary(leadMap, todayStart, todayEnd);
+    const { callsToday, whatsAppToday } = await this.getTodayActivityCounts(leadMap, todayStart, todayEnd);
+    const { statusCounts, localities } = this.aggregateLeads(allLeads);
+    const pipeline = this.buildPipeline(statusCounts);
+    const metrics = this.buildMetrics(
+      allLeads.length,
+      statusCounts,
+      todayFollowUps,
+      overdueCount,
+      callsToday,
+      whatsAppToday,
+    );
+    const recentActivities = await this.getRecentActivities(leadMap);
 
     return {
       metrics,

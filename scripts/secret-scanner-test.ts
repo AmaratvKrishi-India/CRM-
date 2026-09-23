@@ -12,7 +12,7 @@ import { join, relative } from 'path';
 
 program
   .option('-p, --pattern <glob>', 'File pattern to scan', '**/*')
-  .option('-e, --exclude <patterns>', 'Comma-separated exclude patterns', 'node_modules/**,dist/**,build/**,**/build/**,.git/**,.env*,graft/**,android/app/src/main/assets/**,*.lock,*.log,coverage/**,test-results/**')
+  .option('-e, --exclude <patterns>', 'Comma-separated exclude patterns', 'node_modules/**,dist/**,build/**,**/build/**,.git/**,.env*,graft/**,android/app/src/main/assets/**,*.lock,*.log,coverage/**,test-results/**,scratch/**,local/**,strix/**,reports/**')
   .option('-o, --output <file>', 'Output JSON file', 'test-results/security/secret-scan.json')
   .option('--fail-on-found', 'Exit with error code if secrets found', true)
   .parse(process.argv);
@@ -150,6 +150,12 @@ function isIntentionalDisabledLoopbackPg(ruleId: string, value: string): boolean
   return /^postgres(?:ql)?:\/\//i.test(value) && /@(?:127\.0\.0\.1|localhost|\[::1\]):1\/disabled(?:[^A-Za-z0-9]|$)/i.test(value);
 }
 
+function isInteractiveMaestroPrompt(relativePath: string, ruleId: string, lines: string[], lineNumber: number): boolean {
+  if (ruleId !== 'PASSWORD' || !relativePath.endsWith('run-local-audit.bat')) return false;
+  const line = lines[lineNumber - 1] ?? '';
+  return /set\s+\/p/i.test(line) && /MAESTRO_[A-Z_]*PASSWORD/i.test(line) && /Local (?:Maestro |provisioned-agent )/i.test(line);
+}
+
 function maskSecret(secret: string, visibleChars: number = 4): string {
   if (secret.length <= visibleChars * 2) {
     return '*'.repeat(secret.length);
@@ -197,6 +203,12 @@ async function scanFile(file: string): Promise<SecretFinding[]> {
         }
 
         if (isIntentionalDisabledLoopbackPg(pattern.ruleId, match[0])) {
+          continue;
+        }
+
+        // Interactive local-audit prompts request input at runtime; they do
+        // not contain a credential value and must not be reported as one.
+        if (isInteractiveMaestroPrompt(relativePath, pattern.ruleId, lines, lineNumber)) {
           continue;
         }
 

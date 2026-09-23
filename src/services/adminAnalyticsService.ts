@@ -1,3 +1,4 @@
+import type { Activity } from '../db/types';
 /**
  * Admin Analytics Service (Phase 2L)
  * Provides comprehensive organization-wide aggregation methods for the Admin CRM Dashboard,
@@ -429,7 +430,7 @@ export class AdminAnalyticsService {
     agentId: string,
     range: DashboardDateRange = 'ALL_TIME',
     customRange?: DateFilterRange
-  ): Promise<{ summary: AgentPerformanceSummary; recentActivities: any[]; assignedLeads: Lead[] }> {
+  ): Promise<{ summary: AgentPerformanceSummary; recentActivities: Activity[]; assignedLeads: Lead[] }> {
     this.assertAdmin(actor);
 
     const list = await this.getAgentPerformanceList(actor, range, customRange);

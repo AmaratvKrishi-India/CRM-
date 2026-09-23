@@ -1,0 +1,47 @@
+# Current UI contract: seeded Rahul lead is searchable, openable, and returnable.
+appId: "com.amaratvkrishi.salescrm"
+
+---
+- launchApp:
+    clearState: true
+
+- extendedWaitUntil:
+    visible:
+      id: "login-email"
+    timeout: 30000
+- tapOn:
+    id: "login-email"
+- inputText: ${MAESTRO_AGENT_EMAIL}
+- tapOn:
+    id: "login-password"
+- inputText: ${MAESTRO_AGENT_PASSWORD}
+- tapOn: "Sign In"
+
+- extendedWaitUntil:
+    visible:
+      id: "app-main-content"
+    timeout: 30000
+- tapOn:
+    id: "app-tab-LEADS"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 30000
+- assertVisible:
+    text: ".*Gold Gym Hazratganj.*"
+
+- tapOn:
+    text: ".*Gold Gym Hazratganj.*"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 30000
+- assertVisible:
+    text: ".*Gold Gym Hazratganj.*"
+- assertVisible: "+919876543210"
+- tapOn:
+    id: "back-button"
+- extendedWaitUntil:
+    visible:
+      text: ".*Gold Gym Hazratganj.*"
+    timeout: 30000

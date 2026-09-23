@@ -70,6 +70,57 @@ describe('SyncConflictResolver', () => {
       expect(resolved.winner).toBe('LOCAL');
       expect(resolved.data).toEqual(local);
     });
+
+    it('should replace an unversioned cache with a versioned server record and record the conflict', () => {
+      const local = {
+        id: 'lead-unversioned', businessName: 'Cached Gym', isSynced: 1, updatedAt: '2024-01-03T00:00:00Z',
+      };
+      const remote = {
+        id: 'lead-unversioned', businessName: 'Canonical Gym', serverRevision: 1, updatedAt: '2024-01-01T00:00:00Z',
+      };
+
+      const resolved = SyncConflictResolver.resolveMutable('leads', local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.data).toEqual(remote);
+      expect(resolved.conflict?.entityType).toBe('leads');
+    });
+
+    it('should not treat an unversioned dirty cache as newer than an unversioned remote record', () => {
+      const local = { id: 'lead-unversioned-dirty', businessName: 'Pending Gym', isSynced: 0 };
+      const remote = { id: 'lead-unversioned-dirty', businessName: 'Server Gym' };
+
+      const resolved = SyncConflictResolver.resolveMutable('leads', local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.data).toEqual(remote);
+    });
+
+    it('should preserve a dirty same-revision local edit but replace a clean same-revision cache', () => {
+      const remote = { id: 'lead-same-revision', serverRevision: 4, businessName: 'Server Gym', isSynced: 1 };
+      const pending = { ...remote, businessName: 'Pending Local Gym', isSynced: 0 };
+      const pendingResult = SyncConflictResolver.resolveMutable('leads', pending, remote);
+
+      expect(pendingResult.winner).toBe('LOCAL');
+      expect(pendingResult.data).toEqual(pending);
+
+      const clean = { ...remote, businessName: 'Stale Cache Gym' };
+      const cleanResult = SyncConflictResolver.resolveMutable('leads', clean, remote);
+
+      expect(cleanResult.winner).toBe('REMOTE');
+      expect(cleanResult.data).toEqual(remote);
+      expect(cleanResult.conflict?.entityType).toBe('leads');
+    });
+
+    it('should reject a dirty local snapshot when the remote server revision is higher', () => {
+      const local = { id: 'lead-dirty-older', serverRevision: 1, businessName: 'Pending Gym', isSynced: 0 };
+      const remote = { id: 'lead-dirty-older', serverRevision: 2, businessName: 'Canonical Gym', isSynced: 1 };
+
+      const resolved = SyncConflictResolver.resolveMutable('leads', local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.data).toEqual(remote);
+    });
   });
 
   describe('resolveCallRecord', () => {
@@ -101,6 +152,34 @@ describe('SyncConflictResolver', () => {
       expect(resolved.data).toEqual(local);
     });
 
+    it('should apply versioned ordering before verified-duration precedence', () => {
+      const local = {
+        id: 'call-versioned', serverRevision: 3, durationSeconds: 15, verificationStatus: 'UNVERIFIED',
+      };
+      const remote = {
+        id: 'call-versioned', serverRevision: 2, durationSeconds: 300, verification_status: 'VERIFIED',
+      };
+
+      const resolved = SyncConflictResolver.resolveCallRecord(local, remote);
+
+      expect(resolved.winner).toBe('LOCAL');
+      expect(resolved.data).toEqual(local);
+    });
+
+    it('should preserve call_records conflict identity when a newer versioned remote wins', () => {
+      const local = {
+        id: 'call-versioned-remote', serverRevision: 1, durationSeconds: 15, verificationStatus: 'UNVERIFIED',
+      };
+      const remote = {
+        id: 'call-versioned-remote', serverRevision: 2, durationSeconds: 300, verification_status: 'VERIFIED',
+      };
+
+      const resolved = SyncConflictResolver.resolveCallRecord(local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.conflict?.entityType).toBe('call_records');
+    });
+
     it('should prefer VERIFIED even with lower duration', () => {
       const local = {
         id: 'call-1', durationSeconds: 200, verificationStatus: 'UNVERIFIED', updatedAt: '2024-01-02T00:00:00Z',
@@ -129,6 +208,49 @@ describe('SyncConflictResolver', () => {
       expect(resolved.data.verificationStatus).toBe('VERIFIED');
     });
 
+    it('should honor snake_case verification fields when both calls are unverified', () => {
+      const local = {
+        id: 'call-snake-case', duration_seconds: 20, verification_status: 'UNVERIFIED', updated_at: '2024-01-01T00:00:00Z',
+      };
+      const remote = {
+        id: 'call-snake-case', duration_seconds: 30, verification_status: 'UNVERIFIED', updated_at: '2024-01-02T00:00:00Z',
+      };
+
+      const resolved = SyncConflictResolver.resolveCallRecord(local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.data).toEqual(remote);
+      expect(resolved.conflict?.entityType).toBe('call_records');
+    });
+
+    it('should use canonical ordering when a local camelCase tombstone is present', () => {
+      const local = {
+        id: 'call-local-delete', deletedAt: '2024-01-03T00:00:00Z', verificationStatus: 'VERIFIED',
+      };
+      const remote = {
+        id: 'call-local-delete', verification_status: 'UNVERIFIED',
+      };
+
+      const resolved = SyncConflictResolver.resolveCallRecord(local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.conflict?.entityType).toBe('call_records');
+    });
+
+    it('should use canonical ordering when only a remote snake_case tombstone is present', () => {
+      const local = {
+        id: 'call-remote-delete', verificationStatus: 'VERIFIED',
+      };
+      const remote = {
+        id: 'call-remote-delete', deleted_at: '2024-01-03T00:00:00Z', verification_status: 'UNVERIFIED',
+      };
+
+      const resolved = SyncConflictResolver.resolveCallRecord(local, remote);
+
+      expect(resolved.winner).toBe('REMOTE');
+      expect(resolved.conflict?.entityType).toBe('call_records');
+    });
+
     it('should use timestamp LWW for call metadata when verification levels match', () => {
       const local = {
         id: 'call-1', direction: 'OUTBOUND', remark: 'Local note', verificationStatus: 'VERIFIED', updatedAt: '2024-01-01T00:00:00Z',
@@ -141,6 +263,7 @@ describe('SyncConflictResolver', () => {
 
       expect(resolved.winner).toBe('REMOTE');
       expect(resolved.data).toEqual(remote);
+      expect(resolved.conflict?.entityType).toBe('call_records');
     });
   });
 

@@ -169,9 +169,9 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
         reportedDurationSeconds: reportedSeconds,
         followUp: followUpData,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to save call outcome:', err);
-      setError(err.message || 'Failed to save call outcome.');
+      setError(err instanceof Error ? err.message : 'Failed to save call outcome.');
     } finally {
       setIsSubmitting(false);
     }
@@ -194,7 +194,7 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
       }
     >
       {/* Form Body */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form id="call-outcome-modal" onSubmit={handleSubmit} className="space-y-4">
         {error && (
           <div role="alert" className="p-3 bg-danger-soft border border-danger/30 rounded-xl text-sm text-danger-text flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-danger flex-shrink-0" aria-hidden="true" />

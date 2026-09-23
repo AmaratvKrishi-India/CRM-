@@ -61,6 +61,171 @@ const stageBarFillColor = (status: LeadStatus) => {
   return 'fill-info';
 };
 
+interface PipelineSectionProps {
+  pipeline: PipelineStageMetric[];
+  selectedAgentId: string;
+  showFullPipelineMobile: boolean;
+  setShowFullPipelineMobile: React.Dispatch<React.SetStateAction<boolean>>;
+  onNavigateToLeads: (statusFilter?: LeadStatus, agentFilter?: string) => void;
+}
+const PipelineSection: React.FC<PipelineSectionProps> = ({
+  pipeline,
+  selectedAgentId,
+  showFullPipelineMobile,
+  setShowFullPipelineMobile,
+  onNavigateToLeads,
+}) => (
+      <div className="p-5 bg-surface border border-line rounded-3xl shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-accent-text" aria-hidden="true" />
+            <h3 className="font-bold text-sm text-ink uppercase tracking-wider">
+              Sales Pipeline Stage Distribution
+            </h3>
+          </div>
+          <span className="text-xs text-faint">Tap stage to view leads</span>
+        </div>
+
+        <div className="space-y-2.5">
+          {pipeline.map((stage, index) => (
+            <button
+              key={stage.status}
+              type="button"
+              onClick={() => onNavigateToLeads(stage.status, selectedAgentId)}
+              aria-label={`View ${stage.label} leads (${stage.count})`}
+              className={`${index >= 4 && !showFullPipelineMobile ? 'hidden sm:block' : ''} w-full min-h-11 p-2.5 bg-inset hover:bg-inset-strong border border-line rounded-2xl transition group text-left`}
+            >
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span className="font-bold text-ink group-hover:text-accent-text transition">
+                  {stage.label}
+                </span>
+                <span className="font-black text-ink">
+                  {stage.count}{' '}
+                  <span className="text-xs text-faint font-normal">({stage.percentage}%)</span>
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full h-2 bg-inset-strong rounded-full overflow-hidden">
+                <svg
+                  aria-hidden="true"
+                  className="block w-full h-full transition-all duration-500"
+                  viewBox="0 0 100 1"
+                  preserveAspectRatio="none"
+                >
+                  <rect
+                    width={Math.max(4, Math.min(100, stage.percentage))}
+                    height="1"
+                    rx="0.5"
+                    className={stageBarFillColor(stage.status)}
+                  />
+                </svg>
+              </div>
+            </button>
+          ))}
+        </div>
+        {pipeline.length > 4 && (
+          <button
+            type="button"
+            onClick={() => setShowFullPipelineMobile((value) => !value)}
+            aria-expanded={showFullPipelineMobile}
+            className="sm:hidden w-full min-h-11 rounded-xl border border-line bg-inset hover:bg-inset-strong text-sm font-semibold text-accent-text transition-colors"
+          >
+            {showFullPipelineMobile ? 'Show fewer pipeline stages' : `Show all ${pipeline.length} pipeline stages`}
+          </button>
+        )}
+      </div>
+);
+
+const FollowUpKpiCard: React.FC<{ kpis: OrganisationKPIs | null }> = ({ kpis }) => (
+        <div className="p-4 bg-surface border border-line rounded-2xl shadow-md">
+          <div className="flex items-center justify-between text-xs text-soft mb-1">
+            <span className="font-semibold uppercase tracking-wider">Follow-ups</span>
+            <Calendar className="w-4 h-4 text-warning-text" aria-hidden="true" />
+          </div>
+          <div className="text-2xl font-black text-ink">
+            {(kpis?.followUps.today || 0) + (kpis?.followUps.upcoming || 0)}
+          </div>
+          <div className="text-xs text-soft mt-1 flex justify-between">
+            <span className="text-warning-text font-bold">{kpis?.followUps.today || 0} today</span>
+            {kpis?.followUps.overdue ? (
+              <span className="text-danger-text font-bold">{kpis.followUps.overdue} overdue</span>
+            ) : (
+              <span className="text-success-text font-semibold">{kpis?.followUps.completed || 0} done</span>
+            )}
+          </div>
+        </div>
+);
+
+interface ExecutiveKpiCardsProps {
+  kpis: OrganisationKPIs | null;
+  onNavigateToLeads: (statusFilter?: LeadStatus, agentFilter?: string) => void;
+  onOpenCallHistory: () => void;
+}
+
+const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
+  kpis,
+  onNavigateToLeads,
+  onOpenCallHistory,
+}) => (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Leads */}
+        <button
+          type="button"
+          onClick={() => onNavigateToLeads()}
+          className="p-4 bg-surface border border-line hover:border-info rounded-2xl shadow-md transition-all active:scale-98 group text-left"
+        >
+          <div className="flex items-center justify-between text-xs text-soft mb-1">
+            <span className="font-semibold uppercase tracking-wider">Total Leads</span>
+            <UserPlus className="w-4 h-4 text-info" aria-hidden="true" />
+          </div>
+          <div className="text-2xl font-black text-ink group-hover:text-info transition">
+            {kpis?.leads.total || 0}
+          </div>
+          <div className="text-xs text-soft mt-1 flex justify-between">
+            <span>{kpis?.leads.assigned || 0} assigned</span>
+            <span className="text-warning-text font-bold">{kpis?.leads.unassigned || 0} unassigned</span>
+          </div>
+        </button>
+
+        {/* Calls */}
+        <button
+          type="button"
+          onClick={onOpenCallHistory}
+          className="p-4 bg-surface border border-line hover:border-success rounded-2xl shadow-md transition-all active:scale-98 group text-left"
+        >
+          <div className="flex items-center justify-between text-xs text-soft mb-1">
+            <span className="font-semibold uppercase tracking-wider">Total Calls</span>
+            <PhoneCall className="w-4 h-4 text-success-text" aria-hidden="true" />
+          </div>
+          <div className="text-2xl font-black text-ink group-hover:text-success-text transition">
+            {kpis?.calls.total || 0}
+          </div>
+          <div className="text-xs text-soft mt-1 flex justify-between">
+            <span className="text-success-text font-semibold">{kpis?.calls.verified || 0} verified</span>
+            <span>{kpis?.calls.unverified || 0} unverified</span>
+          </div>
+        </button>
+
+        {/* Verified Talk Time */}
+        <div className="p-4 bg-surface border border-line rounded-2xl shadow-md">
+          <div className="flex items-center justify-between text-xs text-soft mb-1">
+            <span className="font-semibold uppercase tracking-wider">Verified Talk Time</span>
+            <Clock className="w-4 h-4 text-accent-text" aria-hidden="true" />
+          </div>
+          <div className="text-2xl font-black text-accent-text">
+            {formatSeconds(kpis?.calls.verifiedTalkTimeSeconds || 0)}
+          </div>
+          <div className="text-xs text-soft mt-1">
+            Avg: {formatSeconds(kpis?.calls.averageVerifiedDurationSeconds || 0)} / verified call
+          </div>
+        </div>
+
+        {/* Follow-ups */}
+        <FollowUpKpiCard kpis={kpis} />
+      </div>
+);
+
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   onEnterSalesMode,
   onNavigateToLeads,
@@ -251,140 +416,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       )}
 
       {/* 2. Executive KPI Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Leads */}
-        <button
-          type="button"
-          onClick={() => onNavigateToLeads()}
-          className="p-4 bg-surface border border-line hover:border-info rounded-2xl shadow-md transition-all active:scale-98 group text-left"
-        >
-          <div className="flex items-center justify-between text-xs text-soft mb-1">
-            <span className="font-semibold uppercase tracking-wider">Total Leads</span>
-            <UserPlus className="w-4 h-4 text-info" aria-hidden="true" />
-          </div>
-          <div className="text-2xl font-black text-ink group-hover:text-info transition">
-            {kpis?.leads.total || 0}
-          </div>
-          <div className="text-xs text-soft mt-1 flex justify-between">
-            <span>{kpis?.leads.assigned || 0} assigned</span>
-            <span className="text-warning-text font-bold">{kpis?.leads.unassigned || 0} unassigned</span>
-          </div>
-        </button>
+      <ExecutiveKpiCards
+        kpis={kpis}
+        onNavigateToLeads={onNavigateToLeads}
+        onOpenCallHistory={() => setIsCallHistoryOpen(true)}
+      />
 
-        {/* Calls */}
-        <button
-          type="button"
-          onClick={() => setIsCallHistoryOpen(true)}
-          className="p-4 bg-surface border border-line hover:border-success rounded-2xl shadow-md transition-all active:scale-98 group text-left"
-        >
-          <div className="flex items-center justify-between text-xs text-soft mb-1">
-            <span className="font-semibold uppercase tracking-wider">Total Calls</span>
-            <PhoneCall className="w-4 h-4 text-success-text" aria-hidden="true" />
-          </div>
-          <div className="text-2xl font-black text-ink group-hover:text-success-text transition">
-            {kpis?.calls.total || 0}
-          </div>
-          <div className="text-xs text-soft mt-1 flex justify-between">
-            <span className="text-success-text font-semibold">{kpis?.calls.verified || 0} verified</span>
-            <span>{kpis?.calls.unverified || 0} unverified</span>
-          </div>
-        </button>
-
-        {/* Verified Talk Time */}
-        <div className="p-4 bg-surface border border-line rounded-2xl shadow-md">
-          <div className="flex items-center justify-between text-xs text-soft mb-1">
-            <span className="font-semibold uppercase tracking-wider">Verified Talk Time</span>
-            <Clock className="w-4 h-4 text-accent-text" aria-hidden="true" />
-          </div>
-          <div className="text-2xl font-black text-accent-text">
-            {formatSeconds(kpis?.calls.verifiedTalkTimeSeconds || 0)}
-          </div>
-          <div className="text-xs text-soft mt-1">
-            Avg: {formatSeconds(kpis?.calls.averageVerifiedDurationSeconds || 0)} / verified call
-          </div>
-        </div>
-
-        {/* Follow-ups */}
-        <div className="p-4 bg-surface border border-line rounded-2xl shadow-md">
-          <div className="flex items-center justify-between text-xs text-soft mb-1">
-            <span className="font-semibold uppercase tracking-wider">Follow-ups</span>
-            <Calendar className="w-4 h-4 text-warning-text" aria-hidden="true" />
-          </div>
-          <div className="text-2xl font-black text-ink">
-            {(kpis?.followUps.today || 0) + (kpis?.followUps.upcoming || 0)}
-          </div>
-          <div className="text-xs text-soft mt-1 flex justify-between">
-            <span className="text-warning-text font-bold">{kpis?.followUps.today || 0} today</span>
-            {kpis?.followUps.overdue ? (
-              <span className="text-danger-text font-bold">{kpis.followUps.overdue} overdue</span>
-            ) : (
-              <span className="text-success-text font-semibold">{kpis?.followUps.completed || 0} done</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Lead Pipeline Visualizer */}
-      <div className="p-5 bg-surface border border-line rounded-3xl shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-accent-text" aria-hidden="true" />
-            <h3 className="font-bold text-sm text-ink uppercase tracking-wider">
-              Sales Pipeline Stage Distribution
-            </h3>
-          </div>
-          <span className="text-xs text-faint">Tap stage to view leads</span>
-        </div>
-
-        <div className="space-y-2.5">
-          {pipeline.map((stage, index) => (
-            <button
-              key={stage.status}
-              type="button"
-              onClick={() => onNavigateToLeads(stage.status, selectedAgentId)}
-              aria-label={`View ${stage.label} leads (${stage.count})`}
-              className={`${index >= 4 && !showFullPipelineMobile ? 'hidden sm:block' : ''} w-full min-h-11 p-2.5 bg-inset hover:bg-inset-strong border border-line rounded-2xl transition group text-left`}
-            >
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-ink group-hover:text-accent-text transition">
-                  {stage.label}
-                </span>
-                <span className="font-black text-ink">
-                  {stage.count}{' '}
-                  <span className="text-xs text-faint font-normal">({stage.percentage}%)</span>
-                </span>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full h-2 bg-inset-strong rounded-full overflow-hidden">
-                <svg
-                  aria-hidden="true"
-                  className="block w-full h-full transition-all duration-500"
-                  viewBox="0 0 100 1"
-                  preserveAspectRatio="none"
-                >
-                  <rect
-                    width={Math.max(4, Math.min(100, stage.percentage))}
-                    height="1"
-                    rx="0.5"
-                    className={stageBarFillColor(stage.status)}
-                  />
-                </svg>
-              </div>
-            </button>
-          ))}
-        </div>
-        {pipeline.length > 4 && (
-          <button
-            type="button"
-            onClick={() => setShowFullPipelineMobile((value) => !value)}
-            aria-expanded={showFullPipelineMobile}
-            className="sm:hidden w-full min-h-11 rounded-xl border border-line bg-inset hover:bg-inset-strong text-sm font-semibold text-accent-text transition-colors"
-          >
-            {showFullPipelineMobile ? 'Show fewer pipeline stages' : `Show all ${pipeline.length} pipeline stages`}
-          </button>
-        )}
-      </div>
+      <PipelineSection
+        pipeline={pipeline}
+        selectedAgentId={selectedAgentId}
+        showFullPipelineMobile={showFullPipelineMobile}
+        setShowFullPipelineMobile={setShowFullPipelineMobile}
+        onNavigateToLeads={onNavigateToLeads}
+      />
 
       {/* 4. Sales Representative Performance */}
       <div className="space-y-3">

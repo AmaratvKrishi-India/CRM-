@@ -58,8 +58,8 @@ export const DeleteAgentModal: React.FC<DeleteAgentModalProps> = ({
         onAgentDeleted();
         handleClose();
       }, 1500);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Deletion failed. Please try again.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Deletion failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -64,6 +64,10 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   const navTabRefs = useRef<Partial<Record<AppNavTab, HTMLButtonElement | null>>>({});
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [tab]);
+
   // Filters passed from Dashboard to Lead List
   const [leadsStatusFilter, setLeadsStatusFilter] = useState<string>('ALL');
   const [leadsLocalityFilter, setLeadsLocalityFilter] = useState<string>('ALL');
@@ -331,7 +335,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   };
 
   return (
-    <div className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans">
+    <div className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans ui-shell">
       <a
         href="#app-main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-3 focus:text-ink focus:shadow-lg"
@@ -453,7 +457,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
 
       {/* Bottom Mobile Navigation Bar */}
       {tab !== 'DETAIL' && tab !== 'IMPORT' && (
-        <nav aria-label="Sales sections" className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-3 pt-1.5 pb-safe-tabbar shadow-lg">
+        <nav aria-label="Sales sections" className="ui-bottom-nav sticky bottom-0 z-30 px-3 pt-1.5 pb-safe-tabbar">
           <div
             role="tablist"
             aria-label="Main sections"
@@ -522,7 +526,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
               tabIndex={tab === 'FOLLOW_UPS' ? 0 : -1}
               onKeyDown={(e) => handleNavTabKeyDown(e, 'FOLLOW_UPS')}
               onClick={() => setTab('FOLLOW_UPS')}
-              className={`relative min-h-11 py-1.5 px-2 rounded-xl flex flex-col items-center justify-center transition-all ${
+              className={`relative min-h-11 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all ${
                 tab === 'FOLLOW_UPS'
                   ? 'text-accent-text bg-accent-soft font-bold'
                   : 'text-faint hover:text-ink'
@@ -539,7 +543,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
                   </span>
                 )}
               </div>
-              <span className="text-xs">Follow-ups</span>
+              <span className="text-xs whitespace-nowrap">Follow-ups</span>
             </button>
           </div>
         </nav>

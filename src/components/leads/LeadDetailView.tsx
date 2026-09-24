@@ -117,7 +117,7 @@ const LeadProfileCard: React.FC<LeadProfileCardProps> = ({
     .sort((a, b) => (a.scheduledAt > b.scheduledAt ? 1 : -1))[0];
 
   return (
-    <div className="bg-surface rounded-2xl border border-line p-4 shadow-xs space-y-3">
+    <div className="ui-card p-3.5 space-y-3">
       <div className="space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
           <h1 className="text-lg font-bold text-ink leading-tight">{lead.businessName}</h1>
@@ -401,7 +401,7 @@ const CallHistoryPanel: React.FC<{ active: boolean; calls: CallRecord[] }> = ({ 
   return (
     <div className="space-y-2" role="tabpanel" aria-label="Call history">
       {calls.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-line p-8 text-center space-y-2">
+        <div className="ui-empty p-7 text-center space-y-2">
           <PhoneCall className="w-8 h-8 text-faint mx-auto" aria-hidden="true" />
           <h4 className="text-sm font-bold text-ink">No call history yet</h4>
           <p className="text-sm text-faint max-w-xs mx-auto">
@@ -410,7 +410,7 @@ const CallHistoryPanel: React.FC<{ active: boolean; calls: CallRecord[] }> = ({ 
         </div>
       ) : (
         calls.map((call) => (
-          <div key={call.id} className="bg-surface rounded-xl border border-line p-3 shadow-xs space-y-1.5">
+          <div key={call.id} className="ui-card-quiet p-3 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className={'text-xs font-bold px-2 py-0.5 rounded-full border ' + getOutcomeBadgeClass(call.outcome)}>
                 {labelFor(call.outcome)}
@@ -435,7 +435,7 @@ const RemarksPanel: React.FC<{ active: boolean; remarks: Remark[] }> = ({ active
   return (
     <div className="space-y-2" role="tabpanel" aria-label="Remarks">
       {remarks.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-line p-8 text-center space-y-2">
+        <div className="ui-empty p-7 text-center space-y-2">
           <FileText className="w-8 h-8 text-faint mx-auto" aria-hidden="true" />
           <h4 className="text-sm font-bold text-ink">No remarks recorded yet</h4>
           <p className="text-sm text-faint max-w-xs mx-auto">
@@ -444,7 +444,7 @@ const RemarksPanel: React.FC<{ active: boolean; remarks: Remark[] }> = ({ active
         </div>
       ) : (
         remarks.map((remark) => (
-          <div key={remark.id} className="bg-surface rounded-xl border border-line p-3 shadow-xs space-y-1">
+          <div key={remark.id} className="ui-card-quiet p-3 space-y-1">
             <div className="flex items-center justify-between text-xs text-faint">
               <span className="font-semibold text-soft">{remark.author}</span>
               <span>{formatTimestamp(remark.createdAt)}</span>
@@ -469,7 +469,7 @@ const FollowUpsPanel: React.FC<FollowUpsPanelProps> = ({ active, followUps, onRe
   return (
     <div className="space-y-2" role="tabpanel" aria-label="Follow-ups">
       {!followUps || followUps.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-line p-8 text-center space-y-2">
+        <div className="ui-empty p-7 text-center space-y-2">
           <Calendar className="w-8 h-8 text-faint mx-auto" aria-hidden="true" />
           <h4 className="text-sm font-bold text-ink">No follow-ups logged</h4>
           <p className="text-sm text-faint max-w-xs mx-auto">
@@ -478,7 +478,7 @@ const FollowUpsPanel: React.FC<FollowUpsPanelProps> = ({ active, followUps, onRe
         </div>
       ) : (
         followUps.map((followUp) => (
-          <div key={followUp.id} className="bg-surface rounded-xl border border-line p-3 shadow-xs space-y-2">
+          <div key={followUp.id} className="ui-card-quiet p-3 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span
                 className={'text-xs font-bold px-2 py-0.5 rounded-full border ' +
@@ -530,7 +530,7 @@ const MessagesPanel: React.FC<{ active: boolean; messages?: MessageHistory[] }> 
   return (
     <div className="space-y-2" role="tabpanel" aria-label="WhatsApp messages">
       {!messages || messages.length === 0 ? (
-        <div className="bg-surface rounded-2xl border border-line p-8 text-center space-y-2">
+        <div className="ui-empty p-7 text-center space-y-2">
           <MessageSquare className="w-8 h-8 text-faint mx-auto" aria-hidden="true" />
           <h4 className="text-sm font-bold text-ink">No WhatsApp messages logged</h4>
           <p className="text-sm text-faint max-w-xs mx-auto">
@@ -539,7 +539,7 @@ const MessagesPanel: React.FC<{ active: boolean; messages?: MessageHistory[] }> 
         </div>
       ) : (
         messages.map((message) => (
-          <div key={message.id} className="bg-surface rounded-xl border border-line p-3 shadow-xs space-y-1.5">
+          <div key={message.id} className="ui-card-quiet p-3 space-y-1.5">
             <div className="flex items-center justify-between text-sm">
               <span
                 className={'text-xs font-bold px-2 py-0.5 rounded-full border ' +
@@ -695,7 +695,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
   if (loading) {
     return (
       <div id="lead-detail" className="min-h-screen bg-app flex flex-col pb-20">
-        <div className="bg-surface px-4 py-3 sticky top-0 z-30 border-b border-line">
+        <div className="ui-topbar px-4 py-2.5 sticky top-0 z-30">
           <div className="max-w-2xl mx-auto">
             <button
               type="button"

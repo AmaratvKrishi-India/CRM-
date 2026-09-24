@@ -60,18 +60,18 @@ export const ReportKpiCard: React.FC<ReportKpiCardProps> = ({
 
   const content = (
     <>
-      <div className="flex items-center justify-between text-xs text-soft mb-1.5">
-        <span className="font-bold uppercase tracking-wider truncate">{title}</span>
-        <div className={`p-1.5 rounded-lg border ${styles.iconBg}`}>
+      <div className="flex items-start justify-between gap-2 text-xs text-soft mb-1.5">
+        <span className="min-w-0 flex-1 font-semibold leading-snug break-words">{title}</span>
+        <div className={`hidden sm:block shrink-0 p-1.5 rounded-lg border ${styles.iconBg}`}>
           <Icon className="w-4 h-4" aria-hidden="true" />
         </div>
       </div>
-      <div className={`text-2xl font-black ${styles.val}`}>{value}</div>
-      {subtitle && <div className="text-xs text-soft mt-1 truncate">{subtitle}</div>}
+      <div className={`text-2xl font-bold tabular-nums break-words ${styles.val}`}>{value}</div>
+      {subtitle && <div className="text-xs text-soft mt-1 leading-snug break-words">{subtitle}</div>}
     </>
   );
 
-  const baseClass = `w-full p-4 bg-surface border border-line ${styles.border} rounded-2xl shadow-md transition-all text-left`;
+  const baseClass = `w-full min-w-0 p-3 sm:p-4 bg-surface border border-line ${styles.border} rounded-2xl transition-[border-color,transform] text-left`;
 
   if (onClick) {
     return (

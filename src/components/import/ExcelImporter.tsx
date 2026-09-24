@@ -215,9 +215,9 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-app text-ink">
+    <div className="ui-screen flex-1 flex flex-col min-h-0 bg-app text-ink">
       {/* Header Bar */}
-      <div className="bg-surface border-b border-line px-4 py-3 shrink-0">
+      <div className="ui-topbar px-4 py-2.5 shrink-0">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             {step === 'PREVIEW' && (
@@ -289,7 +289,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                     openFilePicker();
                   }
                 }}
-                className="border-2 border-dashed border-accent bg-surface hover:bg-accent-soft rounded-2xl p-8 text-center cursor-pointer transition-all shadow-xs group focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                className="border border-dashed border-accent bg-surface hover:bg-accent-soft rounded-2xl p-6 text-center cursor-pointer transition-all shadow-xs group focus:outline-none focus:ring-2 focus:ring-focus-ring"
               >
                 <input
                   ref={fileInputRef}
@@ -324,7 +324,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
               </div>
 
               {/* Quick Sample Dataset Button */}
-              <div className="bg-inset text-ink rounded-2xl p-4 shadow-sm relative overflow-hidden border border-line">
+              <div className="ui-card-quiet text-ink p-3.5 relative overflow-hidden">
                 <div className="relative z-10 flex items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-1.5 text-sm font-semibold text-accent-text mb-1">

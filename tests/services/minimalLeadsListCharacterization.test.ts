@@ -107,7 +107,7 @@ describe('MinimalLeadsList characterization', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Call Gym One' }));
     expect(props.onCallLead).toHaveBeenCalledWith(leadOne);
 
-    expect(screen.getByLabelText('WhatsApp unavailable â€” landline')).toBeTruthy();
+    expect(screen.getByLabelText('WhatsApp unavailable — landline')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Settings and pitch templates' }));
     fireEvent.click(screen.getByRole('button', { name: 'Backup' }));
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));

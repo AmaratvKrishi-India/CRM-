@@ -146,7 +146,7 @@ const FollowUpKpiCard: React.FC<{ kpis: OrganisationKPIs | null }> = ({ kpis }) 
           <div className="text-2xl font-black text-ink">
             {(kpis?.followUps.today || 0) + (kpis?.followUps.upcoming || 0)}
           </div>
-          <div className="text-xs text-soft mt-1 flex justify-between">
+          <div className="text-xs text-soft mt-1 flex flex-wrap justify-between gap-x-1 gap-y-0.5">
             <span className="text-warning-text font-bold">{kpis?.followUps.today || 0} today</span>
             {kpis?.followUps.overdue ? (
               <span className="text-danger-text font-bold">{kpis.followUps.overdue} overdue</span>
@@ -182,7 +182,7 @@ const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
           <div className="text-2xl font-black text-ink group-hover:text-info transition">
             {kpis?.leads.total || 0}
           </div>
-          <div className="text-xs text-soft mt-1 flex justify-between">
+          <div className="text-xs text-soft mt-1 flex flex-wrap justify-between gap-x-1 gap-y-0.5">
             <span>{kpis?.leads.assigned || 0} assigned</span>
             <span className="text-warning-text font-bold">{kpis?.leads.unassigned || 0} unassigned</span>
           </div>
@@ -201,7 +201,7 @@ const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
           <div className="text-2xl font-black text-ink group-hover:text-success-text transition">
             {kpis?.calls.total || 0}
           </div>
-          <div className="text-xs text-soft mt-1 flex justify-between">
+          <div className="text-xs text-soft mt-1 flex flex-wrap justify-between gap-x-1 gap-y-0.5">
             <span className="text-success-text font-semibold">{kpis?.calls.verified || 0} verified</span>
             <span>{kpis?.calls.unverified || 0} unverified</span>
           </div>
@@ -432,7 +432,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
       {/* 4. Sales Representative Performance */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-col items-start gap-1 px-1 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-accent-text" aria-hidden="true" />
             <h3 className="font-bold text-sm text-ink uppercase tracking-wider">

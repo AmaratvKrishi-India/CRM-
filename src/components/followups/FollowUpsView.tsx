@@ -148,7 +148,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
     return (
       <div
         key={item.id}
-        className={`bg-surface rounded-2xl border p-4 shadow-xs space-y-3 transition-all ${
+        className={`ui-card p-3.5 space-y-3 transition-all ${
           isOverdue ? 'border-danger/40 bg-danger-soft/40' : 'border-line hover:border-line-strong'
         }`}
       >
@@ -290,17 +290,17 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   return (
     <div className="min-h-screen bg-app flex flex-col pb-20">
       {/* Header */}
-      <div className="bg-surface text-ink px-4 py-4 sticky top-0 z-30 shadow-md border-b border-line">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+      <div className="ui-topbar text-ink px-4 py-3 sticky top-0 z-30">
+        <div className="max-w-2xl mx-auto flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="min-w-0">
-            <h1 className="text-base font-bold tracking-tight truncate">Sales Follow-ups</h1>
-            <p className="text-sm text-soft truncate">Scheduled calls &amp; sample visits</p>
+            <h1 className="text-base font-bold tracking-tight">Sales Follow-ups</h1>
+            <p className="text-sm text-soft">Scheduled calls &amp; sample visits</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {/* F18 — sync status on data-entry surfaces */}
             <SyncStatusBadge />
-            <span className="text-sm font-bold text-success-text bg-success-soft px-2.5 py-1 rounded-full border border-success/30">
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-success-text bg-success-soft px-2.5 py-1 rounded-full border border-success/30">
               {totalAll} pending
             </span>
           </div>
@@ -313,7 +313,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
         <div
           role="tablist"
           aria-label="Filter follow-ups"
-          className="flex items-center gap-2 overflow-x-auto pb-1"
+          className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
         >
           {tabs.map((tab) => {
             const isSelected = activeSection === tab.id;
@@ -329,7 +329,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
                 tabIndex={isSelected ? 0 : -1}
                 onClick={() => setActiveSection(tab.id)}
                 onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
-                className={`min-h-11 py-1.5 px-3 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${
+                className={`min-h-11 flex-none py-1.5 px-3 rounded-full font-semibold text-sm leading-snug transition-colors ${
                   isSelected
                     ? 'bg-accent text-on-accent shadow-xs'
                     : 'bg-surface text-soft border border-line hover:bg-inset'
@@ -344,7 +344,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
         {loading ? (
           <FollowUpsSkeleton />
         ) : loadError ? (
-          <div className="bg-surface rounded-2xl border border-danger/40 p-8 text-center my-auto space-y-3" role="alert">
+          <div className="ui-empty border-danger/40 p-7 text-center my-auto space-y-3" role="alert">
             <AlertTriangle className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
             <h2 className="text-base font-bold text-ink">{loadError}</h2>
             <p className="text-sm text-soft max-w-xs mx-auto">
@@ -360,7 +360,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
             </button>
           </div>
         ) : totalAll === 0 ? (
-          <div className="bg-surface rounded-2xl border border-line p-8 text-center my-auto space-y-3">
+          <div className="ui-empty p-7 text-center my-auto space-y-3">
             <CheckCircle2 className="w-10 h-10 text-success mx-auto" aria-hidden="true" />
             <h2 className="text-base font-bold text-ink">All caught up!</h2>
             <p className="text-sm text-soft max-w-xs mx-auto">

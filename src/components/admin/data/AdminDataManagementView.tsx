@@ -378,12 +378,12 @@ export const AdminDataManagementView: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-app text-ink font-sans">
+    <div className="ui-screen flex-1 flex flex-col min-h-0 bg-app text-ink font-sans">
       {/* Sub-Navigation Tabs (F14 — proper tablist semantics) */}
       <div
         role="tablist"
         aria-label="Data management sections"
-        className="bg-surface border-b border-line p-2 flex items-center gap-1 overflow-x-auto scrollbar-none sticky top-0 z-20"
+        className="ui-topbar p-1.5 flex items-center gap-1 overflow-x-auto scrollbar-none sticky top-0 z-20"
       >
         {tabButton('DATABASE', 'Lead Explorer', <Database className="w-4 h-4" aria-hidden="true" />)}
         {tabButton('IMPORTS', 'Import Center', <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />)}
@@ -402,7 +402,7 @@ export const AdminDataManagementView: React.FC = () => {
             className="space-y-3"
           >
             {/* Filters Bar */}
-            <div className="p-3 bg-surface border border-line rounded-2xl space-y-2.5">
+            <div className="ui-card p-3 space-y-2.5">
               <div className="relative">
                 <label htmlFor="data-explorer-search" className="sr-only">
                   Search organization database
@@ -512,7 +512,7 @@ export const AdminDataManagementView: React.FC = () => {
                   return (
                     <div
                       key={lead.id}
-                      className="p-3 bg-surface border border-line rounded-2xl space-y-1.5 hover:border-line-strong transition-all"
+                      className="ui-card-quiet p-3 space-y-1.5 hover:border-line-strong transition-all"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <h4 className="text-sm font-bold text-ink truncate">{lead.businessName}</h4>
@@ -555,7 +555,7 @@ export const AdminDataManagementView: React.FC = () => {
             aria-labelledby="data-tab-IMPORTS"
             className="space-y-4"
           >
-            <div className="p-4 bg-accent-soft border border-line rounded-2xl flex items-center justify-between gap-3">
+            <div className="ui-card p-3.5 bg-accent-soft flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-ink">Excel / CSV Spreadsheet Ingestion</h3>
                 <p className="text-xs text-soft mt-0.5">

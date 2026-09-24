@@ -136,6 +136,7 @@ test.describe('Visual Regression Tests', () => {
 
   test('theme toggle - night mode baseline', async ({ page }) => {
     await setupAuthMocks(page, MOCK_AGENT, { forceOffline: true });
+    await page.addInitScript(() => localStorage.setItem('amaratv_crm_theme_v1', 'NIGHT'));
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await performLogin(page, MOCK_AGENT.email, 'ValidPassword123');
     
@@ -143,7 +144,7 @@ test.describe('Visual Regression Tests', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
     
-    // Ensure we're in night mode (default)
+    // Capture the optional night theme explicitly; new installs start in day mode.
     const html = page.locator('html');
     await expect(html).toHaveAttribute('data-theme', 'night');
     

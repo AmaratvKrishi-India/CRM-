@@ -50,9 +50,9 @@ test.describe('CRM Navigation & Lead Management Workflow', () => {
     await addLeadBtn.click();
 
     // 3. Fill Create Lead Form
-    const nameInput = page.locator('input[placeholder="e.g. Golds Gym Gomti Nagar"]');
+    const nameInput = page.getByLabel('Business / gym name *');
     const phoneInput = page.locator('input[placeholder="e.g. 7054447888"]');
-    const localityInput = page.locator('input[placeholder="e.g. Alambagh, LDA Colony"]');
+    const localityInput = page.getByLabel('Locality / area');
 
     await nameInput.fill(uniqueGymName);
     await phoneInput.fill(uniquePhone);
@@ -98,7 +98,7 @@ test.describe('CRM Navigation & Lead Management Workflow', () => {
     const addLeadBtn = page.getByRole('button', { name: /Add Lead|New Lead/i }).first();
     await addLeadBtn.click();
 
-    const nameInput = page.locator('input[placeholder="e.g. Golds Gym Gomti Nagar"]');
+    const nameInput = page.getByLabel('Business / gym name *');
     const phoneInput = page.locator('input[placeholder="e.g. 7054447888"]');
     await nameInput.fill(uniqueGymName);
     await phoneInput.fill(uniquePhone);

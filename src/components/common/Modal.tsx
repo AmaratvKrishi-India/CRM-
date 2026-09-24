@@ -121,12 +121,12 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 w-screen h-dvh z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       role="presentation"
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[3px] animate-in fade-in duration-200"
         aria-hidden="true"
         onClick={closeOnBackdrop ? onClose : undefined}
       />
@@ -139,13 +139,13 @@ export const Modal: React.FC<ModalProps> = ({
         aria-labelledby={titleId}
         aria-describedby={subtitle ? subtitleId : undefined}
         tabIndex={-1}
-        className={`relative w-full ${maxWidthClassName} bg-surface text-ink border border-line rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col animate-in fade-in zoom-in-98 duration-200`}
+        className={`relative w-full min-w-0 ${maxWidthClassName} bg-surface text-ink border border-line rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col animate-in fade-in zoom-in-98 duration-200`}
       >
-        <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3 border-b border-line shrink-0">
+        <div className="flex items-start justify-between gap-3 px-4 sm:px-5 pt-4 pb-3 border-b border-line shrink-0">
           <div className="flex items-start gap-2.5 min-w-0">
             {headerIcon}
             <div className="min-w-0">
-              <h2 id={titleId} className="text-base font-bold leading-tight truncate">
+              <h2 id={titleId} className="text-base font-semibold leading-snug break-words">
                 {title}
               </h2>
               {subtitle && (
@@ -167,7 +167,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
         </div>
 
-        <div className="overflow-y-auto px-4 py-4 grow">{children}</div>
+        <div className="min-w-0 overflow-x-hidden overflow-y-auto px-4 sm:px-5 py-4 grow">{children}</div>
       </div>
     </div>
   );

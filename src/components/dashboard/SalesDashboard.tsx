@@ -38,7 +38,7 @@ interface SalesDashboardProps {
 
 /** F19 — skeleton placeholder matching the dashboard layout. */
 const DashboardSkeleton: React.FC = () => (
-  <div className="max-w-2xl w-full mx-auto p-4 space-y-5 animate-pulse" aria-hidden="true">
+  <div className="ui-screen w-full p-4 space-y-5 animate-pulse" aria-hidden="true">
     <div className="space-y-1.5">
       <div className="h-4 w-48 rounded bg-inset" />
       <div className="grid grid-cols-3 gap-2">
@@ -132,9 +132,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   // F4 — visible error state with retry instead of a blank screen.
   if (loadError && !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col pb-safe-nav">
-        <div className="bg-surface border-b border-line px-4 py-4 sticky top-0 z-30">
-          <div className="max-w-2xl mx-auto flex items-center gap-2">
+      <div className="min-h-screen bg-app flex flex-col pb-safe-nav ui-screen">
+        <div className="ui-topbar px-4 py-4 sticky top-0 z-30">
+          <div className="ui-screen flex items-center gap-2">
             <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
             <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi</h1>
           </div>
@@ -162,9 +162,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col pb-safe-nav">
-        <div className="bg-surface border-b border-line px-4 py-4 sticky top-0 z-30">
-          <div className="max-w-2xl mx-auto flex items-center gap-2">
+      <div className="min-h-screen bg-app flex flex-col pb-safe-nav ui-screen">
+        <div className="ui-topbar px-4 py-4 sticky top-0 z-30">
+          <div className="ui-screen flex items-center gap-2">
             <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
             <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi</h1>
           </div>
@@ -178,11 +178,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const { metrics, todayFollowUps, pipeline, localities, recentActivities } = data;
 
   return (
-    <div className="min-h-screen bg-app flex flex-col pb-safe-nav">
+    <div className="min-h-screen bg-app flex flex-col pb-safe-nav ui-screen">
       {/* Top Brand Header */}
-      <div className="bg-surface border-b border-line px-4 py-3 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
+      <div className="ui-topbar px-4 py-3 sticky top-0 z-30">
+        <div className="ui-screen flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
               <h1 className="text-base font-bold tracking-tight text-ink">Amaratv Krishi</h1>
@@ -190,7 +190,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             <p className="text-xs text-faint">Lucknow Field Sales Dashboard</p>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
             <SyncStatusBadge />
             {currentUser?.role === 'ADMIN' && onOpenSettings && (
               <button
@@ -225,19 +225,19 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       </div>
 
       {/* Main Dashboard Content */}
-      <div className="max-w-2xl w-full mx-auto p-4 flex-1 flex flex-col space-y-5">
+      <div className="ui-screen w-full p-4 flex-1 flex flex-col space-y-5">
         {/* KPI METRICS GRID */}
         <section className="space-y-1.5" aria-label="Today and pipeline performance">
           <h2 className="text-xs font-bold text-faint uppercase tracking-wide px-1">
             Today & Pipeline Performance
           </h2>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="ui-kpi-grid grid grid-cols-2 sm:grid-cols-3 gap-2">
             {/* Total Leads */}
             <div className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-surface p-3 rounded-2xl border border-line shadow-xs`}>
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Total Leads</span>
-                <Users className="w-3.5 h-3.5 text-info" aria-hidden="true" />
+                <Users className="hidden sm:block w-3.5 h-3.5 text-info" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.totalLeads}</span>
             </div>
@@ -246,7 +246,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Calls Today</span>
-                <PhoneCall className="w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
+                <PhoneCall className="hidden sm:block w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.callsToday}</span>
             </div>
@@ -255,7 +255,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             <div className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-surface p-3 rounded-2xl border border-line shadow-xs`}>
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">WA Pitches</span>
-                <MessageSquare className="w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
+                <MessageSquare className="hidden sm:block w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.whatsAppToday}</span>
             </div>
@@ -268,7 +268,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             >
               <div className="flex items-center justify-between text-success-text mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Interested</span>
-                <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
+                <TrendingUp className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-success-text">{metrics.interested}</span>
             </button>
@@ -281,7 +281,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             >
               <div className="flex items-center justify-between text-warning-text mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Samples</span>
-                <Package className="w-3.5 h-3.5" aria-hidden="true" />
+                <Package className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-warning-text">{metrics.samplesRequested}</span>
             </button>
@@ -294,7 +294,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             >
               <div className="flex items-center justify-between text-on-accent mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Customers</span>
-                <Award className="w-3.5 h-3.5" aria-hidden="true" />
+                <Award className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-on-accent">{metrics.customers}</span>
             </button>
@@ -307,7 +307,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             >
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Due Today</span>
-                <Calendar className="w-3.5 h-3.5 text-info" aria-hidden="true" />
+                <Calendar className="hidden sm:block w-3.5 h-3.5 text-info" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.followUpsToday}</span>
             </button>
@@ -320,7 +320,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             >
               <div className="flex items-center justify-between text-danger-text mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Overdue</span>
-                <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />
+                <AlertTriangle className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-danger-text">{metrics.overdueFollowUps}</span>
             </button>
@@ -333,7 +333,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             >
               <div className="flex items-center justify-between text-faint mb-1">
                 <span className="text-xs font-bold uppercase tracking-tight">Uncontacted</span>
-                <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                <Users className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.notContacted}</span>
             </button>

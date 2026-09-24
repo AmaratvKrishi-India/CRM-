@@ -260,9 +260,9 @@ test.describe('CRM real browser to Supabase state transitions', () => {
 
     await page.getByRole('tab', { name: /Leads/i }).click();
     await page.getByRole('button', { name: /Add Lead|New Lead/i }).first().click();
-    await page.locator('input[placeholder="e.g. Golds Gym Gomti Nagar"]').fill(testBusinessName);
+    await page.getByLabel('Business / gym name *').fill(testBusinessName);
     await page.locator('input[placeholder="e.g. 7054447888"]').fill(testPhone);
-    await page.locator('input[placeholder="e.g. Alambagh, LDA Colony"]').fill('Gomti Nagar');
+    await page.getByLabel('Locality / area').fill('Gomti Nagar');
 
     await context.setOffline(true);
     await page.getByRole('button', { name: /Save Lead/i }).click();

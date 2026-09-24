@@ -3,16 +3,17 @@
  * Application-wide Day / Night mode.
  * Does NOT follow the Android system theme — this is an explicit user preference.
  * Persists in localStorage. Applies a data-theme attribute to <html>.
- * Default: NIGHT (preserves existing dark CRM design).
+ * Default: DAY for a calm, readable first run.
  */
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 
 export type ThemeMode = 'DAY' | 'NIGHT';
 
 const THEME_STORAGE_KEY = 'amaratv_crm_theme_v1';
-const DEFAULT_THEME: ThemeMode = 'NIGHT';
+const DEFAULT_THEME: ThemeMode = 'DAY';
 
 interface ThemeContextType {
   theme: ThemeMode;
@@ -77,6 +78,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     applyThemeToDocument(theme);
+    // Android draws a dark system bar behind the WebView in both app themes.
+    if (Capacitor.isNativePlatform()) {
+      void SystemBars.setStyle({ style: SystemBarsStyle.Dark })
+        .catch((error) => console.warn('Unable to update system bar appearance:', error));
+    }
   }, [theme]);
 
   return (

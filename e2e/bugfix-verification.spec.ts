@@ -165,9 +165,9 @@ test.describe('Bugfix verification: import, WhatsApp, dashboard, backup', () => 
     const waGym = `WA Verify Gym ${Date.now().toString().slice(-4)}`;
     await page.getByRole('tab', { name: /Leads/i }).first().click();
     await page.getByRole('button', { name: /Add Lead|New Lead/i }).first().click();
-    await page.locator('input[placeholder="e.g. Golds Gym Gomti Nagar"]').fill(waGym);
+    await page.getByLabel('Business / gym name *').fill(waGym);
     await page.locator('input[placeholder="e.g. 7054447888"]').fill(waPhone);
-    await page.locator('input[placeholder="e.g. Alambagh, LDA Colony"]').fill('Hazratganj');
+    await page.getByLabel('Locality / area').fill('Hazratganj');
     await page.getByRole('button', { name: /Save Lead/i }).click();
     await expect(page.getByText(waGym).first()).toBeVisible({ timeout: 15000 });
 

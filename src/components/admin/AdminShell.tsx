@@ -6,7 +6,7 @@
  * Rewritten for design tokens + accessible tablist nav (F1/F2/F14/F24).
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ShieldCheck,
   Users,
@@ -48,6 +48,10 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('HOME');
   const tabRefs = useRef<Partial<Record<AdminTab, HTMLButtonElement | null>>>({});
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeTab]);
+
   // Roving-tabindex keyboard support for the bottom tablist (F14).
   const handleTabKeyDown = (e: React.KeyboardEvent, id: AdminTab) => {
     const idx = PRIMARY_TAB_ORDER.indexOf(id);
@@ -66,7 +70,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
   return (
     <div
       data-role="admin"
-      className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans"
+      className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans ui-shell"
     >
       <a
         href="#admin-main-content"
@@ -75,28 +79,30 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
         Skip to main content
       </a>
       {/* Top Admin Header */}
-      <header className="bg-surface/90 border-b border-line px-4 py-3 sticky top-0 z-30 shadow-md flex items-center justify-between backdrop-blur-md">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-accent-soft border border-accent text-accent-text flex items-center justify-center flex-shrink-0">
+      <header className="ui-topbar px-4 py-3 sticky top-0 z-30 flex flex-wrap items-center gap-x-2 gap-y-2 sm:flex-nowrap sm:justify-between">
+        <div className="flex flex-1 items-center gap-2.5 min-w-0">
+          <div className="hidden min-[390px]:flex w-9 h-9 rounded-xl bg-accent-soft border border-accent text-accent-text items-center justify-center flex-shrink-0">
             <ShieldCheck className="w-5 h-5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h1 className="font-bold text-sm text-ink truncate">
+              <h1 className="font-semibold text-sm text-ink leading-snug break-words">
                 {currentUser?.name || 'Administrator'}
               </h1>
-              <span className="px-1.5 py-0.5 rounded-md bg-accent-soft text-accent-text font-bold text-xs uppercase tracking-wider border border-accent">
+              <span className="hidden sm:inline px-1.5 py-0.5 rounded-md bg-accent-soft text-accent-text font-bold text-xs uppercase tracking-wider border border-accent">
                 Admin
               </span>
             </div>
-            <p className="text-xs text-soft truncate">
+            <p className="hidden min-[390px]:block text-xs text-soft truncate">
               {currentUser?.email || 'admin@amaratvkrishi.com'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="order-3 w-full sm:order-none sm:w-auto sm:shrink-0">
           <SyncStatusBadge />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('SETTINGS')}
@@ -124,7 +130,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
       </header>
 
       {/* Main Tab Content */}
-      <main id="admin-main-content" tabIndex={-1} className="flex-1 p-3 sm:p-6 max-w-3xl mx-auto w-full flex flex-col">
+      <main id="admin-main-content" tabIndex={-1} className="flex-1 p-3 sm:p-6 ui-shell-content max-w-6xl mx-auto w-full flex flex-col">
         <div
           id="admin-panel-home"
           role="tabpanel"
@@ -190,7 +196,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
         >
           {activeTab === 'SETTINGS' && (
             <div className="space-y-4">
-              <div className="p-4 bg-surface rounded-2xl border border-line space-y-3">
+              <div className="ui-card p-4 space-y-3">
                 <h3 className="font-bold text-sm text-ink">Administrator Account</h3>
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
@@ -243,7 +249,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
       {/* Bottom Admin Navigation Bar */}
       <nav
         aria-label="Admin sections"
-        className="sticky bottom-0 z-30 bg-surface/95 backdrop-blur-md border-t border-line px-2 pt-2 pb-safe-tabbar shadow-xl"
+        className="ui-bottom-nav sticky bottom-0 z-30 px-2 pt-2 pb-safe-tabbar"
       >
         <div role="tablist" aria-label="Admin console sections" className="max-w-md mx-auto grid grid-cols-5 gap-1">
           {PRIMARY_TAB_ORDER.map((tab) => {

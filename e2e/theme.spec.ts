@@ -10,46 +10,38 @@ test.describe('Theme & Dark/Light Mode Flow', () => {
     await page.reload();
   });
 
-  test('defaults to NIGHT mode with dark attributes', async ({ page }) => {
-    const htmlElement = page.locator('html');
-    await expect(htmlElement).toHaveAttribute('data-theme', 'night');
-
-    // Computed styles must actually render dark (not just the attribute)
-    const nightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(nightBg).not.toBe('rgba(0, 0, 0, 0)');
-
-    // Theme toggle button should offer to switch to Day mode
-    const themeBtn = page.getByRole('button', { name: /day/i });
-    await expect(themeBtn).toBeVisible();
-  });
-
-  test('toggles theme to DAY mode and updates DOM attributes', async ({ page }) => {
-    // Capture the night background before switching
-    const nightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-
-    const themeBtn = page.getByRole('button', { name: /day/i });
-    await themeBtn.click();
-
-    // Attribute on <html> should now be 'day'
+  test('defaults to DAY mode with light attributes', async ({ page }) => {
     const htmlElement = page.locator('html');
     await expect(htmlElement).toHaveAttribute('data-theme', 'day');
 
-    // Computed background must actually change between themes
     const dayBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(dayBg).not.toBe(nightBg);
+    expect(dayBg).not.toBe('rgba(0, 0, 0, 0)');
 
-    // Stored theme in localStorage should be 'DAY'
+    const themeBtn = page.getByRole('button', { name: /night/i });
+    await expect(themeBtn).toBeVisible();
+  });
+
+  test('toggles theme to NIGHT mode and updates DOM attributes', async ({ page }) => {
+    const dayBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+
+    const themeBtn = page.getByRole('button', { name: /night/i });
+    await themeBtn.click();
+
+    const htmlElement = page.locator('html');
+    await expect(htmlElement).toHaveAttribute('data-theme', 'night');
+
+    const nightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(nightBg).not.toBe(dayBg);
+
     const storedTheme = await page.evaluate(() => localStorage.getItem('amaratv_crm_theme_v1'));
-    expect(storedTheme).toBe('DAY');
+    expect(storedTheme).toBe('NIGHT');
 
-    // Button should now show Night switch option
-    await expect(page.getByRole('button', { name: /night/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /day/i })).toBeVisible();
   });
 
   test('persists DAY theme preference across browser reload', async ({ page }) => {
-    // Switch to DAY
-    const themeBtn = page.getByRole('button', { name: /day/i });
-    await themeBtn.click();
+    await page.getByRole('button', { name: /night/i }).click();
+    await page.getByRole('button', { name: /day/i }).click();
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
 
@@ -61,16 +53,15 @@ test.describe('Theme & Dark/Light Mode Flow', () => {
     await expect(page.getByRole('button', { name: /night/i })).toBeVisible();
   });
 
-  test('toggles back to NIGHT mode from DAY mode', async ({ page }) => {
-    // Switch to DAY then back to NIGHT
-    await page.getByRole('button', { name: /day/i }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
-
+  test('toggles back to DAY mode from NIGHT mode', async ({ page }) => {
     await page.getByRole('button', { name: /night/i }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
 
+    await page.getByRole('button', { name: /day/i }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
+
     const storedTheme = await page.evaluate(() => localStorage.getItem('amaratv_crm_theme_v1'));
-    expect(storedTheme).toBe('NIGHT');
+    expect(storedTheme).toBe('DAY');
   });
 
   test('computed styles differ between NIGHT and DAY themes', async ({ page }) => {
@@ -81,13 +72,12 @@ test.describe('Theme & Dark/Light Mode Flow', () => {
         return { bodyBg: body.backgroundColor, bodyColor: body.color, rootBg: root.backgroundColor };
       });
 
-    const night = await capture();
-
-    await page.getByRole('button', { name: /day/i }).click();
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'day');
     const day = await capture();
 
-    // At least the background must genuinely differ once tokens resolve
+    await page.getByRole('button', { name: /night/i }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'night');
+    const night = await capture();
+
     expect(day.bodyBg).not.toBe(night.bodyBg);
   });
 });

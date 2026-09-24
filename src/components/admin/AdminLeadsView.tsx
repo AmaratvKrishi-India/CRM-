@@ -149,17 +149,17 @@ export const AdminLeadsView: React.FC = () => {
       {/* Top Filter & Metric Row */}
       <div className="p-4 bg-inset border-b border-line space-y-3">
         {/* KPI Counter Cards */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 min-[440px]:grid-cols-3 gap-2">
           <div className="p-3 bg-surface border border-line rounded-2xl">
-            <p className="text-xs text-soft font-bold uppercase tracking-wider">Total Leads</p>
+            <p className="text-sm text-soft font-semibold leading-snug">Total leads</p>
             <p className="text-lg font-black text-ink mt-0.5">{stats.totalLeads}</p>
           </div>
           <div className="p-3 bg-accent-soft border border-accent rounded-2xl">
-            <p className="text-xs text-accent-text font-bold uppercase tracking-wider">Assigned</p>
+            <p className="text-sm text-accent-text font-semibold leading-snug">Assigned</p>
             <p className="text-lg font-black text-accent-text mt-0.5">{stats.assignedCount}</p>
           </div>
-          <div className="p-3 bg-warning-soft border border-warning rounded-2xl">
-            <p className="text-xs text-warning-text font-bold uppercase tracking-wider">Unassigned</p>
+          <div className="col-span-2 min-[440px]:col-span-1 p-3 bg-warning-soft border border-warning rounded-2xl">
+            <p className="text-sm text-warning-text font-semibold leading-snug">Unassigned</p>
             <p className="text-lg font-black text-warning-text mt-0.5">{stats.unassignedCount}</p>
           </div>
         </div>
@@ -179,17 +179,31 @@ export const AdminLeadsView: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search leads by business, phone, or locality..."
+              placeholder="Search leads..."
               className="w-full min-h-11 bg-surface border border-line rounded-xl pl-10 pr-4 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring"
             />
           </div>
         </div>
 
-        {/* Horizontal Agent Filter Pills */}
+        <div className="sm:hidden">
+          <label htmlFor="admin-assignee-filter" className="block text-sm font-semibold text-soft mb-1.5">Assigned to</label>
+          <select
+            id="admin-assignee-filter"
+            value={selectedAgentFilter}
+            onChange={(event) => setSelectedAgentFilter(event.target.value)}
+            className="w-full min-h-12 px-3 rounded-xl bg-surface border border-line text-base text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
+          >
+            <option value="ALL">All leads ({stats.totalLeads})</option>
+            <option value="UNASSIGNED">Unassigned ({stats.unassignedCount})</option>
+            {agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name} ({stats.byAgent[agent.id] || 0})</option>)}
+          </select>
+        </div>
+
+        {/* Desktop assignee filters */}
         <div
           role="group"
           aria-label="Filter leads by assignee"
-          className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+          className="hidden sm:flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
         >
           <button
             type="button"

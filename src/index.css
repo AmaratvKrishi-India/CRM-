@@ -14,25 +14,25 @@
 @source "../index.html";
 
 /* ============================================================
-   THEME TOKENS — Night Mode (default / dark theme)
+   THEME TOKENS — Night Mode (dark theme fallback)
    Shared token layer consumed by BOTH admin and agent roles.
    Role accent identity is layered on top via [data-role].
    ============================================================ */
 :root,
 [data-theme="night"] {
-  --bg-app: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-elevated: #243144;
-  --bg-inset: #334155;
-  --bg-inset-strong: #475569;
+  --bg-app: #0e1726;
+  --bg-surface: #172235;
+  --bg-elevated: #1c2b40;
+  --bg-inset: #223249;
+  --bg-inset-strong: #2d3e55;
   --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #cbd5e1;
-  --border: #334155;
-  --border-strong: #475569;
+  --text-secondary: #c4cfdd;
+  --text-muted: #9cacbf;
+  --border: #2e4058;
+  --border-strong: #40536d;
   --focus-ring: #60a5fa;
   /* Semantic states (night: lighter tints for dark surfaces) */
-  --success: #047857;
+  --success: #0b7a63;
   --success-text: #6ee7b7;
   --warning: #fbbf24;
   --warning-text: #fcd34d;
@@ -41,8 +41,8 @@
   --info: #60a5fa;
   --info-text: #93c5fd;
   /* Default role accent = agent emerald (overridden by [data-role="admin"]) */
-  --accent: #047857;
-  --accent-hover: #065f46;
+  --accent: #0b7a63;
+  --accent-hover: #0b735c;
   --accent-text: #6ee7b7;
   --on-accent: #ffffff;
   color-scheme: dark;
@@ -52,19 +52,19 @@
    THEME TOKENS — Day Mode (light theme)
    ============================================================ */
 [data-theme="day"] {
-  --bg-app: #f8fafc;
+  --bg-app: #f4f6fa;
   --bg-surface: #ffffff;
   --bg-elevated: #ffffff;
-  --bg-inset: #f1f5f9;
-  --bg-inset-strong: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --bg-inset: #eef2f6;
+  --bg-inset-strong: #e3e9f0;
+  --text-primary: #172235;
+  --text-secondary: #526077;
+  --text-muted: #5b687e;
+  --border: #d8e0eb;
+  --border-strong: #b9c5d5;
   --focus-ring: #2563eb;
-  --success: #047857;
-  --success-text: #047857;
+  --success: #0b7a63;
+  --success-text: #065f46;
   --warning: #d97706;
   /* Dark enough for WCAG AA text on the light surface. */
   --warning-text: #92400e;
@@ -72,9 +72,9 @@
   --danger-text: #be123c;
   --info: #2563eb;
   --info-text: #1d4ed8;
-  --accent: #047857;
-  --accent-hover: #065f46;
-  --accent-text: #047857;
+  --accent: #0b7a63;
+  --accent-hover: #0b735c;
+  --accent-text: #0b735c;
   --on-accent: #ffffff;
   color-scheme: light;
 }
@@ -83,15 +83,15 @@
    ROLE ACCENT LAYER — admin keeps purple identity, agent emerald.
    ============================================================ */
 [data-theme="day"] [data-role="admin"] {
-  --accent: #7c3aed;
-  --accent-hover: #6d28d9;
-  --accent-text: #6d28d9;
+  --accent: #6d5bd0;
+  --accent-hover: #5948b7;
+  --accent-text: #5544b0;
 }
 
 [data-theme="night"] [data-role="admin"] {
-  --accent: #7c3aed;
-  --accent-hover: #6d28d9;
-  --accent-text: #ddd6fe;
+  --accent: #8878e2;
+  --accent-hover: #a397f0;
+  --accent-text: #c7bfff;
 }
 
 /* ============================================================
@@ -222,4 +222,137 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* ============================================================
+   FIELDOPS UI SYSTEM
+   Presentation-only layer shared by the admin and field shells. The
+   application continues to use the existing Tailwind utilities and DOM;
+   these refinements make the existing primitives feel like one product.
+   ============================================================ */
+:root {
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-panel: 18px;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.05), 0 8px 24px rgb(15 23 42 / 0.04);
+  --shadow-control: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-modal: 0 20px 60px rgb(15 23 42 / 0.20);
+}
+
+[data-theme="night"] {
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.22), 0 10px 28px rgb(0 0 0 / 0.18);
+  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.18);
+  --shadow-modal: 0 24px 72px rgb(0 0 0 / 0.40);
+}
+
+@layer components {
+  .ui-screen {
+    width: 100%;
+    max-width: 1180px;
+    margin-inline: auto;
+  }
+
+  .ui-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .ui-card-quiet {
+    background: color-mix(in srgb, var(--bg-surface) 86%, var(--bg-inset));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+  }
+
+  .ui-topbar {
+    background: color-mix(in srgb, var(--bg-surface) 94%, transparent);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 0 rgb(15 23 42 / 0.03);
+    backdrop-filter: blur(16px);
+  }
+
+  .ui-bottom-nav {
+    background: color-mix(in srgb, var(--bg-surface) 96%, transparent);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -8px 24px rgb(15 23 42 / 0.06);
+    backdrop-filter: blur(16px);
+  }
+
+  .ui-section-label {
+    color: var(--text-muted);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1rem;
+    text-transform: uppercase;
+  }
+
+  .ui-button-primary {
+    min-height: 44px;
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    box-shadow: var(--shadow-control);
+    color: var(--on-accent);
+    font-weight: 700;
+  }
+
+  .ui-button-secondary {
+    min-height: 44px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .ui-chip {
+    min-height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    background: var(--bg-inset);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .ui-empty {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-card);
+    background: color-mix(in srgb, var(--bg-inset) 42%, var(--bg-surface));
+  }
+}
+
+/* Normalize the most common existing utility combinations without changing
+   component behavior or test selectors. */
+.rounded-3xl { border-radius: var(--radius-panel); }
+.rounded-2xl { border-radius: var(--radius-card); }
+.rounded-xl { border-radius: var(--radius-control); }
+.shadow-xs,
+.shadow-sm { box-shadow: var(--shadow-control); }
+.shadow-md,
+.shadow-lg,
+.shadow-xl { box-shadow: var(--shadow-card); }
+.shadow-2xl { box-shadow: var(--shadow-modal); }
+
+input, select, textarea {
+  border-radius: var(--radius-control);
+}
+
+button, a, input, select, textarea {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 160ms;
+  transition-timing-function: ease-out;
+}
+
+@media (min-width: 768px) {
+  .ui-shell-content {
+    padding-inline: 32px;
+  }
+}
+
+@media (max-width: 420px) {
+  .ui-shell-content {
+    padding-inline: 16px;
+  }
 }

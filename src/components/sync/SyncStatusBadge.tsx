@@ -82,7 +82,7 @@ export const SyncStatusBadge: React.FC = () => {
       <div
         role="status"
         aria-label={`${label}. ${lastSyncText}`}
-        className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${colors}`}
+        className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap border ${colors}`}
       >
         {icon}
         <span>{label}</span>
@@ -94,7 +94,7 @@ export const SyncStatusBadge: React.FC = () => {
         onClick={() => synchronizeNow()}
         disabled={isSyncing}
         aria-label="Sync Now"
-        className="min-w-11 min-h-11 rounded-xl bg-inset hover:bg-inset-strong border border-line flex items-center justify-center text-soft hover:text-ink transition-all active:scale-90 disabled:opacity-40 disabled:cursor-default"
+        className="min-w-11 min-h-11 rounded-xl bg-transparent hover:bg-inset border border-transparent hover:border-line flex items-center justify-center text-soft hover:text-ink transition-all active:scale-95 disabled:opacity-40 disabled:cursor-default"
       >
         <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} aria-hidden="true" />
       </button>

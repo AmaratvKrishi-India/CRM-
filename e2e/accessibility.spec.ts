@@ -182,9 +182,9 @@ test.describe('Accessibility Tests', () => {
     const addLeadBtn = page.getByRole('button', { name: /Add Lead|New Lead/i }).first();
     await addLeadBtn.click();
     
-    const nameInput = page.locator('input[placeholder="e.g. Golds Gym Gomti Nagar"]');
+    const nameInput = page.getByLabel('Business / gym name *');
     const phoneInput = page.locator('input[placeholder="e.g. 7054447888"]');
-    const localityInput = page.locator('input[placeholder="e.g. Alambagh, LDA Colony"]');
+    const localityInput = page.getByLabel('Locality / area');
     
     await nameInput.fill('Test Gym');
     await phoneInput.fill('9876543210');

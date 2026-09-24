@@ -92,12 +92,12 @@ const LeadReportSection: React.FC<{ active: boolean; report: LeadReportData | nu
         <ReportKpiCard title="New Leads" value={report.statusBreakdown.NEW} subtitle="Awaiting first contact" icon={Flame} color="purple" />
         <ReportKpiCard title="Unassigned Leads" value={report.unassignedLeads} subtitle="Territory pool" icon={Users} color="amber" />
       </div>
-      <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+      <div className="ui-card p-3.5 space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-soft">Lead Status Distribution</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {Object.entries(report.statusBreakdown).map(([status, count]) => (
             <div key={status} className="p-2.5 bg-inset rounded-xl border border-line text-center">
-              <span className="text-xs uppercase font-bold text-soft block truncate">{labelFor(status)}</span>
+              <span className="text-xs font-semibold text-soft block leading-snug break-words">{labelFor(status)}</span>
               <span className="text-base font-black text-ink">{count}</span>
             </div>
           ))}
@@ -117,18 +117,18 @@ const CallReportSection: React.FC<{ active: boolean; report: CallReportData | nu
         <ReportKpiCard title="Avg Verified Duration" value={formatSeconds(report.averageVerifiedDurationSeconds)} subtitle="Per verified connection" icon={CheckCircle2} color="blue" />
         <ReportKpiCard title="Longest Call" value={formatSeconds(report.longestVerifiedDurationSeconds)} subtitle="Top duration" icon={Award} color="amber" />
       </div>
-      <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+      <div className="ui-card p-3.5 space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-soft">Call Outcome Distribution</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {Object.entries(report.callsByOutcome).map(([outcome, count]) => (
             <div key={outcome} className="p-2.5 bg-inset rounded-xl border border-line text-center">
-              <span className="text-xs uppercase font-bold text-soft block truncate">{labelFor(outcome)}</span>
+              <span className="text-xs font-semibold text-soft block leading-snug break-words">{labelFor(outcome)}</span>
               <span className="text-base font-black text-ink">{count}</span>
             </div>
           ))}
         </div>
       </div>
-      <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3">
+      <div className="ui-card p-3.5 space-y-3">
         <h3 className="text-xs font-bold uppercase tracking-wider text-soft">Verified Talk Time by Sales Representative</h3>
         <div className="space-y-2">
           {report.talkTimeByAgent.map((stat) => (
@@ -354,33 +354,37 @@ export const AdminReportsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 pb-12 font-sans text-ink">
+    <div className="ui-screen space-y-4 pb-12 font-sans text-ink">
       {/* Header */}
-      <div className="p-5 bg-surface rounded-3xl border border-accent/30 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="ui-card p-3.5 sm:p-4 flex flex-col gap-2">
         <div>
           <div className="flex items-center gap-2 text-accent-text">
             <BarChart3 className="w-4 h-4" aria-hidden="true" />
             <span className="text-xs font-bold uppercase tracking-wider">Territory Reports</span>
           </div>
-          <h2 className="text-xl font-black text-ink mt-0.5">Analytics &amp; Reporting</h2>
-          <p className="text-xs text-soft">
-            Organization intelligence, verified talk times, and sales conversion ratios.
+          <h2 className="text-xl font-bold text-ink mt-0.5">Analytics &amp; Reporting</h2>
+          <p className="text-sm text-soft leading-relaxed">
+            Explore leads, calls, follow-ups, and team activity.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-full bg-success-soft text-success-text border border-success font-bold text-xs flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" aria-hidden="true" />
-            <span>Dexie Indexed Aggregation</span>
-          </span>
         </div>
       </div>
 
       {/* Report Category Navigation Tabs */}
+      <div className="sm:hidden">
+        <label htmlFor="report-category" className="block text-sm font-semibold text-soft mb-1.5">Report category</label>
+        <select
+          id="report-category"
+          value={activeTab}
+          onChange={(event) => setActiveTab(event.target.value as ReportTab)}
+          className="w-full min-h-11 px-3 rounded-xl bg-inset border border-line text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
+        >
+          {TAB_ORDER.map((tabId) => <option key={tabId} value={tabId}>{TAB_META[tabId].label}</option>)}
+        </select>
+      </div>
       <div
         role="tablist"
         aria-label="Report categories"
-        className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
+        className="hidden sm:flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none"
       >
         {TAB_ORDER.map((tabId) => {
           const { label, icon: Icon } = TAB_META[tabId];
@@ -426,13 +430,13 @@ export const AdminReportsView: React.FC = () => {
       {loading ? (
         <div className="py-16 text-center text-sm text-soft" role="status">
           <Clock className="w-6 h-6 animate-pulse mx-auto mb-2 text-accent-text" aria-hidden="true" />
-          Computing report metrics from Dexie database...
+          Loading reports...
         </div>
       ) : (
         <div
           role="tabpanel"
           id={`report-panel-${activeTab.toLowerCase()}`}
-          aria-labelledby={`report-tab-${activeTab.toLowerCase()}`}
+          aria-label={`${TAB_META[activeTab].label} report`}
         >
           {/* 1. LEAD REPORT */}
           <LeadReportSection active={activeTab === 'LEADS'} report={leadReport} />
@@ -451,7 +455,7 @@ export const AdminReportsView: React.FC = () => {
                 productivityReport.map((agent) => (
                   <div
                     key={agent.agentId}
-                    className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-3"
+                    className="ui-card p-3.5 space-y-3"
                   >
                     <div className="flex items-center justify-between pb-2 border-b border-line">
                       <div className="flex items-center gap-2.5">
@@ -530,7 +534,7 @@ export const AdminReportsView: React.FC = () => {
               </div>
 
               {/* Import List */}
-              <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-2.5">
+              <div className="ui-card p-3.5 space-y-2.5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                   Spreadsheet Ingestion Audit History
                 </h3>
@@ -561,7 +565,7 @@ export const AdminReportsView: React.FC = () => {
 
           {/* 7. ACTIVITY AUDIT STREAM */}
           {activeTab === 'ACTIVITY' && (
-            <div className="p-4 bg-surface border border-line rounded-2xl shadow-md space-y-2.5">
+            <div className="ui-card p-3.5 space-y-2.5">
               <h3 className="text-xs font-bold uppercase tracking-wider text-soft">
                 Chronological CRM Activity Stream
               </h3>

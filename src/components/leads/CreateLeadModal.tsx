@@ -110,15 +110,15 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
   };
 
   const inputClass =
-    'w-full min-h-11 bg-inset border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring';
-  const labelClass = 'block text-sm font-bold text-soft mb-1';
+    'w-full min-h-12 bg-inset border border-line rounded-xl px-3 py-2 text-base text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring';
+  const labelClass = 'block text-sm font-semibold text-soft mb-1';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add new field lead"
-      subtitle="Create and assign a lead directly to your pipeline"
+      title="Add lead"
+      subtitle="Save a new lead to your pipeline"
       closeOnBackdrop={false}
       maxWidthClassName="max-w-lg"
       headerIcon={
@@ -146,12 +146,12 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
             data-autofocus
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
-            placeholder="e.g. Golds Gym Gomti Nagar"
+            placeholder="Business or gym name"
             className={inputClass}
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor="create-phone" className={labelClass}>
               Phone number *
@@ -176,13 +176,13 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
               type="text"
               value={locality}
               onChange={(e) => setLocality(e.target.value)}
-              placeholder="e.g. Alambagh, LDA Colony"
+              placeholder="e.g. Alambagh"
               className={inputClass}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label htmlFor="create-contact-person" className={labelClass}>
               Contact person
@@ -206,7 +206,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
               type="text"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g. Gym, Fitness Center"
+              placeholder="e.g. Fitness center"
               className={inputClass}
             />
           </div>

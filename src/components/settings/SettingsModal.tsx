@@ -320,7 +320,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const tabButtonClass = (selected: boolean) =>
-    `min-h-11 py-2 px-3 text-sm font-bold flex items-center gap-1.5 border-b-2 transition-all ${
+    `min-w-0 min-h-11 py-2 px-1 sm:px-3 text-[11px] min-[360px]:text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-all ${
       selected
         ? 'border-accent text-accent-text bg-surface'
         : 'border-transparent text-soft hover:text-ink'
@@ -343,7 +343,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <div
         role="tablist"
         aria-label="Settings sections"
-        className="flex border-b border-line bg-inset px-2 -mx-4 -mt-4 mb-4"
+        className="grid grid-cols-3 sm:flex border-b border-line bg-inset px-2 -mx-4 -mt-4 mb-4"
       >
         <button
           ref={(el) => {
@@ -363,8 +363,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           onKeyDown={(e) => handleTabKeyDown(e, 'MESSAGES')}
           className={tabButtonClass(activeTab === 'MESSAGES')}
         >
-          <MessageSquare className="w-4 h-4" aria-hidden="true" />
-          <span>WhatsApp Messages</span>
+          <MessageSquare className="hidden sm:block w-4 h-4" aria-hidden="true" />
+          <span className="sm:hidden">Messages</span>
+          <span className="hidden sm:inline">WhatsApp Messages</span>
         </button>
 
         <button
@@ -381,8 +382,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           onKeyDown={(e) => handleTabKeyDown(e, 'CATALOGUE')}
           className={tabButtonClass(activeTab === 'CATALOGUE')}
         >
-          <Paperclip className="w-4 h-4" aria-hidden="true" />
-          <span>Default Catalogue</span>
+          <Paperclip className="hidden sm:block w-4 h-4" aria-hidden="true" />
+          <span className="sm:hidden">Catalogue</span>
+          <span className="hidden sm:inline">Default Catalogue</span>
           {defaultCatalogue && (
             <span
               className="w-2 h-2 rounded-full bg-success"
@@ -406,7 +408,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           onKeyDown={(e) => handleTabKeyDown(e, 'PREFERENCES')}
           className={tabButtonClass(activeTab === 'PREFERENCES')}
         >
-          <Settings className="w-4 h-4" aria-hidden="true" />
+          <Settings className="hidden sm:block w-4 h-4" aria-hidden="true" />
           <span>Preferences</span>
         </button>
       </div>

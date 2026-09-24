@@ -73,12 +73,12 @@ export const AdminAgentsView: React.FC = () => {
   const inactiveCount = useMemo(() => agents.filter((a) => a.status === 'INACTIVE').length, [agents]);
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="ui-screen space-y-4 pb-20">
       {/* Top Banner / Actions */}
-      <div className="p-4 bg-surface rounded-2xl border border-line shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="ui-card p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-ink flex items-center gap-2">
-            <Users className="w-5 h-5 text-info" aria-hidden="true" />
+            <Users className="w-5 h-5 text-accent-text" aria-hidden="true" />
             <span>Sales Representatives</span>
           </h2>
           <p className="text-xs text-soft mt-0.5">
@@ -89,7 +89,7 @@ export const AdminAgentsView: React.FC = () => {
         <button
           type="button"
           onClick={() => setIsCreateOpen(true)}
-          className="min-h-11 py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 flex-shrink-0"
+          className="ui-button-primary py-2.5 px-4 text-sm flex items-center justify-center gap-2 hover:bg-accent-hover active:scale-[0.98] flex-shrink-0"
         >
           <UserPlus className="w-4 h-4" aria-hidden="true" />
           <span>Provision New Agent</span>
@@ -104,7 +104,7 @@ export const AdminAgentsView: React.FC = () => {
           aria-pressed={statusFilter === 'ALL'}
           className={`p-3 rounded-xl border text-center transition-all ${
             statusFilter === 'ALL'
-              ? 'bg-info-soft border-info shadow-sm'
+              ? 'bg-accent-soft border-accent text-accent-text'
               : 'bg-surface border-line hover:border-line-strong'
           }`}
         >
@@ -156,7 +156,7 @@ export const AdminAgentsView: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name, email or phone..."
-            className="w-full min-h-11 bg-surface border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all"
+            className="w-full min-h-11 bg-inset border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all"
           />
         </div>
       </div>
@@ -168,7 +168,7 @@ export const AdminAgentsView: React.FC = () => {
           <p className="text-sm">Loading agents...</p>
         </div>
       ) : filteredAgents.length === 0 ? (
-        <div className="py-12 text-center bg-inset rounded-2xl border border-line p-6 space-y-3">
+        <div className="ui-empty py-10 text-center p-6 space-y-3">
           <Users className="w-10 h-10 text-faint mx-auto" aria-hidden="true" />
           <p className="text-sm font-semibold text-ink">No sales agents found</p>
           <p className="text-sm text-faint max-w-xs mx-auto">
@@ -187,7 +187,7 @@ export const AdminAgentsView: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {filteredAgents.map((agent) => (
             <AgentCard
               key={agent.id}

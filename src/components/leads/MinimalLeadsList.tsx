@@ -21,7 +21,7 @@ import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { labelFor } from '../../lib/labels';
 import { leadStatusBadgeClass } from '../../lib/leadStatusStyles';
 
-/** F9 â€” page size for the leads list; "Load more" appends the next page. */
+/** F9 — page size for the leads list; "Load more" appends the next page. */
 const PAGE_SIZE = 150;
 
 interface MinimalLeadsListProps {
@@ -44,7 +44,7 @@ const LeadsHeader: React.FC<{
   onOpenSettings?: () => void;
   onAddLead: () => void;
 }> = ({ currentUser, onOpenImporter, onOpenBackupModal, onOpenSettings, onAddLead }) => (
-  <div className="bg-surface border-b border-line px-4 py-3 sticky top-0 z-30 shadow-sm">
+  <div className="ui-topbar px-4 py-2.5 sticky top-0 z-30">
     <div className="max-w-2xl mx-auto flex items-center justify-between">
       <div>
         <div className="flex items-center gap-2">
@@ -53,8 +53,8 @@ const LeadsHeader: React.FC<{
         </div>
         <p className="text-xs text-faint">
           {currentUser?.role === 'AGENT'
-            ? 'Field Sales â€¢ ' + currentUser.name
-            : 'Lucknow Field Sales â€¢ Leads Database'}
+            ? 'Field Sales • ' + currentUser.name
+            : 'Lucknow Field Sales • Leads Database'}
         </p>
       </div>
       <div className="flex items-center gap-1.5">
@@ -117,7 +117,7 @@ const LeadsFilters: React.FC<{
   onLocalityChange,
   localities,
 }) => (
-  <div className="bg-surface p-3.5 rounded-2xl border border-line shadow-xs space-y-2.5">
+  <div className="ui-card p-3 space-y-2.5">
     <div className="relative">
       <Search className="w-4 h-4 text-faint absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
       <label htmlFor="leads-search" className="sr-only">
@@ -126,13 +126,13 @@ const LeadsFilters: React.FC<{
       <input
         id="leads-search"
         type="search"
-        placeholder="Search by gym name, phone, locality..."
+        placeholder="Search leads..."
         value={searchTerm}
         onChange={(e) => onSearchTermChange(e.target.value)}
         className="min-h-11 w-full text-sm bg-inset border border-line rounded-xl pl-9 pr-3 py-2.5 text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
       />
     </div>
-    <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs scrollbar-none" role="group" aria-label="Filter by status">
+    <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-xs" role="group" aria-label="Filter by status">
       <span className="text-xs font-semibold text-faint flex-shrink-0">Status:</span>
       {['ALL', 'NEW', 'CONTACTED', 'INTERESTED', 'SAMPLE_REQUESTED', 'CUSTOMER'].map((status) => (
         <button
@@ -140,7 +140,7 @@ const LeadsFilters: React.FC<{
           type="button"
           onClick={() => onStatusChange(status)}
           aria-pressed={selectedStatus === status}
-          className={'min-w-11 min-h-11 px-3 rounded-xl font-medium text-xs whitespace-nowrap transition-colors touch-manipulation ' +
+          className={'min-h-11 flex-none px-3 rounded-full font-semibold text-xs leading-snug transition-colors touch-manipulation ' +
             (selectedStatus === status ? 'bg-ink text-app' : 'bg-inset text-soft hover:bg-inset-strong')}
         >
           {status === 'ALL' ? 'All' : labelFor(status)}
@@ -196,7 +196,7 @@ const LeadsStatePanels: React.FC<{
 }> = ({ loadError, loading, totalCount, isAgent, onRetry, onAddLead }) => (
   <>
     {loadError && !loading && (
-      <div className="bg-surface rounded-2xl border border-line p-8 text-center my-auto space-y-3">
+      <div className="ui-empty p-7 text-center my-auto space-y-3">
         <CloudOff className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
         <h2 className="text-base font-bold text-ink">{loadError}</h2>
         <button
@@ -210,7 +210,7 @@ const LeadsStatePanels: React.FC<{
       </div>
     )}
     {totalCount === 0 && !loading && !loadError && (
-      <div className="bg-surface rounded-2xl border border-line p-8 text-center my-auto space-y-3">
+      <div className="ui-empty p-7 text-center my-auto space-y-3">
         <div className="w-14 h-14 bg-accent-soft text-accent-text rounded-full flex items-center justify-center mx-auto">
           <Building2 className="w-7 h-7" aria-hidden="true" />
         </div>
@@ -244,7 +244,7 @@ const LeadCard: React.FC<{
 }> = ({ lead, index, onOpenLead, onCallLead, onOpenWhatsApp }) => {
   const isCallable = lead.phoneType !== 'invalid' && Boolean(lead.phone);
   return (
-    <div className="bg-surface rounded-2xl border border-line p-3.5 shadow-xs hover:border-line-strong transition-all flex flex-col gap-2">
+    <div className="ui-card p-3 hover:border-line-strong transition-all flex flex-col gap-2">
       <button
         type="button"
         onClick={() => onOpenLead(lead.id)}
@@ -261,8 +261,8 @@ const LeadCard: React.FC<{
             </div>
             <div className="flex items-center gap-1.5 text-xs text-soft mt-0.5">
               <span className="font-medium text-soft">{lead.locality}</span>
-              {lead.pincode && <span>â€¢ PIN {lead.pincode}</span>}
-              <span>â€¢ {lead.category}</span>
+              {lead.pincode && <span>• PIN {lead.pincode}</span>}
+              <span>• {lead.category}</span>
             </div>
           </div>
           <span
@@ -296,7 +296,7 @@ const LeadCard: React.FC<{
           ) : (
             <span
               className="text-xs text-faint bg-inset border border-line px-2 py-1.5 rounded-xl font-medium"
-              aria-label="WhatsApp unavailable â€” landline"
+              aria-label="WhatsApp unavailable — landline"
             >
               WA N/A
             </span>
@@ -358,7 +358,7 @@ const LeadsLoadMore: React.FC<{
       ) : (
         <ChevronRight className="w-4 h-4 rotate-90" aria-hidden="true" />
       )}
-      <span>{loadingMore ? 'Loadingâ€¦' : 'Load More (' + remaining + ' remaining)'}</span>
+      <span>{loadingMore ? 'Loading…' : 'Load More (' + remaining + ' remaining)'}</span>
     </button>
   );
 };
@@ -386,10 +386,10 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // F10 â€” debounce the search so we don't run a full Dexie query per keystroke.
+  // F10 — debounce the search so we don't run a full Dexie query per keystroke.
   const debouncedSearch = useDebouncedValue(searchTerm, 250);
 
-  // NEW-BUG-003 â€” request-sequence guard. Every fresh loadLeads bumps the
+  // NEW-BUG-003 — request-sequence guard. Every fresh loadLeads bumps the
   // sequence; in-flight results that resolve after a newer request started are
   // discarded instead of clobbering/appending onto the newer list. loadMore
   // captures the current sequence so a filter/search change mid-flight drops
@@ -436,7 +436,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
     setLoadError(null);
     try {
       const result = await crmData.leads.searchAndFilterLeads(buildFilter(0));
-      if (seq !== requestSeq.current) return; // stale result â€” a newer load started
+      if (seq !== requestSeq.current) return; // stale result — a newer load started
       setLeads(result.leads);
       setTotalCount(result.total);
 
@@ -465,13 +465,13 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
     });
   }, [loadLeads]);
 
-  // F9 â€” append the next page instead of silently capping at 150.
+  // F9 — append the next page instead of silently capping at 150.
   const loadMore = async () => {
     const seq = requestSeq.current;
     setLoadingMore(true);
     try {
       const result = await crmData.leads.searchAndFilterLeads(buildFilter(leads.length));
-      // NEW-BUG-003 â€” if the filter/search changed while this page was in
+      // NEW-BUG-003 — if the filter/search changed while this page was in
       // flight, loadLeads has already replaced the list; appending this stale
       // page would mix rows from the old filter into the new list.
       if (seq !== requestSeq.current) return;

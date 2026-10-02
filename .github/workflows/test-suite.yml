@@ -15,7 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '26'
+  # Keep CI on the same Node major configured for the Vercel project.
+  NODE_VERSION: '24'
   JAVA_VERSION: '21'
 
 jobs:

@@ -2,11 +2,11 @@
 
 **Last reviewed:** 2026-10-02
 
-**Decision:** **NOT FULL RELEASE-APPROVED** — web checks pass, while production user-flow and Android-device acceptance remain incomplete.
+**Decision:** **NOT FULL RELEASE-APPROVED** — web checks pass, while production write flows and Android-device acceptance remain incomplete.
 
 **Candidate branch:** `codex/project-consolidation` (based on `main` at `2d72a5d837ee7045ec53b82c6aa88c4e72ac2462`).
 
-These results cover the current candidate source. A local build or mocked browser session does not certify production behavior. GitHub CI currently fails at its clean-install step because the lockfile is out of sync; the remaining CI steps, Production deployment, and post-deployment smoke check have not run.
+These results cover the current candidate source. A local build or mocked browser session does not certify production behavior. GitHub CI currently fails at its clean-install step because the lockfile is out of sync; the remaining CI steps, candidate Production deployment, and its post-deployment smoke check have not run.
 
 ## Local validation
 
@@ -35,8 +35,8 @@ These results cover the current candidate source. A local build or mocked browse
 - The candidate's Vercel Preview deployment reached READY and returned HTTP 200. Its loaded environment reports `staging`, version `2.0.0`, staging project `dhoinifpzijqyobcamlv`, and Auth health HTTP 200.
 - The production Supabase project reports all 18 current migration versions applied, RLS enabled for all 16 public tables, and the deployed `create-agent` code matching local source. No production migration or customer data was changed.
 - Supabase advisor findings and limitations are recorded in [Known issues](./docs/KNOWN_ISSUES.md). The hosted Auth Site URL and redirect allowlist could not be retrieved: the existing Management API credential returned HTTP 401 for that configuration endpoint.
-- A read-only smoke check on the existing Production deployment returned HTTP 200 for the site and Supabase Auth health. The leads REST read and `current_profile_id` RPC returned HTTP 401 / SQLSTATE `42501` because the request had no signed-in user and the helper function is not executable by the anonymous role. This is consistent with the auth-only helper grants, but does not prove signed-in operations.
-- After the candidate passes GitHub checks and is deployed, run `scripts/prod_smoke.ps1` again and verify the resulting deployment and logs. The script performs read-only GET/RPC requests. No real user login or customer CRUD flow has been exercised.
+- A password-based sign-in to Production succeeded without an MFA challenge. The authenticated `current_profile_id` RPC and RLS-protected leads read both returned HTTP 200; the read was limited to one row and only its count was recorded. No customer data was written. This verifies authentication and a protected read, not production create/update/delete flows.
+- After the candidate passes GitHub checks and is deployed, run `scripts/prod_smoke.ps1` again and verify the resulting deployment and logs. The script performs read-only GET/RPC requests. Full customer workflows and signed-in writes remain unverified.
 - Before merge, synchronize `package-lock.json` with `package.json` and rerun the clean install and CI checks. The current npm remote-fetch restriction was not overridden.
 - Current Android emulator or physical-device acceptance remains outstanding. Do not use the historical 2026-09-24 APK report as acceptance for this candidate.
 - The `v2.0.0` and `v2.0.1` release branches and tags are retained because they contain release history; the Tailwind source restriction from the `v2.0.1` fix is present in current `main` source.

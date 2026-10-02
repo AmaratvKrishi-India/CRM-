@@ -33,6 +33,8 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 
 Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. The available checkout was verified with Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
 
+**Fresh-install status:** the committed lockfile is currently out of sync with `package.json`, so `npm ci` fails in GitHub CI. The commands below show the intended setup once the lockfile is repaired; see [Known issues](./docs/KNOWN_ISSUES.md) for the current blocker.
+
 ```powershell
 npm ci
 Copy-Item .env.example .env.local
@@ -41,8 +43,6 @@ npx supabase start
 npx supabase migration up --local
 npm run dev
 ```
-
-The canonical CI environment currently rejects the committed lockfile as out of sync; see [Known issues](./docs/KNOWN_ISSUES.md) before using this checkout for a fresh install.
 
 Set the four variable names listed in [`.env.example`](./.env.example): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, and `VITE_APP_VERSION`. Use only a public anon/publishable key in the client. Never put a service-role key, signing key, password, or customer export in source control. Local Supabase uses API port 15432 and database port 15433.
 

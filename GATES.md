@@ -30,7 +30,7 @@ These results cover the current candidate source. A local build or mocked browse
 
 ## Cloud alignment and remaining checks
 
-- Vercel project `crm` is linked to `AmaratvKrishi-India/CRM-`, with Production on `main`. The project uses Vite, the repository root, Node.js 24, and the production URL [crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app). Production remains on the existing `main` deployment until the clean-install gate passes and the candidate is merged.
+- Vercel project `crm` is linked to `AmaratvKrishi-India/CRM-`, with Production on `main`. Project inspection confirms the repository root, Vite framework, Node.js 24, and `npm run build`; the install command and output directory use Vercel defaults (`dist` for Vite). The production URL is [crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app). Production remains on the existing `main` deployment until the clean-install gate passes and the candidate is merged.
 - Vercel Production variables target Supabase project `lahvcodvgubplzfshare`. Preview variables target staging project `dhoinifpzijqyobcamlv`. The `VITE_APP_ENV`, `VITE_APP_VERSION`, Supabase URL, and public anon key records are split by target. Both target Auth health endpoints returned HTTP 200.
 - The candidate's Vercel Preview deployment reached READY and returned HTTP 200. Its loaded environment reports `staging`, version `2.0.0`, staging project `dhoinifpzijqyobcamlv`, and Auth health HTTP 200.
 - The production Supabase project reports all 18 current migration versions applied, RLS enabled for all 16 public tables, and the deployed `create-agent` code matching local source. No production migration or customer data was changed.
@@ -44,7 +44,7 @@ These results cover the current candidate source. A local build or mocked browse
 
 ## Findings reviewed during consolidation
 
-- The child-read reassignment migration `20260923000017_child_read_reassignment_hardening.sql` and local reassignment coverage are present. Production reports the migration applied, but live policy definitions were not retrieved with the current Management API access.
+- The child-read reassignment migration `20260923000017_child_read_reassignment_hardening.sql` and local reassignment coverage are present. Live SQL inspection verified all five affected child-read policies in both Production and Staging, including current parent-lead visibility and organization-admin access. The `activities` policy also preserves personal reads for unlinked activities.
 - Backup restore rejects inputs above 25 MiB before reading them; the exact boundary is tested.
 - Chromium accessibility checks found and verified a contrast correction for the disabled Sync Now button in the day theme.
 - Older source copies lacked a source fix that is present in this main checkout. Existing UI/theme changes, visual baselines, tests, and Maestro updates were retained.

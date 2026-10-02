@@ -2,8 +2,8 @@
 
 **Project:** Amaratv Krishi Field Sales CRM v2.0.0
 **Generated:** 2026-10-02 from `package-lock.json`
-**Lockfile package entries:** 3500
-**Present in this node_modules tree:** 3119
+**Lockfile package entries:** 3134
+**Present in this node_modules tree:** 2888
 
 This is an engineering inventory, not legal advice. It reports SPDX/license metadata supplied by the dependency tree. It does not by itself prove that every package is shipped in the final browser or APK bundle, nor that all notice/source obligations have been satisfied. Perform release-specific notice and bundle review before distribution.
 
@@ -31,42 +31,42 @@ The dependency graph is not exclusively permissive: MPL-2.0 packages are present
 
 | License metadata | Entries |
 |---|---:|
-| MIT | 2648 |
-| Apache-2.0 | 292 |
-| ISC | 240 |
-| BSD-3-Clause | 71 |
-| BlueOak-1.0.0 | 68 |
-| BSD-2-Clause | 36 |
+| MIT | 2402 |
+| Apache-2.0 | 241 |
+| ISC | 218 |
+| BSD-3-Clause | 67 |
+| BlueOak-1.0.0 | 59 |
+| BSD-2-Clause | 35 |
 | MPL-2.0 | 28 |
-| (MIT OR CC0-1.0) | 21 |
-| LGPL-3.0-or-later | 20 |
-| UNKNOWN | 16 |
-| Unlicense | 11 |
-| Apache-2.0 AND LGPL-3.0-or-later | 6 |
+| (MIT OR CC0-1.0) | 17 |
+| UNKNOWN | 14 |
+| LGPL-3.0-or-later | 10 |
+| Unlicense | 6 |
 | Artistic-2.0 | 5 |
-| (WTFPL OR MIT) | 4 |
-| WTFPL | 4 |
-| (AFL-2.1 OR BSD-3-Clause) | 2 |
+| (WTFPL OR MIT) | 3 |
+| Apache-2.0 AND LGPL-3.0-or-later | 3 |
+| WTFPL | 3 |
 | (MIT AND Zlib) | 2 |
-| Apache-2.0 AND LGPL-3.0-or-later AND MIT | 2 |
-| CC-BY-3.0 | 2 |
-| CC0-1.0 | 2 |
-| MIT or GPL-2.0 | 2 |
 | MIT/X11 | 2 |
-| PSF-2.0 | 2 |
-| WTFPL OR ISC | 2 |
+| (AFL-2.1 OR BSD-3-Clause) | 1 |
 | (BSD-2-Clause OR MIT OR Apache-2.0) | 1 |
 | (MIT OR Apache-2.0) | 1 |
 | (MIT OR GPL-3.0-or-later) | 1 |
 | 0BSD | 1 |
+| Apache-2.0 AND LGPL-3.0-or-later AND MIT | 1 |
 | bsd | 1 |
 | BSD | 1 |
+| CC-BY-3.0 | 1 |
 | CC-BY-4.0 | 1 |
+| CC0-1.0 | 1 |
 | MIT OR Apache2 | 1 |
+| MIT or GPL-2.0 | 1 |
 | MIT-0 | 1 |
 | OFL-1.1 | 1 |
+| PSF-2.0 | 1 |
 | Python-2.0 | 1 |
 | SEE LICENSE IN LICENSE.md | 1 |
+| WTFPL OR ISC | 1 |
 
 ## Licenses requiring explicit release review
 
@@ -75,23 +75,6 @@ These entries are highlighted because they contain copyleft/weak-copyleft terms,
 | Package | Version | License | Dev only | Installed here | Dependency location |
 |---|---:|---|:---:|:---:|---|
 | @axe-core/playwright | 4.13.0 | MPL-2.0 | Yes | Yes | `node_modules/@axe-core/playwright` |
-| @img/sharp-libvips-darwin-arm64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-darwin-arm64` |
-| @img/sharp-libvips-darwin-x64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-darwin-x64` |
-| @img/sharp-libvips-linux-arm | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linux-arm` |
-| @img/sharp-libvips-linux-arm64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linux-arm64` |
-| @img/sharp-libvips-linux-ppc64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linux-ppc64` |
-| @img/sharp-libvips-linux-riscv64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linux-riscv64` |
-| @img/sharp-libvips-linux-s390x | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linux-s390x` |
-| @img/sharp-libvips-linux-x64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linux-x64` |
-| @img/sharp-libvips-linuxmusl-arm64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linuxmusl-arm64` |
-| @img/sharp-libvips-linuxmusl-x64 | 1.3.3 | LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-libvips-linuxmusl-x64` |
-| @img/sharp-wasm32 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later AND MIT | Yes | No | `node_modules/@img/sharp-wasm32` |
-| @img/sharp-win32-arm64 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-win32-arm64` |
-| @img/sharp-win32-ia32 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later | Yes | No | `node_modules/@img/sharp-win32-ia32` |
-| @img/sharp-win32-x64 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later | Yes | No | `node_modules/appium-uiautomator2-driver/node_modules/@img/sharp-win32-x64` |
-| ftp-response-parser | 1.0.1 | UNKNOWN | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ftp-response-parser` |
-| parse-listing | 1.1.3 | UNKNOWN | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/parse-listing` |
-| unorm | 1.6.0 | MIT or GPL-2.0 | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/unorm` |
 | artillery | 2.0.34 | MPL-2.0 | Yes | Yes | `node_modules/artillery` |
 | axe-core | 4.13.0 | MPL-2.0 | Yes | Yes | `node_modules/axe-core` |
 | buffers | 0.1.1 | UNKNOWN | Yes | Yes | `node_modules/buffers` |
@@ -554,32 +537,6 @@ These entries are highlighted because they contain copyleft/weak-copyleft terms,
 | @humanwhocodes/module-importer | 1.0.1 | Apache-2.0 | Yes | No | Yes | `node_modules/@humanwhocodes/module-importer` |
 | @humanwhocodes/retry | 0.4.3 | Apache-2.0 | Yes | No | Yes | `node_modules/@humanwhocodes/retry` |
 | @img/colour | 1.1.0 | MIT | Yes | Yes | Yes | `node_modules/@img/colour` |
-| @img/sharp-darwin-arm64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-darwin-arm64` |
-| @img/sharp-darwin-x64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-darwin-x64` |
-| @img/sharp-freebsd-wasm32 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-freebsd-wasm32` |
-| @img/sharp-libvips-darwin-arm64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-darwin-arm64` |
-| @img/sharp-libvips-darwin-x64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-darwin-x64` |
-| @img/sharp-libvips-linux-arm | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linux-arm` |
-| @img/sharp-libvips-linux-arm64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linux-arm64` |
-| @img/sharp-libvips-linux-ppc64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linux-ppc64` |
-| @img/sharp-libvips-linux-riscv64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linux-riscv64` |
-| @img/sharp-libvips-linux-s390x | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linux-s390x` |
-| @img/sharp-libvips-linux-x64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linux-x64` |
-| @img/sharp-libvips-linuxmusl-arm64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linuxmusl-arm64` |
-| @img/sharp-libvips-linuxmusl-x64 | 1.3.3 | LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-libvips-linuxmusl-x64` |
-| @img/sharp-linux-arm | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linux-arm` |
-| @img/sharp-linux-arm64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linux-arm64` |
-| @img/sharp-linux-ppc64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linux-ppc64` |
-| @img/sharp-linux-riscv64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linux-riscv64` |
-| @img/sharp-linux-s390x | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linux-s390x` |
-| @img/sharp-linux-x64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linux-x64` |
-| @img/sharp-linuxmusl-arm64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linuxmusl-arm64` |
-| @img/sharp-linuxmusl-x64 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-linuxmusl-x64` |
-| @img/sharp-wasm32 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later AND MIT | Yes | Yes | No | `node_modules/@img/sharp-wasm32` |
-| @emnapi/runtime | 1.11.3 | MIT | Yes | Yes | No | `node_modules/@img/sharp-wasm32/node_modules/@emnapi/runtime` |
-| @img/sharp-webcontainers-wasm32 | 0.35.4 | Apache-2.0 | Yes | Yes | No | `node_modules/@img/sharp-webcontainers-wasm32` |
-| @img/sharp-win32-arm64 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-win32-arm64` |
-| @img/sharp-win32-ia32 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later | Yes | Yes | No | `node_modules/@img/sharp-win32-ia32` |
 | @inquirer/ansi | 2.0.8 | MIT | Yes | No | Yes | `node_modules/@inquirer/ansi` |
 | @inquirer/checkbox | 5.2.5 | MIT | Yes | No | Yes | `node_modules/@inquirer/checkbox` |
 | @inquirer/confirm | 6.3.2 | MIT | Yes | No | Yes | `node_modules/@inquirer/confirm` |
@@ -1253,346 +1210,6 @@ These entries are highlighted because they contain copyleft/weak-copyleft terms,
 | picomatch | 2.3.2 | MIT | Yes | No | Yes | `node_modules/anymatch/node_modules/picomatch` |
 | anynum | 1.0.1 | MIT | Yes | No | Yes | `node_modules/anynum` |
 | appium | 3.8.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium` |
-| appium-uiautomator2-driver | 8.7.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver` |
-| @appium/base-driver | 10.8.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-driver` |
-| asyncbox | 6.4.2 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-driver/node_modules/asyncbox` |
-| axios | 1.19.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-driver/node_modules/axios` |
-| @appium/base-plugin | 3.3.5 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin` |
-| @appium/logger | 2.0.12 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/@appium/logger` |
-| @appium/support | 7.2.8 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/@appium/support` |
-| @appium/types | 1.7.1 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/@appium/types` |
-| bplist-creator | 0.3.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/bplist-creator` |
-| bplist-parser | 0.5.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/bplist-parser` |
-| lru-cache | 11.5.3 | BlueOak-1.0.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/lru-cache` |
-| stream-buffers | 3.0.3 | Unlicense | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/stream-buffers` |
-| type-fest | 5.10.0 | (MIT OR CC0-1.0) | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/base-plugin/node_modules/type-fest` |
-| @appium/css-locator-to-native | 1.0.7 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/css-locator-to-native` |
-| @appium/docutils | 3.0.1 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils` |
-| @appium/logger | 2.0.12 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/@appium/logger` |
-| @appium/support | 7.2.8 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/@appium/support` |
-| @appium/types | 1.7.1 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/@appium/types` |
-| bplist-creator | 0.3.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/bplist-creator` |
-| bplist-parser | 0.5.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/bplist-parser` |
-| lru-cache | 11.5.3 | BlueOak-1.0.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/lru-cache` |
-| stream-buffers | 3.0.3 | Unlicense | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/stream-buffers` |
-| type-fest | 5.10.0 | (MIT OR CC0-1.0) | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@appium/docutils/node_modules/type-fest` |
-| @appium/logger | 2.0.11 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/logger` |
-| @appium/schema | 1.3.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/schema` |
-| @appium/support | 7.2.7 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/support` |
-| asyncbox | 6.4.2 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/support/node_modules/asyncbox` |
-| axios | 1.19.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/support/node_modules/axios` |
-| @appium/types | 1.7.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@appium/types` |
-| @colors/colors | 1.6.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@colors/colors` |
-| @dabh/diagnostics | 2.0.9 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@dabh/diagnostics` |
-| @img/colour | 1.1.0 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@img/colour` |
-| @img/sharp-win32-x64 | 0.35.4 | Apache-2.0 AND LGPL-3.0-or-later | Yes | Yes | No | `node_modules/appium-uiautomator2-driver/node_modules/@img/sharp-win32-x64` |
-| @sidvind/better-ajv-errors | 5.0.0 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@sidvind/better-ajv-errors` |
-| @so-ric/colorspace | 1.1.6 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@so-ric/colorspace` |
-| @types/triple-beam | 1.3.5 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/@types/triple-beam` |
-| @xmldom/xmldom | 0.9.12 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/@xmldom/xmldom` |
-| abort-controller | 3.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/abort-controller` |
-| accepts | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/accepts` |
-| agent-base | 6.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/agent-base` |
-| ajv | 8.20.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/ajv` |
-| ajv-formats | 3.0.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/ajv-formats` |
-| ansi-regex | 5.0.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/ansi-regex` |
-| ansi-styles | 4.3.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/ansi-styles` |
-| appium | 3.8.0 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium` |
-| appium-adb | 16.0.5 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/appium-adb` |
-| appium-android-driver | 14.2.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/appium-android-driver` |
-| appium-chromedriver | 9.0.18 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/appium-chromedriver` |
-| appium-uiautomator2-server | 10.6.6 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/appium-uiautomator2-server` |
-| @appium/logger | 2.0.12 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/@appium/logger` |
-| @appium/support | 7.2.8 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/@appium/support` |
-| @appium/types | 1.7.1 | Apache-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/@appium/types` |
-| bplist-creator | 0.3.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/bplist-creator` |
-| bplist-parser | 0.5.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/bplist-parser` |
-| lru-cache | 11.5.3 | BlueOak-1.0.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/lru-cache` |
-| stream-buffers | 3.0.3 | Unlicense | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/stream-buffers` |
-| type-fest | 5.10.0 | (MIT OR CC0-1.0) | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/appium/node_modules/type-fest` |
-| archiver | 8.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/archiver` |
-| argparse | 3.0.2 | PSF-2.0 | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/argparse` |
-| async | 3.2.6 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/async` |
-| async-lock | 1.4.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/async-lock` |
-| asyncbox | 6.4.3 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/asyncbox` |
-| asynckit | 0.4.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/asynckit` |
-| axios | 1.20.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/axios` |
-| b4a | 1.9.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/b4a` |
-| balanced-match | 4.0.4 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/balanced-match` |
-| bare-events | 2.9.2 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bare-events` |
-| bare-fs | 4.8.1 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bare-fs` |
-| bare-path | 3.1.2 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bare-path` |
-| bare-stream | 2.13.4 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bare-stream` |
-| bare-url | 2.5.4 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bare-url` |
-| base64-js | 1.5.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/base64-js` |
-| basic-auth | 2.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/basic-auth` |
-| big-integer | 1.6.52 | Unlicense | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/big-integer` |
-| bl | 4.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/bl` |
-| readable-stream | 3.6.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/bl/node_modules/readable-stream` |
-| bluebird | 3.7.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bluebird` |
-| body-parser | 2.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/body-parser` |
-| bplist-creator | 0.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bplist-creator` |
-| bplist-parser | 0.3.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bplist-parser` |
-| brace-expansion | 5.0.9 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/brace-expansion` |
-| buffer | 5.7.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/buffer` |
-| buffer-crc32 | 1.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/buffer-crc32` |
-| bytes | 3.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/bytes` |
-| call-bind-apply-helpers | 1.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/call-bind-apply-helpers` |
-| call-bound | 1.0.4 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/call-bound` |
-| chalk | 4.1.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/chalk` |
-| cli-cursor | 3.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/cli-cursor` |
-| cli-spinners | 2.9.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/cli-spinners` |
-| cliui | 9.0.1 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/cliui` |
-| ansi-regex | 6.4.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/cliui/node_modules/ansi-regex` |
-| string-width | 7.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/cliui/node_modules/string-width` |
-| strip-ansi | 7.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/cliui/node_modules/strip-ansi` |
-| clone | 1.0.4 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/clone` |
-| color | 5.0.3 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color` |
-| color-convert | 2.0.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color-convert` |
-| color-name | 1.1.4 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color-name` |
-| color-string | 2.1.4 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color-string` |
-| color-name | 2.1.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color-string/node_modules/color-name` |
-| color-convert | 3.1.3 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color/node_modules/color-convert` |
-| color-name | 2.1.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/color/node_modules/color-name` |
-| combined-stream | 1.0.8 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/combined-stream` |
-| compare-versions | 6.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/compare-versions` |
-| compress-commons | 7.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/compress-commons` |
-| consola | 3.4.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/consola` |
-| content-disposition | 1.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/content-disposition` |
-| content-type | 2.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/content-type` |
-| cookie | 0.7.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/cookie` |
-| cookie-signature | 1.2.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/cookie-signature` |
-| core-util-is | 1.0.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/core-util-is` |
-| crc-32 | 1.2.2 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/crc-32` |
-| crc32-stream | 7.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/crc32-stream` |
-| css-selector-parser | 3.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/css-selector-parser` |
-| dayjs | 1.11.23 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/dayjs` |
-| debug | 4.4.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/debug` |
-| defaults | 1.0.4 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/defaults` |
-| delayed-stream | 1.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/delayed-stream` |
-| depd | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/depd` |
-| detect-libc | 2.1.2 | Apache-2.0 | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/detect-libc` |
-| detect-node | 2.1.0 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/detect-node` |
-| diff | 9.0.0 | BSD-3-Clause | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/diff` |
-| dunder-proto | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/dunder-proto` |
-| duplexer | 0.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/duplexer` |
-| ee-first | 1.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ee-first` |
-| emoji-regex | 10.6.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/emoji-regex` |
-| enabled | 2.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/enabled` |
-| encodeurl | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/encodeurl` |
-| es-define-property | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/es-define-property` |
-| es-errors | 1.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/es-errors` |
-| es-object-atoms | 1.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/es-object-atoms` |
-| es-set-tostringtag | 2.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/es-set-tostringtag` |
-| escalade | 3.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/escalade` |
-| escape-html | 1.0.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/escape-html` |
-| etag | 1.8.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/etag` |
-| event-target-shim | 5.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/event-target-shim` |
-| events | 3.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/events` |
-| events-universal | 1.0.1 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/events-universal` |
-| express | 5.2.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/express` |
-| content-type | 1.0.5 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/express/node_modules/content-type` |
-| fast-deep-equal | 3.1.3 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/fast-deep-equal` |
-| fast-fifo | 1.3.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/fast-fifo` |
-| fast-uri | 3.1.8 | BSD-3-Clause | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/fast-uri` |
-| fastest-levenshtein | 1.0.16 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/fastest-levenshtein` |
-| fecha | 4.2.3 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/fecha` |
-| finalhandler | 2.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/finalhandler` |
-| fn.name | 1.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/fn.name` |
-| follow-redirects | 1.16.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/follow-redirects` |
-| form-data | 4.0.6 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/form-data` |
-| mime-db | 1.52.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/form-data/node_modules/mime-db` |
-| mime-types | 2.1.35 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/form-data/node_modules/mime-types` |
-| forwarded | 0.2.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/forwarded` |
-| fresh | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/fresh` |
-| ftp-response-parser | 1.0.1 | UNKNOWN | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ftp-response-parser` |
-| isarray | 0.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ftp-response-parser/node_modules/isarray` |
-| readable-stream | 1.1.14 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ftp-response-parser/node_modules/readable-stream` |
-| string_decoder | 0.10.31 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ftp-response-parser/node_modules/string_decoder` |
-| function-bind | 1.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/function-bind` |
-| get-caller-file | 2.0.5 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/get-caller-file` |
-| get-east-asian-width | 1.7.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/get-east-asian-width` |
-| get-intrinsic | 1.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/get-intrinsic` |
-| get-proto | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/get-proto` |
-| glob | 13.0.6 | BlueOak-1.0.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/glob` |
-| gopd | 1.2.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/gopd` |
-| handle-thing | 2.0.1 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/handle-thing` |
-| has-flag | 4.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/has-flag` |
-| has-symbols | 1.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/has-symbols` |
-| has-tostringtag | 1.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/has-tostringtag` |
-| hasown | 2.0.4 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/hasown` |
-| hosted-git-info | 9.0.3 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/hosted-git-info` |
-| hpack.js | 2.1.6 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/hpack.js` |
-| readable-stream | 2.3.8 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/hpack.js/node_modules/readable-stream` |
-| string_decoder | 1.1.1 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/hpack.js/node_modules/string_decoder` |
-| http-deceiver | 1.2.7 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/http-deceiver` |
-| http-errors | 2.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/http-errors` |
-| http-status-codes | 2.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/http-status-codes` |
-| https-proxy-agent | 5.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/https-proxy-agent` |
-| iconv-lite | 0.7.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/iconv-lite` |
-| ieee754 | 1.2.1 | BSD-3-Clause | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ieee754` |
-| inherits | 2.0.4 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/inherits` |
-| ini | 6.0.0 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ini` |
-| io.appium.settings | 8.0.9 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/io.appium.settings` |
-| ipaddr.js | 1.9.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ipaddr.js` |
-| is-interactive | 1.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/is-interactive` |
-| is-number-like | 1.0.8 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/is-number-like` |
-| is-promise | 4.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/is-promise` |
-| is-stream | 4.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/is-stream` |
-| is-unicode-supported | 0.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/is-unicode-supported` |
-| isarray | 1.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/isarray` |
-| isexe | 4.0.0 | BlueOak-1.0.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/isexe` |
-| jsftp | 2.1.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/jsftp` |
-| debug | 3.2.7 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/jsftp/node_modules/debug` |
-| json-schema | 0.4.0 | (AFL-2.1 OR BSD-3-Clause) | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/json-schema` |
-| json-schema-traverse | 1.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/json-schema-traverse` |
-| klaw | 4.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/klaw` |
-| kleur | 4.1.5 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/kleur` |
-| kuler | 2.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/kuler` |
-| lazystream | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lazystream` |
-| readable-stream | 2.3.8 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lazystream/node_modules/readable-stream` |
-| string_decoder | 1.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lazystream/node_modules/string_decoder` |
-| lilconfig | 3.1.3 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/lilconfig` |
-| lockfile | 1.0.4 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lockfile` |
-| signal-exit | 3.0.7 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lockfile/node_modules/signal-exit` |
-| lodash | 4.18.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lodash` |
-| lodash.isfinite | 3.3.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lodash.isfinite` |
-| log-symbols | 4.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/log-symbols` |
-| logform | 2.7.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/logform` |
-| @colors/colors | 1.6.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/logform/node_modules/@colors/colors` |
-| lru-cache | 11.5.2 | BlueOak-1.0.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/lru-cache` |
-| math-intrinsics | 1.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/math-intrinsics` |
-| media-typer | 1.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/media-typer` |
-| merge-descriptors | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/merge-descriptors` |
-| method-override | 3.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/method-override` |
-| debug | 3.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/method-override/node_modules/debug` |
-| ms | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/method-override/node_modules/ms` |
-| methods | 1.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/methods` |
-| mime-db | 1.54.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/mime-db` |
-| mime-types | 3.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/mime-types` |
-| mimic-fn | 2.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/mimic-fn` |
-| minimalistic-assert | 1.0.1 | ISC | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/minimalistic-assert` |
-| minimatch | 10.2.6 | BlueOak-1.0.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/minimatch` |
-| minipass | 7.1.3 | BlueOak-1.0.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/minipass` |
-| morgan | 1.11.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/morgan` |
-| debug | 2.6.9 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/morgan/node_modules/debug` |
-| ms | 2.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/morgan/node_modules/ms` |
-| ms | 2.1.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ms` |
-| negotiator | 1.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/negotiator` |
-| normalize-package-data | 8.0.0 | BSD-2-Clause | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/normalize-package-data` |
-| normalize-path | 3.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/normalize-path` |
-| object-inspect | 1.13.4 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/object-inspect` |
-| obuf | 1.1.2 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/obuf` |
-| on-finished | 2.4.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/on-finished` |
-| on-headers | 1.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/on-headers` |
-| once | 1.4.0 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/once` |
-| one-time | 1.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/one-time` |
-| onetime | 5.1.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/onetime` |
-| ora | 5.4.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/ora` |
-| p-limit | 7.3.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/p-limit` |
-| parse-listing | 1.1.3 | UNKNOWN | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/parse-listing` |
-| parseurl | 1.3.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/parseurl` |
-| path-scurry | 2.0.2 | BlueOak-1.0.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/path-scurry` |
-| path-to-regexp | 8.4.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/path-to-regexp` |
-| pend | 1.2.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/pend` |
-| plist | 4.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/plist` |
-| pluralize | 8.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/pluralize` |
-| portscanner | 2.2.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/portscanner` |
-| async | 2.6.4 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/portscanner/node_modules/async` |
-| process | 0.11.10 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/process` |
-| process-nextick-args | 2.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/process-nextick-args` |
-| proxy-addr | 2.0.7 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/proxy-addr` |
-| proxy-from-env | 2.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/proxy-from-env` |
-| qs | 6.16.0 | BSD-3-Clause | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/qs` |
-| range-parser | 1.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/range-parser` |
-| raw-body | 3.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/raw-body` |
-| readable-stream | 4.7.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/readable-stream` |
-| buffer | 6.0.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/readable-stream/node_modules/buffer` |
-| readdir-glob | 3.0.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/readdir-glob` |
-| require-from-string | 2.0.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/require-from-string` |
-| restore-cursor | 3.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/restore-cursor` |
-| router | 2.2.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/router` |
-| safe-buffer | 5.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/safe-buffer` |
-| safe-stable-stringify | 2.5.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/safe-stable-stringify` |
-| safer-buffer | 2.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/safer-buffer` |
-| sanitize-filename | 1.6.4 | WTFPL OR ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/sanitize-filename` |
-| select-hose | 2.0.0 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/select-hose` |
-| semver | 7.8.5 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/semver` |
-| send | 1.2.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/send` |
-| serve-favicon | 2.5.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/serve-favicon` |
-| fresh | 0.5.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/serve-favicon/node_modules/fresh` |
-| safe-buffer | 5.2.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/serve-favicon/node_modules/safe-buffer` |
-| serve-static | 2.2.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/serve-static` |
-| setprototypeof | 1.2.0 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/setprototypeof` |
-| sharp | 0.35.4 | Apache-2.0 | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/sharp` |
-| shell-quote | 1.10.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/shell-quote` |
-| side-channel | 1.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/side-channel` |
-| side-channel-list | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/side-channel-list` |
-| side-channel-map | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/side-channel-map` |
-| side-channel-weakmap | 1.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/side-channel-weakmap` |
-| signal-exit | 3.0.7 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/signal-exit` |
-| spdx-correct | 3.2.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdx-correct` |
-| spdx-exceptions | 2.5.0 | CC-BY-3.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdx-exceptions` |
-| spdx-expression-parse | 3.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdx-expression-parse` |
-| spdx-license-ids | 3.0.23 | CC0-1.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdx-license-ids` |
-| spdy | 4.0.2 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdy` |
-| spdy-transport | 3.0.0 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdy-transport` |
-| readable-stream | 3.6.2 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/spdy-transport/node_modules/readable-stream` |
-| stack-trace | 0.0.10 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/stack-trace` |
-| statuses | 2.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/statuses` |
-| stream-buffers | 2.2.0 | Unlicense | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/stream-buffers` |
-| stream-combiner | 0.2.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/stream-combiner` |
-| streamx | 2.28.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/streamx` |
-| string_decoder | 1.3.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/string_decoder` |
-| safe-buffer | 5.2.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/string_decoder/node_modules/safe-buffer` |
-| string-width | 8.3.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/string-width` |
-| ansi-regex | 6.4.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/string-width/node_modules/ansi-regex` |
-| strip-ansi | 7.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/string-width/node_modules/strip-ansi` |
-| strip-ansi | 6.0.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/strip-ansi` |
-| supports-color | 7.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/supports-color` |
-| tagged-tag | 1.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/tagged-tag` |
-| tar-stream | 3.2.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/tar-stream` |
-| teen_process | 4.2.1 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/teen_process` |
-| teex | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/teex` |
-| text-decoder | 1.2.7 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/text-decoder` |
-| text-hex | 1.0.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/text-hex` |
-| through | 2.3.8 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/through` |
-| toidentifier | 1.0.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/toidentifier` |
-| triple-beam | 1.4.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/triple-beam` |
-| truncate-utf8-bytes | 1.0.2 | WTFPL | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/truncate-utf8-bytes` |
-| type-fest | 5.8.0 | (MIT OR CC0-1.0) | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/type-fest` |
-| type-is | 2.1.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/type-is` |
-| unorm | 1.6.0 | MIT or GPL-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/unorm` |
-| unpipe | 1.0.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/unpipe` |
-| utf8-byte-length | 1.0.5 | (WTFPL OR MIT) | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/utf8-byte-length` |
-| util-deprecate | 1.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/util-deprecate` |
-| uuid | 14.0.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/uuid` |
-| validate-npm-package-license | 3.0.4 | Apache-2.0 | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/validate-npm-package-license` |
-| vary | 1.1.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/vary` |
-| wbuf | 1.7.3 | MIT | Yes | Yes | Yes | `node_modules/appium-uiautomator2-driver/node_modules/wbuf` |
-| wcwidth | 1.0.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/wcwidth` |
-| which | 6.0.1 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/which` |
-| winston | 3.19.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/winston` |
-| winston-transport | 4.9.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/winston-transport` |
-| readable-stream | 3.6.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/winston-transport/node_modules/readable-stream` |
-| is-stream | 2.0.1 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/winston/node_modules/is-stream` |
-| readable-stream | 3.6.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/winston/node_modules/readable-stream` |
-| wrap-ansi | 9.0.2 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/wrap-ansi` |
-| ansi-regex | 6.4.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/wrap-ansi/node_modules/ansi-regex` |
-| ansi-styles | 6.2.3 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/wrap-ansi/node_modules/ansi-styles` |
-| string-width | 7.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/wrap-ansi/node_modules/string-width` |
-| strip-ansi | 7.2.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/wrap-ansi/node_modules/strip-ansi` |
-| wrappy | 1.0.2 | ISC | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/wrappy` |
-| ws | 8.21.3 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/ws` |
-| xmlbuilder | 15.1.1 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/xmlbuilder` |
-| xpath | 0.0.34 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/xpath` |
-| y18n | 5.0.8 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/y18n` |
-| yaml | 2.9.1 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/yaml` |
-| yargs | 18.1.0 | MIT | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/yargs` |
-| yargs-parser | 22.0.0 | ISC | Yes | No | No | `node_modules/appium-uiautomator2-driver/node_modules/yargs-parser` |
-| yauzl | 3.4.0 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/yauzl` |
-| yocto-queue | 1.2.2 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/yocto-queue` |
-| zip-stream | 7.0.5 | MIT | Yes | No | Yes | `node_modules/appium-uiautomator2-driver/node_modules/zip-stream` |
 | @sidvind/better-ajv-errors | 5.0.0 | Apache-2.0 | Yes | No | Yes | `node_modules/appium/node_modules/@sidvind/better-ajv-errors` |
 | ajv | 8.20.0 | MIT | Yes | No | Yes | `node_modules/appium/node_modules/ajv` |
 | argparse | 3.0.2 | PSF-2.0 | Yes | No | Yes | `node_modules/appium/node_modules/argparse` |

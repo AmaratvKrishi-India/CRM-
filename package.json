@@ -123,7 +123,6 @@
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.0.0",
     "appium": "^3.7.0",
-    "appium-uiautomator2-driver": "^8.7.0",
     "artillery": "^2.0.34",
     "audit-ci": "^7.1.0",
     "autocannon": "^8.0.0",

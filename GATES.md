@@ -2,11 +2,11 @@
 
 **Last reviewed:** 2026-10-03
 
-**Decision:** **NOT FULL RELEASE-APPROVED** — local web checks pass, but the dependency security gate still finds vulnerable packages bundled in Appium's development-only Android driver. Production write flows and current Android-device acceptance are also incomplete.
+**Decision:** **NOT FULL RELEASE-APPROVED** — the local dependency audit is now clean after removing the unconfigured UiAutomator2 driver bundle from the default dependency tree. Production write flows and current Android-device acceptance remain incomplete. Check the exact candidate commit's GitHub status on [PR #1](https://github.com/AmaratvKrishi-India/CRM-/pull/1) before merge.
 
 **Candidate branch:** `codex/project-consolidation` (based on `main` at `2d72a5d837ee7045ec53b82c6aa88c4e72ac2462`).
 
-These results cover the current working tree. A local build or mocked browser session does not certify production behavior. GitHub run [37051425163](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37051425163) for `48c0951` passed `npm ci`, typecheck, lint, local Supabase startup, and all 348 Node tests, then failed the dependency security gate; later CI steps were skipped. Vercel Preview for `48c0951` is READY; Production remains on `main`.
+These results cover the current working tree. A local build or mocked browser session does not certify production behavior. The last completed GitHub run, [37052240476](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37052240476) for `5f7e32c`, passed `npm ci`, typecheck, lint, local Supabase startup, and all 348 Node tests, then failed the dependency security gate against the previous lockfile. This working tree removes that bundled driver; current-commit check results are available on [PR #1](https://github.com/AmaratvKrishi-India/CRM-/pull/1). Vercel Preview for `5f7e32c` is READY; Production remains on `main`.
 
 ## Local validation
 
@@ -25,8 +25,8 @@ These results cover the current working tree. A local build or mocked browser se
 | Bundle budget | PASS | `npm run test:perf:bundle`; 17 chunks, 1,166,613 raw bytes, 310,609 gzip bytes, 0 warnings. |
 | Local database lint | PASS | `npm run audit:database`; Supabase reported no schema errors. |
 | Secret scanner | PASS WITH LOW/MODERATE MATCHES | 477 files scanned; 0 critical, 0 high, 5 moderate, and 59 low pattern matches. The scan matched items such as public Supabase URLs and UUIDs; findings were not treated as credentials. |
-| GitHub CI | FAIL (BLOCKING) | Run [37051425163](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37051425163) for `48c0951`: `npm ci`, typecheck, lint, local Supabase startup, and 348 Node tests passed; dependency audit failed. Later steps were skipped. |
-| Dependency audit | FAIL (BLOCKING) | Full `npm audit`: 5 advisories (4 high, 1 moderate), all in the development-only `appium-uiautomator2-driver@8.7.0` bundled tree. `npm audit --omit=dev`: 0 advisories. Details and upstream limit are in [Known issues](./docs/KNOWN_ISSUES.md). |
+| GitHub CI | See [PR #1](https://github.com/AmaratvKrishi-India/CRM-/pull/1) | Review the checks for the exact candidate commit before merge. The previous run's dependency-audit failure was against the old lockfile. |
+| Dependency audit | PASS LOCALLY; CI check on PR #1 | Full `npm audit` reports 0 vulnerabilities after removing the unconfigured `appium-uiautomator2-driver` bundle. The Appium CLI remains available; checked-in Android UI flows use Maestro. Details are in [Known issues](./docs/KNOWN_ISSUES.md). |
 | Toolchain inventory | ATTENTION | 35/36 tools ready. The optional Graft version probe exits 1; Graft is not part of app build or test commands. |
 
 ## Cloud alignment and remaining checks

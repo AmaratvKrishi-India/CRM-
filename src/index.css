@@ -142,6 +142,8 @@
 @layer base {
   html {
     font-family: 'Inter', ui-sans-serif, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
   }
 
   body {
@@ -149,6 +151,7 @@
     background-color: var(--bg-app);
     color: var(--text-primary);
     -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -231,6 +234,8 @@
    these refinements make the existing primitives feel like one product.
    ============================================================ */
 :root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --radius-control: 10px;
   --radius-card: 14px;
   --radius-panel: 18px;
@@ -339,10 +344,39 @@ input, select, textarea {
   border-radius: var(--radius-control);
 }
 
+button, a, [role="button"], [role="tab"] {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 button, a, input, select, textarea {
   transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-duration: 160ms;
-  transition-timing-function: ease-out;
+  transition-timing-function: var(--ease-out);
+}
+
+@media (pointer: coarse) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+button:not(:disabled):active,
+[role="button"]:active,
+[role="tab"]:active {
+  transform: scale(0.98);
+}
+
+[data-role="admin"] .sync-status-label {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  [data-role="admin"] .sync-status-label {
+    display: inline;
+  }
 }
 
 @media (min-width: 768px) {

@@ -70,7 +70,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
   return (
     <div
       data-role="admin"
-      className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans ui-shell"
+      className="min-h-dvh bg-app text-ink flex flex-col justify-between font-sans ui-shell"
     >
       <a
         href="#admin-main-content"
@@ -99,7 +99,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
           </div>
         </div>
 
-        <div className="order-3 w-full sm:order-none sm:w-auto sm:shrink-0">
+        <div className="order-2 shrink-0 sm:order-none">
           <SyncStatusBadge />
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -121,7 +121,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
             onClick={signOut}
             aria-label="Sign out"
             id="admin-sign-out-button"
-            className="min-w-11 min-h-11 flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-inset hover:bg-danger-soft hover:text-danger-text hover:border-danger text-soft text-sm font-semibold border border-line transition-all active:scale-95"
+            className="min-w-11 min-h-11 flex items-center gap-1.5 py-1.5 px-3 rounded-xl bg-inset hover:bg-danger-soft hover:text-danger-text hover:border-danger text-soft text-sm font-semibold border border-line transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
             <span className="hidden sm:inline">Sign Out</span>
@@ -225,7 +225,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
                   <button
                     type="button"
                     onClick={onEnterSalesMode}
-                    className="w-full min-h-11 py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 active:scale-98"
+                    className="w-full min-h-11 py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-md flex items-center justify-center gap-2 active:scale-[0.98]"
                   >
                     <span>Switch to Field Sales Mode</span>
                     <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -234,7 +234,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
                   <button
                     type="button"
                     onClick={signOut}
-                    className="w-full min-h-11 py-2.5 px-4 rounded-xl bg-danger-soft hover:opacity-80 text-danger-text text-sm font-bold border border-danger flex items-center justify-center gap-2 transition-colors active:scale-98"
+                    className="w-full min-h-11 py-2.5 px-4 rounded-xl bg-danger-soft hover:opacity-80 text-danger-text text-sm font-bold border border-danger flex items-center justify-center gap-2 transition-colors active:scale-[0.98]"
                   >
                     <LogOut className="w-4 h-4" aria-hidden="true" />
                     <span>Sign Out from Admin Console</span>
@@ -269,7 +269,7 @@ export const AdminShell: React.FC<AdminShellProps> = ({ onEnterSalesMode }) => {
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setActiveTab(tab)}
                 onKeyDown={(e) => handleTabKeyDown(e, tab)}
-                className={`min-h-11 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all ${
+                className={`min-h-11 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                   isActive
                     ? 'text-accent-text bg-accent-soft font-bold'
                     : 'text-soft hover:text-ink'

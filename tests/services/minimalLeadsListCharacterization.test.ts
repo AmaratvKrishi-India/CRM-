@@ -94,7 +94,7 @@ describe('MinimalLeadsList characterization', () => {
     await screen.findByText('Gym One');
     expect(screen.getByText('Gym Two')).toBeTruthy();
     expect(screen.getByText(/Total in Database:/)).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: 'Area:' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Area' })).toBeTruthy();
 
     const leadButton = view.container.querySelector('#lead-item-0');
     expect(leadButton).toBeTruthy();

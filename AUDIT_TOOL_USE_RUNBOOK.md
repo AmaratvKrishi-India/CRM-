@@ -26,7 +26,7 @@ For each tool, record: name/version; role; readiness probe; project surface; exa
 3. **Run core source checks.** Use `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run test:vitest`. Use `npm run test:coverage` and `npm run test:bench` for coverage and benchmarks where they add evidence. Preserve failures; do not fix product code as part of an audit-only run.
 4. **Build and release checks.** Run `npm run verify`, then `npm run build` in the audit copy. Record generated artifact paths and hashes. Run `npm run verify:android-release-assets` only when Android release assets are in scope. Do not publish, sign, or promote artifacts.
 5. **Browser and UI checks.** Run configured Playwright suites and browser projects. Use the targeted accessibility, API, visual, and Chromium scripts below. Exercise additional runners only if repository configuration, tests, or a genuine independent coverage need supports them.
-6. **Native/mobile checks.** Run Android unit/lint checks first. Connected tests and Maestro/Appium require a local disposable emulator/device and test credentials; never point them at production.
+6. **Native/mobile checks.** Run Android unit/lint checks first. The checked-in Android UI flows use Maestro and require a local disposable emulator/device and test credentials; never point them at production. Appium is an optional CLI for manual QA. The default project install does not include the UiAutomator2 driver because its current bundled release fails the dependency audit.
 7. **Security, dependencies, and database.** Run local source/lockfile analysis first. Use DAST only against an explicitly local disposable preview. Start local services only as needed and record service/config state.
 8. **Performance checks.** Establish a baseline and run bounded tests against a local disposable target. Set request, duration, concurrency, and resource limits. Stop if the target or spend boundary is uncertain.
 9. **Reconcile.** Match every inventory item to one terminal status and evidence record. Summarize meaningful findings and blockers; do not equate tool count, a green scan, or a successful build with release or production proof.
@@ -48,7 +48,8 @@ These scripts are present in `package.json`. Capture each command's working dire
 | Accessibility regional script | `npm run audit:accessibility:regional` |
 | Lighthouse | `npm run test:lighthouse` |
 | Android unit / connected / lint | `npm run test:android:unit`; `npm run test:android:connected`; `npm run test:android:lint` |
-| Maestro / Appium driver readiness | `npm run test:maestro`; `npm run test:appium:drivers` |
+| Maestro Android UI | `npm run test:maestro` |
+| Optional Appium driver listing | `npm run test:appium:drivers` lists drivers installed separately in the local Appium home; the project lockfile does not install UiAutomator2. |
 | Source, dependency, secret, and architecture analysis | `npm run audit:security`; `npm run audit:dependencies`; `npm run audit:osv`; `npm run audit:secrets`; `npm run audit:gitleaks`; `npm run audit:trivy`; `npm run audit:deadcode`; `npm run audit:architecture` |
 | Database / mutation / Android / release | `npm run audit:database`; `npm run audit:mutation`; `npm run audit:android`; `npm run audit:release` |
 | Additional analyzers / DAST | `npm run audit:fallow`; `npm run audit:fallow:security`; `npm run audit:strix`; `npm run audit:zap`; `npm run audit:mobsf:status`; `npm run audit:deep` |
@@ -93,7 +94,7 @@ Before running a script that installs packages, launches a service, contacts a r
 
 | Inventory items | Proper use |
 | --- | --- |
-| Appium, UiAutomator2 driver, Maestro, Detox | Probe executable, installed driver, app artifact, test definitions, device, and local-only credentials. Use repository scripts `npm run test:appium:drivers` and `npm run test:maestro`; run Appium/Detox flows only when compatible configured tests and an isolated device exist. Driver listing is a readiness check, not app test execution. |
+| Appium CLI, Maestro, Detox | Probe executables, app artifact, test definitions, device, and local-only credentials. Project-configured Android UI flows use `npm run test:maestro`. Appium/Detox flows require compatible configured tests and an isolated device; this project does not bundle an Appium driver by default. |
 | Android unit, connected tests, lint | Use `npm run test:android:unit` and `npm run test:android:lint`; use `npm run test:android:connected` only with a verified disposable emulator/device. Record Gradle task, SDK/JDK, device ID, and app build hash. |
 | ADB, Android emulator, emulator-5554/5556/5558, AVD names | Use `adb version`, `adb devices -l`, and emulator/AVD inventory as readiness evidence. Validate exact device state before interaction; never assume a named emulator is available or disposable. |
 | Gradle, Android Gradle wrapper, Java/JDK | Use the repository wrapper and capture `java -version`, wrapper version, and exact tasks. Prefer wrapper-pinned execution over a global Gradle binary. |

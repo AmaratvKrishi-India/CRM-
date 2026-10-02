@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       return (
-        <div className="min-h-screen bg-app text-ink flex flex-col items-center justify-center p-6 font-sans">
+        <div className="min-h-dvh bg-app text-ink flex flex-col items-center justify-center p-6 font-sans">
           <div className="w-full max-w-sm bg-surface border border-line rounded-3xl p-6 shadow-2xl text-center space-y-4 backdrop-blur-md">
             <div className="w-14 h-14 rounded-2xl bg-warning-soft border border-warning text-warning-text flex items-center justify-center mx-auto shadow-lg">
               <AlertTriangle className="w-7 h-7" aria-hidden="true" />
@@ -78,7 +78,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="min-h-11 w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md active:scale-98 flex items-center justify-center gap-2"
+                className="min-h-11 w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" aria-hidden="true" />
                 <span>Try Again</span>
@@ -87,7 +87,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="min-h-11 w-full py-2.5 px-4 rounded-xl bg-inset hover:bg-inset-strong text-soft text-sm font-semibold transition-all border border-line active:scale-98 flex items-center justify-center gap-2"
+                className="min-h-11 w-full py-2.5 px-4 rounded-xl bg-inset hover:bg-inset-strong text-soft text-sm font-semibold transition-[color,background-color,border-color,box-shadow,opacity,transform] border border-line active:scale-[0.98] flex items-center justify-center gap-2"
               >
                 <Home className="w-4 h-4" aria-hidden="true" />
                 <span>Reload Application</span>

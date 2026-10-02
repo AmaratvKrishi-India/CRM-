@@ -17,6 +17,7 @@ import {
   determineDefaultLeadStatus,
 } from '../../services/callOutcomeMapping';
 import { Modal } from '../common/Modal';
+import { AppSelect } from '../common/AppSelect';
 
 interface CallOutcomeModalProps {
   isOpen: boolean;
@@ -219,7 +220,7 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
                   type="button"
                   onClick={() => handleOutcomeChange(item.value)}
                   aria-pressed={isSelected}
-                  className={`min-h-11 py-2 px-2.5 rounded-xl text-sm font-semibold border text-left transition-all ${
+                  className={`min-h-11 py-2 px-2.5 rounded-xl text-sm font-semibold border text-left transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                     isSelected
                       ? 'bg-accent text-on-accent border-accent shadow-xs'
                       : 'bg-inset text-soft border-line hover:bg-inset-strong'
@@ -248,7 +249,7 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
                   type="button"
                   onClick={() => handleQuickRemarkToggle(remark)}
                   aria-pressed={isSelected}
-                  className={`min-h-11 py-1.5 px-2.5 rounded-lg text-sm font-medium border transition-all ${
+                  className={`min-h-11 py-1.5 px-2.5 rounded-lg text-sm font-medium border transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                     isSelected
                       ? 'bg-accent text-on-accent border-accent shadow-xs'
                       : 'bg-accent-soft/60 text-accent-text border-accent/30 hover:bg-accent-soft'
@@ -395,18 +396,14 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
             <span className="text-xs text-faint font-normal">Auto-suggested</span>
           </label>
 
-          <select
+          <AppSelect
             id="pipeline-status"
+            ariaLabel="Lead pipeline status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as LeadStatus)}
-            className="w-full min-h-11 text-sm bg-inset border border-line rounded-xl p-2.5 font-bold text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
-          >
-            {ALL_STATUSES.map((st) => (
-              <option key={st.value} value={st.value}>
-                {st.label}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setStatus(value as LeadStatus)}
+            buttonClassName="min-h-11 bg-inset p-2.5 font-bold"
+            options={ALL_STATUSES}
+          />
         </div>
 
         {/* Actions */}
@@ -414,7 +411,7 @@ export const CallOutcomeModal: React.FC<CallOutcomeModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full min-h-12 py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full min-h-12 py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

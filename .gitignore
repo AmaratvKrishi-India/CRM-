@@ -8,6 +8,9 @@ reports/
 /assets/
 /html.meta.json.gz
 /test-results.json
+/androguard.db
+.lighthouseci/
+/strix_runs/
 test-results/
 playwright-report/
 pdf_pages/
@@ -59,3 +62,5 @@ e2e/android/reports/
 # Local deployment/source-map caches
 .vercel/
 /graft/
+.env*
+!.env.example

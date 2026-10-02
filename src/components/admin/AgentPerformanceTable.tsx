@@ -62,7 +62,7 @@ export const AgentPerformanceTable: React.FC<AgentPerformanceTableProps> = ({
           type="button"
           onClick={() => onSelectAgent(agent.agentId)}
           aria-label={`View performance details for ${agent.agentName}`}
-          className="w-full p-4 bg-surface border border-line hover:border-accent/50 rounded-2xl shadow-md transition-all active:scale-99 group text-left"
+          className="w-full p-4 bg-surface border border-line hover:border-accent/50 rounded-2xl shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-99 group text-left"
         >
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-line">

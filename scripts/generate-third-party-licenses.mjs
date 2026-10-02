@@ -18,13 +18,19 @@ function installed(location) {
   return fs.existsSync(path.join(root, ...location.split('/')));
 }
 
+function licenseLabel(value) {
+  if (Array.isArray(value)) return value.map(licenseLabel).join(' OR ');
+  if (value && typeof value === 'object') return value.type || JSON.stringify(value);
+  return String(value ?? 'UNKNOWN');
+}
+
 function rowEscape(value) {
   return String(value ?? 'UNKNOWN').replaceAll('|', '\\|').replaceAll('\n', ' ');
 }
 
 const inventory = packages.map(([location, meta]) => ({
   name: packageName(location), location, version: meta.version || 'UNKNOWN',
-  license: meta.license || 'UNKNOWN', dev: meta.dev === true, optional: meta.optional === true,
+  license: licenseLabel(meta.license), dev: meta.dev === true, optional: meta.optional === true,
   installed: installed(location),
 }));
 const counts = new Map();

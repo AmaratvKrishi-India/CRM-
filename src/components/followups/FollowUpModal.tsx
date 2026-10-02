@@ -238,7 +238,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                   type="button"
                   onClick={() => setPriority(p)}
                   aria-pressed={isSelected}
-                  className={`min-h-11 py-1.5 px-2 rounded-xl text-sm font-bold border transition-all ${
+                  className={`min-h-11 py-1.5 px-2 rounded-xl text-sm font-bold border transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                     isSelected
                       ? p === 'URGENT'
                         ? 'bg-danger text-white border-danger shadow-xs'
@@ -276,7 +276,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting || !title.trim() || !scheduledAt}
-            className="w-full min-h-12 py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full min-h-12 py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

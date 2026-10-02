@@ -50,7 +50,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
 
   return (
     <div
-      className={`p-4 rounded-2xl border transition-all duration-200 ${
+      className={`p-4 rounded-2xl border transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-200 ${
         isAgentActive
           ? 'bg-surface border-line hover:border-line-strong shadow-md'
           : 'bg-inset border-danger/30 opacity-80'
@@ -135,7 +135,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               onClick={() => onEdit(agent)}
               id={`agent-edit-${agent.email}`}
               aria-label={`Edit ${agent.name}`}
-              className="min-h-11 py-1.5 px-3 rounded-xl bg-inset hover:bg-inset-strong text-ink text-sm font-semibold flex items-center gap-1.5 border border-line transition-all active:scale-95"
+              className="min-h-11 py-1.5 px-3 rounded-xl bg-inset hover:bg-inset-strong text-ink text-sm font-semibold flex items-center gap-1.5 border border-line transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
             >
               <Edit2 className="w-4 h-4 text-soft" aria-hidden="true" />
               <span>Edit</span>
@@ -149,7 +149,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                 onClick={() => onToggleStatus(agent)}
                 id={`agent-deactivate-${agent.email}`}
                 aria-label={`Deactivate ${agent.name}`}
-                className="min-h-11 py-1.5 px-3 rounded-xl bg-danger-soft hover:opacity-80 text-danger-text text-sm font-semibold flex items-center gap-1.5 border border-danger transition-all active:scale-95"
+                className="min-h-11 py-1.5 px-3 rounded-xl bg-danger-soft hover:opacity-80 text-danger-text text-sm font-semibold flex items-center gap-1.5 border border-danger transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
               >
                 <UserX className="w-4 h-4" aria-hidden="true" />
                 <span>Deactivate</span>
@@ -160,7 +160,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                 onClick={() => onToggleStatus(agent)}
                 id={`agent-activate-${agent.email}`}
                 aria-label={`Activate ${agent.name}`}
-                className="min-h-11 py-1.5 px-3 rounded-xl bg-success-soft hover:opacity-80 text-success-text text-sm font-semibold flex items-center gap-1.5 border border-success transition-all active:scale-95"
+                className="min-h-11 py-1.5 px-3 rounded-xl bg-success-soft hover:opacity-80 text-success-text text-sm font-semibold flex items-center gap-1.5 border border-success transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
               >
                 <UserCheck className="w-4 h-4" aria-hidden="true" />
                 <span>Activate</span>
@@ -173,7 +173,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
               onClick={() => onDelete(agent)}
               id={`agent-delete-${agent.email}`}
               aria-label={`Permanently delete ${agent.name}`}
-              className="min-h-11 w-11 flex items-center justify-center rounded-xl bg-inset hover:bg-danger-soft text-faint hover:text-danger-text border border-line hover:border-danger transition-all active:scale-95"
+              className="min-h-11 w-11 flex items-center justify-center rounded-xl bg-inset hover:bg-danger-soft text-faint hover:text-danger-text border border-line hover:border-danger transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
             >
               <Trash2 className="w-4 h-4" aria-hidden="true" />
             </button>

@@ -9,6 +9,7 @@ import React from 'react';
 import { Filter, Download } from 'lucide-react';
 import type { ReportDatePreset, ReportFilterOptions } from '../../../services/adminReportsService';
 import type { User } from '../../../db/types';
+import { AppSelect } from '../../common/AppSelect';
 
 interface ReportFilterBarProps {
   filters: ReportFilterOptions;
@@ -18,9 +19,6 @@ interface ReportFilterBarProps {
   onExportCSV: () => void;
   exportLoading?: boolean;
 }
-
-const selectClass =
-  'w-full min-h-11 bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
   filters,
@@ -42,75 +40,55 @@ export const ReportFilterBar: React.FC<ReportFilterBarProps> = ({
           type="button"
           onClick={onExportCSV}
           disabled={exportLoading}
-          className="min-h-11 py-1.5 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-50 text-on-accent font-bold text-sm flex items-center gap-1.5 shadow-md transition active:scale-95"
+          className="min-h-11 py-1.5 px-3 rounded-xl bg-accent hover:bg-accent-hover disabled:opacity-50 text-on-accent font-bold text-sm flex items-center gap-1.5 shadow-md transition active:scale-[0.98]"
         >
           <Download className="w-4 h-4" aria-hidden="true" />
           <span>{exportLoading ? 'Exporting...' : 'Export CSV'}</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {/* Date Preset Filter */}
-        <div>
-          <label htmlFor="report-filter-date" className="sr-only">
-            Date range
-          </label>
-          <select
-            id="report-filter-date"
-            value={filters.datePreset || 'ALL_TIME'}
-            onChange={(e) => onFilterChange({ datePreset: e.target.value as ReportDatePreset })}
-            className={selectClass}
-          >
-            <option value="ALL_TIME">Date: All Time</option>
-            <option value="TODAY">Date: Today</option>
-            <option value="YESTERDAY">Date: Yesterday</option>
-            <option value="LAST_7_DAYS">Date: Last 7 Days</option>
-            <option value="LAST_30_DAYS">Date: Last 30 Days</option>
-            <option value="THIS_MONTH">Date: This Month</option>
-            <option value="PREV_MONTH">Date: Previous Month</option>
-          </select>
-        </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <AppSelect
+          id="report-filter-date"
+          ariaLabel="Date range"
+          label="Date range"
+          value={filters.datePreset || 'ALL_TIME'}
+          onChange={(value) => onFilterChange({ datePreset: value as ReportDatePreset })}
+          options={[
+            { value: 'ALL_TIME', label: 'All Time' },
+            { value: 'TODAY', label: 'Today' },
+            { value: 'YESTERDAY', label: 'Yesterday' },
+            { value: 'LAST_7_DAYS', label: 'Last 7 Days' },
+            { value: 'LAST_30_DAYS', label: 'Last 30 Days' },
+            { value: 'THIS_MONTH', label: 'This Month' },
+            { value: 'PREV_MONTH', label: 'Previous Month' },
+          ]}
+        />
 
-        {/* Representative Filter */}
-        <div>
-          <label htmlFor="report-filter-agent" className="sr-only">
-            Representative
-          </label>
-          <select
-            id="report-filter-agent"
-            value={filters.agentId || 'ALL'}
-            onChange={(e) => onFilterChange({ agentId: e.target.value })}
-            className={selectClass}
-          >
-            <option value="ALL">Rep: All Team</option>
-            <option value="UNASSIGNED">Rep: Unassigned Leads</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                Rep: {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <AppSelect
+          id="report-filter-agent"
+          ariaLabel="Representative"
+          label="Representative"
+          value={filters.agentId || 'ALL'}
+          onChange={(value) => onFilterChange({ agentId: value })}
+          options={[
+            { value: 'ALL', label: 'All Team' },
+            { value: 'UNASSIGNED', label: 'Unassigned Leads' },
+            ...agents.map((agent) => ({ value: agent.id, label: agent.name })),
+          ]}
+        />
 
-        {/* Locality Filter */}
-        <div>
-          <label htmlFor="report-filter-locality" className="sr-only">
-            Locality
-          </label>
-          <select
-            id="report-filter-locality"
-            value={filters.locality || 'ALL'}
-            onChange={(e) => onFilterChange({ locality: e.target.value })}
-            className={selectClass}
-          >
-            <option value="ALL">Locality: All Areas</option>
-            {localities.map((loc) => (
-              <option key={loc} value={loc}>
-                Locality: {loc}
-              </option>
-            ))}
-          </select>
-        </div>
+        <AppSelect
+          id="report-filter-locality"
+          ariaLabel="Locality"
+          label="Locality"
+          value={filters.locality || 'ALL'}
+          onChange={(value) => onFilterChange({ locality: value })}
+          options={[
+            { value: 'ALL', label: 'All Areas' },
+            ...localities.map((locality) => ({ value: locality, label: locality })),
+          ]}
+        />
       </div>
     </div>
   );

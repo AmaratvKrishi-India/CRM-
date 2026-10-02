@@ -32,6 +32,7 @@ import { BulkLeadAssignmentModal } from './BulkLeadAssignmentModal';
 import type { Lead, User, LeadFilterParams, LeadStatus } from '../../db/types';
 import { labelFor } from '../../lib/labels';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
+import { AppSelect } from '../common/AppSelect';
 
 export const AdminLeadsView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -187,16 +188,21 @@ export const AdminLeadsView: React.FC = () => {
 
         <div className="sm:hidden">
           <label htmlFor="admin-assignee-filter" className="block text-sm font-semibold text-soft mb-1.5">Assigned to</label>
-          <select
+          <AppSelect
             id="admin-assignee-filter"
+            ariaLabel="Assigned to"
             value={selectedAgentFilter}
-            onChange={(event) => setSelectedAgentFilter(event.target.value)}
-            className="w-full min-h-12 px-3 rounded-xl bg-surface border border-line text-base text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
-          >
-            <option value="ALL">All leads ({stats.totalLeads})</option>
-            <option value="UNASSIGNED">Unassigned ({stats.unassignedCount})</option>
-            {agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name} ({stats.byAgent[agent.id] || 0})</option>)}
-          </select>
+            onChange={setSelectedAgentFilter}
+            buttonClassName="min-h-12 bg-surface text-base"
+            options={[
+              { value: 'ALL', label: `All leads (${stats.totalLeads})` },
+              { value: 'UNASSIGNED', label: `Unassigned (${stats.unassignedCount})` },
+              ...agents.map((agent) => ({
+                value: agent.id,
+                label: `${agent.name} (${stats.byAgent[agent.id] || 0})`,
+              })),
+            ]}
+          />
         </div>
 
         {/* Desktop assignee filters */}
@@ -209,7 +215,7 @@ export const AdminLeadsView: React.FC = () => {
             type="button"
             onClick={() => setSelectedAgentFilter('ALL')}
             aria-pressed={selectedAgentFilter === 'ALL'}
-            className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+            className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
               selectedAgentFilter === 'ALL'
                 ? 'bg-accent text-on-accent shadow-md'
                 : 'bg-surface text-soft hover:text-ink border border-line'
@@ -222,7 +228,7 @@ export const AdminLeadsView: React.FC = () => {
             type="button"
             onClick={() => setSelectedAgentFilter('UNASSIGNED')}
             aria-pressed={selectedAgentFilter === 'UNASSIGNED'}
-            className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+            className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
               selectedAgentFilter === 'UNASSIGNED'
                 ? 'bg-warning text-on-accent shadow-md'
                 : 'bg-surface text-soft hover:text-ink border border-line'
@@ -241,7 +247,7 @@ export const AdminLeadsView: React.FC = () => {
                 type="button"
                 onClick={() => setSelectedAgentFilter(agent.id)}
                 aria-pressed={isSelected}
-                className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                className={`min-h-11 px-3 rounded-xl text-sm font-bold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-1.5 ${
                   isSelected
                     ? 'bg-info text-on-accent shadow-md'
                     : 'bg-surface text-soft hover:text-ink border border-line'
@@ -289,7 +295,7 @@ export const AdminLeadsView: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsBulkModalOpen(true)}
-            className="min-h-11 px-3.5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+            className="min-h-11 px-3.5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-md active:scale-[0.98] flex items-center gap-1.5"
           >
             <Users className="w-4 h-4" aria-hidden="true" />
             <span>Bulk Assign ({selectedLeadIds.length})</span>
@@ -318,7 +324,7 @@ export const AdminLeadsView: React.FC = () => {
             return (
               <div
                 key={lead.id}
-                className={`p-3.5 rounded-2xl flex items-center justify-between gap-3 transition-all border ${
+                className={`p-3.5 rounded-2xl flex items-center justify-between gap-3 transition-[color,background-color,border-color,box-shadow,opacity,transform] border ${
                   isSelected
                     ? 'bg-accent-soft border-accent shadow-md'
                     : 'bg-surface border-line hover:border-line-strong'
@@ -377,7 +383,7 @@ export const AdminLeadsView: React.FC = () => {
                   type="button"
                   onClick={() => handleOpenAssignModal(lead)}
                   aria-label={`${lead.assignedTo ? 'Reassign' : 'Assign'} ${lead.businessName}`}
-                  className="min-h-11 px-3 rounded-xl bg-accent-soft hover:opacity-80 text-accent-text border border-accent text-sm font-bold transition-all active:scale-95 flex-shrink-0"
+                  className="min-h-11 px-3 rounded-xl bg-accent-soft hover:opacity-80 text-accent-text border border-accent text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98] flex-shrink-0"
                 >
                   {lead.assignedTo ? 'Reassign' : 'Assign'}
                 </button>

@@ -83,7 +83,7 @@ export const EditAgentModal: React.FC<EditAgentModalProps> = ({
   };
 
   const inputClass =
-    'w-full bg-inset border border-line rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent transition-all';
+    'w-full bg-inset border border-line rounded-xl pl-10 pr-3.5 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring focus:border-transparent transition-[color,background-color,border-color,box-shadow,opacity,transform]';
 
   return (
     <Modal
@@ -178,7 +178,7 @@ export const EditAgentModal: React.FC<EditAgentModalProps> = ({
               type="button"
               onClick={() => setStatus('ACTIVE')}
               aria-pressed={status === 'ACTIVE'}
-              className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-1.5 transition-all ${
+              className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                 status === 'ACTIVE'
                   ? 'bg-success-soft border-success text-success-text'
                   : 'bg-inset border-line text-faint hover:text-soft'
@@ -192,7 +192,7 @@ export const EditAgentModal: React.FC<EditAgentModalProps> = ({
               type="button"
               onClick={() => setStatus('INACTIVE')}
               aria-pressed={status === 'INACTIVE'}
-              className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-1.5 transition-all ${
+              className={`min-h-11 py-2 px-3 rounded-xl border text-sm font-bold flex items-center justify-center gap-1.5 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                 status === 'INACTIVE'
                   ? 'bg-danger-soft border-danger text-danger-text'
                   : 'bg-inset border-line text-faint hover:text-soft'
@@ -217,7 +217,7 @@ export const EditAgentModal: React.FC<EditAgentModalProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="min-h-11 py-2.5 px-5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+            className="min-h-11 py-2.5 px-5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-2 disabled:opacity-50"
           >
             {isSubmitting ? (
               <>

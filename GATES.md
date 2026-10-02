@@ -1,62 +1,51 @@
-# Current Acceptance Gates
+# Current acceptance gates
 
-**Last reviewed:** 2026-09-20
-**Decision:** **RELEASE-CANDIDATE — NOT RELEASE-APPROVED**
-**Branch:** `main`
-**Candidate base SHA:** `aaa1d0c7fffdb464c6af2fc13baf2bb778fccd7d`
-**Candidate working tree:** release-closure fixes are currently uncommitted; record the final exact SHA after commit.
-**Previously approved source SHA:** `642487043191292b8dbd0e87e498879068403572`
-**Current production deployment:** `dpl_EzsayArGERwSg4itFtBDUku3wamd` (previous approved source only)
-**Production URL:** `https://crm-blush-omega.vercel.app`
+**Last reviewed:** 2026-10-03
 
-This file is the living gate summary for the current checkout. Historical deployment
-reports and signed artifacts are intentionally not stored in this repository; rerun
-candidate-specific checks before relying on them.
+**Decision:** **NOT FULL RELEASE-APPROVED** — the local dependency audit is now clean after removing the unconfigured UiAutomator2 driver bundle from the default dependency tree. Production write flows and current Android-device acceptance remain incomplete. Check the exact candidate commit's GitHub status on [PR #1](https://github.com/AmaratvKrishi-India/CRM-/pull/1) before merge.
 
-## Current evidence
+**Candidate branch:** `codex/project-consolidation` (based on `main` at `2d72a5d837ee7045ec53b82c6aa88c4e72ac2462`).
 
-| Gate | Current result | Evidence |
+These results cover the current working tree. A local build or mocked browser session does not certify production behavior. The last completed GitHub run, [37052240476](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37052240476) for `5f7e32c`, passed `npm ci`, typecheck, lint, local Supabase startup, and all 348 Node tests, then failed the dependency security gate against the previous lockfile. This working tree removes that bundled driver; current-commit check results are available on [PR #1](https://github.com/AmaratvKrishi-India/CRM-/pull/1). Vercel Preview for `5f7e32c` is READY; Production remains on `main`.
+
+## Local validation
+
+| Gate | Result | Evidence |
 |---|---|---|
+| Clean install | PASS WITH LOCAL SCRIPT LIMIT | `npm ci --allow-remote=all` installed the lockfile on Node 26.5.0/npm 12.0.2. npm 12 blocked 15 lifecycle scripts pending local approval; Node 24 CI `npm ci` passed in run [37051425163](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37051425163). |
 | TypeScript | PASS | `npm run typecheck` |
 | Type tests | PASS | `npm run test:type` |
 | ESLint | PASS | `npm run lint` |
-| Node suite | PASS | `npm test` — 347/347 |
-| Vitest suite | PASS | `npm run test:vitest` — 267/267 |
-| Production web build | PASS | `npm run build` |
-| Bundle budget | PASS | `npm run test:perf:bundle` — no warnings |
-| Chromium browser suite | PASS WITH SKIPS | Mock-mode: 42 passed, 9 skipped; real-backend: 11/11 passed, including UI restore, backup export, reconnect recovery, and captured `tel:` handoff |
-| Native handoff contracts | PASS WITH DEVICE GAP | Real browser captured `tel:` handoff; native/share fallback contract tests pass; physical Android dialer/share behavior still needs device acceptance |
-| Visual regression suite | PASS | `npm run test:e2e:visual` — 11/11 |
-| Mutation suite | PASS WITH SURVIVORS | `npm run audit:mutation` — 93.91% (108 killed, 7 survived, 0 uncovered) |
-| Dependency audit | PASS | `npm audit --audit-level=high` — 0 vulnerabilities |
-| Semgrep / secret scan | PASS | Semgrep 0 findings; secret scan 0 critical/high findings after honoring ignored generated paths; Gitleaks no leaks |
-| Staging configuration | PASS | `npm run verify:staging-config` |
-| Release configuration | PASS | `npm run verify:release-config` |
-| Android release asset configuration | PASS | `npm run verify:android-release-assets` |
-| Android lint | PASS | `npm run audit:android` |
-| Database / architecture checks | PASS | `supabase db lint --local` — no schema errors; dependency-cruiser — 0 violations |
-| Current signed APK/AAB build | PASS | APK 4,568,935 bytes, SHA-256 `6962707604471E945E1E8AB2C61B45205A1464C4B73C9C138C925FA1D6B1D17D`; AAB 4,441,902 bytes, SHA-256 `59D7EA468AB181736C86AB21D914DECFD59BBEBD793657CBE17AF20553673F04`; APK v2 signature verified |
-| Local Supabase/RLS parity | PASS | Fresh 17-migration reset plus three-device RLS/sync acceptance — 13/13 |
-| Current Android acceptance profile | NOT RECORDED | Rerun the selected Android profile for the exact candidate checkout |
-| Real Edge Function acceptance | PASS | `npm run test:edge:real` — admin auth, provisioning, replay/idempotency, rejection, persistence, and audit |
-| Full release profile | NOT RECORDED | Rerun the full profile after the final source commit |
-| Exact-source CI | NOT RUN FOR CANDIDATE | Previous success was for `6424870…`, not this SHA |
-| Production deployment/smoke | NOT RUN FOR CANDIDATE | Current production still identifies the previous approved source |
-| Exact current APK emulator acceptance | PASS (RECORDED) | Fresh signed APK was installed and launched on `emulator-5556`; `MainActivity` was focused and process `6174` was alive before the later disposable-AVD recycle |
-| Physical-device acceptance | WAIVED IN PRIOR CLOSURE | Reconfirm or perform exact-artifact device smoke before final signoff |
+| Production configuration and build | PASS | `npm run build`; the release config guard, TypeScript, and Vite production build passed. |
+| Staging configuration and build | PASS | `npm run build:staging`; confirms the staging project is separate from production. |
+| Full Node suite | PASS | `npm test -- --runInBand`; 348 tests, 47 suites, 0 failures, 0 skipped. Docker-backed local Supabase was running. |
+| Full Vitest suite | PASS | `npm run test:vitest -- --reporter dot`; 277 tests across 21 files passed, including local integration tests. |
+| Chromium browser suite | PASS WITH SKIPS | `npm run test:e2e:chromium`; 42 passed, 11 skipped, 0 failed. Tests use local Vite and mocked auth; live-backend/device-only cases skip. |
+| Android release preparation | PASS (2026-10-02) | `npm run release:android:prepare`; web build, Capacitor sync, and packaged-marker gate passed. No APK install or device acceptance was run for this candidate. |
+| Bundle budget | PASS | `npm run test:perf:bundle`; 17 chunks, 1,166,613 raw bytes, 310,609 gzip bytes, 0 warnings. |
+| Local database lint | PASS | `npm run audit:database`; Supabase reported no schema errors. |
+| Secret scanner | PASS WITH LOW/MODERATE MATCHES | 477 files scanned; 0 critical, 0 high, 5 moderate, and 59 low pattern matches. The scan matched items such as public Supabase URLs and UUIDs; findings were not treated as credentials. |
+| GitHub CI | See [PR #1](https://github.com/AmaratvKrishi-India/CRM-/pull/1) | Review the checks for the exact candidate commit before merge. The previous run's dependency-audit failure was against the old lockfile. |
+| Dependency audit | PASS LOCALLY; CI check on PR #1 | Full `npm audit` reports 0 vulnerabilities after removing the unconfigured `appium-uiautomator2-driver` bundle. The Appium CLI remains available; checked-in Android UI flows use Maestro. Details are in [Known issues](./docs/KNOWN_ISSUES.md). |
+| Toolchain inventory | ATTENTION | 35/36 tools ready. The optional Graft version probe exits 1; Graft is not part of app build or test commands. |
 
-## Remaining release blockers
+## Cloud alignment and remaining checks
 
-1. Commit the release-closure fixes and record the resulting exact candidate SHA.
-2. Repeat the full release profile after the final source commit and retain the exact-SHA result outside the repository.
-3. Re-run exact signed APK smoke after the final source commit, retaining the artifact hash and launch evidence; the current three-emulator sync and native lifecycle suites pass on local debug artifacts.
-4. Run candidate-source CI and record the successful workflow run.
-5. Deploy the candidate web bundle and perform production smoke/provenance checks against the candidate SHA.
-6. Record candidate APK/AAB digests with the release handoff; keep signed artifacts outside the repository.
-7. Decide and document the remaining product-scope items: physical native dialer/share acceptance, OS-level sync after app kill, legacy Maestro flows, and any partial security-review follow-ups.
+- Vercel project `crm` is linked to `AmaratvKrishi-India/CRM-`, with Production on `main`. Project inspection confirms the repository root, Vite framework, Node.js 24, and `npm run build`; the install command and output directory use Vercel defaults (`dist` for Vite). The production URL is [crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app). Production remains on the existing `main` deployment until the security gate passes and the candidate is merged.
+- Vercel Production variables target Supabase project `lahvcodvgubplzfshare`. Preview variables target staging project `dhoinifpzijqyobcamlv`. The `VITE_APP_ENV`, `VITE_APP_VERSION`, Supabase URL, and public anon key records are split by target. Both target Auth health endpoints returned HTTP 200.
+- The Vercel Preview for `48c0951` reached READY. An authenticated Vercel fetch returned the CRM app page; unauthenticated requests show the Vercel login screen. Production was not changed.
+- The production Supabase project reports all 18 current migration versions applied, RLS enabled for all 16 public tables, and the deployed `create-agent` code matching local source. No production migration or customer data was changed.
+- The staging Supabase project now reports all 18 migrations applied and RLS enabled for all 16 public tables. The child-read reassignment migration was applied to staging; checks confirm all five affected child-table policies require current parent-lead visibility while retaining their organization-admin branches. Sampled staging counts remained at 505 leads and 18 profiles. Staging `create-agent` is deployed from current local source with `verify_jwt=true`; an unauthenticated POST returned HTTP 401. Production was not changed.
+- Supabase advisor findings and limitations are recorded in [Known issues](./docs/KNOWN_ISSUES.md). The public Auth settings endpoint returned HTTP 200 for both environments but omits the hosted Site URL and redirect allowlist. The existing Management API credential returned HTTP 401 for the configuration endpoint, so those two values remain unverified.
+- A password-based sign-in to Production succeeded without an MFA challenge. The authenticated `current_profile_id` RPC and RLS-protected leads read both returned HTTP 200; the read was limited to one row and only its count was recorded. No customer data was written. This verifies authentication and a protected read, not production create/update/delete flows.
+- After the candidate passes GitHub checks and is deployed, run `scripts/prod_smoke.ps1` again and verify the resulting deployment and logs. The script performs read-only GET/RPC requests. Full customer workflows and signed-in writes remain unverified.
+- The lockfile is synchronized with `package.json`, and clean installs passed locally and in Node 24 CI. The full security audit remains the blocker; do not merge or promote to Production while it fails.
+- Current Android emulator or physical-device acceptance remains outstanding. Do not use the historical 2026-09-24 APK report as acceptance for this candidate.
+- The `v2.0.0` and `v2.0.1` release branches and tags are retained because they contain release history; the Tailwind source restriction from the `v2.0.1` fix is present in current `main` source.
 
-## Known intentional limitation
+## Findings reviewed during consolidation
 
-JavaScript sync runs on login, foreground/resume, visibility, focus, network reconnect, and a foreground interval. OS-level synchronization after the app is fully killed is not implemented; shipping that behavior requires a native WorkManager integration or explicit product acceptance of the limitation.
-
-**Final approval remains open until the candidate-specific blockers above are closed or explicitly accepted by the release owner.**
+- The child-read reassignment migration `20260923000017_child_read_reassignment_hardening.sql` and local reassignment coverage are present. Live SQL inspection verified all five affected child-read policies in both Production and Staging, including current parent-lead visibility and organization-admin access. The `activities` policy also preserves personal reads for unlinked activities.
+- Backup restore rejects inputs above 25 MiB before reading them; the exact boundary is tested.
+- Chromium accessibility checks found and verified a contrast correction for the disabled Sync Now button in the day theme.
+- Older source copies lacked a source fix that is present in this main checkout. Existing UI/theme changes, visual baselines, tests, and Maestro updates were retained.

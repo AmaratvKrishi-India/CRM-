@@ -1,6 +1,6 @@
 # Audit Tool Inventory
 
-Complete observed inventory transcribed from section 81.1 of the master audit prompt. Versions and environment-specific profiles are preserved as listed there.
+Historical audit-prompt inventory transcribed from section 81.1 of the master audit prompt. The versions and environment-specific profiles below preserve that snapshot; use `package.json` and `package-lock.json` for current dependency versions. The current lockfile includes Appium 3.8.0 CLI but does not bundle a UiAutomator2 driver; see [Known issues](./docs/KNOWN_ISSUES.md).
 
 ## Unit, integration, component, and API
 

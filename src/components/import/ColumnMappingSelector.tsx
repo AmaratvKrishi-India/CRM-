@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import type { ColumnMapping } from '../../services/excelParser';
+import { AppSelect } from '../common/AppSelect';
 
 interface ColumnMappingSelectorProps {
   availableColumns: string[];
@@ -66,19 +67,17 @@ export const ColumnMappingSelector: React.FC<ColumnMappingSelectorProps> = ({
                 {label}
                 {required && <span className="text-danger-text">*</span>}
               </label>
-              <select
+              <AppSelect
                 id={`mapping-${key}`}
+                ariaLabel={label}
                 value={mapping[key] || ''}
-                onChange={(e) => handleFieldChange(key, e.target.value)}
-                className="min-h-11 text-sm bg-surface border border-line rounded-xl p-2.5 text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring font-medium"
-              >
-                <option value="">-- None / Skip --</option>
-                {availableColumns.map((col) => (
-                  <option key={col} value={col}>
-                    {col} {mapping[key] === col ? '✓' : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => handleFieldChange(key, value)}
+                buttonClassName="min-h-11 bg-surface p-2.5 font-medium"
+                options={[
+                  { value: '', label: '-- None / Skip --' },
+                  ...availableColumns.map((column) => ({ value: column, label: column })),
+                ]}
+              />
             </div>
           ))}
         </div>

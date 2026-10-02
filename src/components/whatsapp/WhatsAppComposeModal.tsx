@@ -25,6 +25,7 @@ import {
 import { AppSettingsService } from '../../services/appSettingsService';
 import { NativePlatformService } from '../../services/nativePlatform';
 import { Modal } from '../common/Modal';
+import { AppSelect } from '../common/AppSelect';
 
 interface WhatsAppComposeModalProps {
   isOpen: boolean;
@@ -134,18 +135,18 @@ const TemplateControls: React.FC<{
       <label htmlFor="wa-template-select" className="text-sm font-bold text-soft">
         Pitch template:
       </label>
-      <select
+      <AppSelect
         id="wa-template-select"
+        ariaLabel="Pitch template"
         value={selectedTemplateId}
-        onChange={(e) => onTemplateChange(e.target.value)}
-        className="min-h-11 text-sm bg-inset hover:bg-inset-strong border border-line rounded-lg py-1 px-2 text-ink font-bold focus:outline-none focus:ring-2 focus:ring-focus-ring"
-      >
-        {templates.map((tpl) => (
-          <option key={tpl.id} value={tpl.id}>
-            {tpl.isDefault ? '★ [Default] ' + tpl.title : tpl.title}
-          </option>
-        ))}
-      </select>
+        onChange={onTemplateChange}
+        className="min-w-0 flex-1 sm:flex-none"
+        buttonClassName="min-h-11 text-sm px-2 font-bold"
+        options={templates.map((template) => ({
+          value: template.id,
+          label: template.isDefault ? `★ [Default] ${template.title}` : template.title,
+        }))}
+      />
     </div>
     <div className="flex items-center gap-1">
       {onOpenSettings && (
@@ -323,7 +324,7 @@ const WhatsAppActionButtons: React.FC<{
       type="button"
       onClick={onSend}
       disabled={isLaunching || isLandline || isInvalidPhone || !messageText.trim()}
-      className="w-full min-h-12 py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full min-h-12 py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isLaunching ? (
         <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

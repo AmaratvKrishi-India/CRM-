@@ -213,7 +213,7 @@ export const BulkLeadAssignmentModal: React.FC<BulkLeadAssignmentModalProps> = (
                   {agents.map((agent) => (
                     <label
                       key={agent.id}
-                      className={`min-h-11 flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                      className={`min-h-11 flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                         targetAgentId === agent.id
                           ? 'bg-accent-soft border-accent text-ink shadow-md'
                           : 'bg-surface border-line text-soft hover:border-line-strong'
@@ -284,7 +284,7 @@ export const BulkLeadAssignmentModal: React.FC<BulkLeadAssignmentModalProps> = (
                 type="button"
                 onClick={() => setIsConfirming(true)}
                 disabled={!targetAgentId || agents.length === 0}
-                className="min-h-11 flex-1 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-sm font-bold text-on-accent transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
+                className="min-h-11 flex-1 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-sm font-bold text-on-accent transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
               >
                 <span>Preview & Confirm</span>
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -294,7 +294,7 @@ export const BulkLeadAssignmentModal: React.FC<BulkLeadAssignmentModalProps> = (
                 type="button"
                 onClick={handleExecuteBulkAssign}
                 disabled={isExecuting}
-                className="min-h-11 flex-1 py-2.5 rounded-xl bg-success hover:opacity-90 text-sm font-bold text-on-accent transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-50"
+                className="min-h-11 flex-1 py-2.5 rounded-xl bg-success hover:opacity-90 text-sm font-bold text-on-accent transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-50"
               >
                 {isExecuting ? (
                   <>

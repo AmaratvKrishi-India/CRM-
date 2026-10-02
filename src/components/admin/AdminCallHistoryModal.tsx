@@ -25,6 +25,7 @@ import type { CallRecord, User } from '../../db/types';
 import { getDatabase } from '../../db/database';
 import { Modal } from '../common/Modal';
 import { labelFor } from '../../lib/labels';
+import { AppSelect } from '../common/AppSelect';
 
 interface AdminCallHistoryModalProps {
   isOpen: boolean;
@@ -37,9 +38,6 @@ const formatSeconds = (seconds: number) => {
   const s = seconds % 60;
   return `${m}m ${s}s`;
 };
-
-const selectClass =
-  'w-full min-h-11 bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
   isOpen,
@@ -154,72 +152,72 @@ export const AdminCallHistoryModal: React.FC<AdminCallHistoryModalProps> = ({
             <label htmlFor="filter-agent" className="block text-xs font-semibold text-faint mb-1">
               Agent
             </label>
-            <select
+            <AppSelect
               id="filter-agent"
+              ariaLabel="Agent"
               value={selectedAgent}
-              onChange={(e) => setSelectedAgent(e.target.value)}
-              className={selectClass}
-            >
-              <option value="ALL">All Agents</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedAgent}
+              options={[
+                { value: 'ALL', label: 'All Agents' },
+                ...agents.map((agent) => ({ value: agent.id, label: agent.name })),
+              ]}
+            />
           </div>
 
           <div>
             <label htmlFor="filter-verification" className="block text-xs font-semibold text-faint mb-1">
               Verification
             </label>
-            <select
+            <AppSelect
               id="filter-verification"
+              ariaLabel="Verification"
               value={selectedVerification}
-              onChange={(e) => setSelectedVerification(e.target.value as 'ALL' | 'VERIFIED' | 'UNVERIFIED')}
-              className={selectClass}
-            >
-              <option value="ALL">All Verification</option>
-              <option value="VERIFIED">Verified Only</option>
-              <option value="UNVERIFIED">Unverified Only</option>
-            </select>
+              onChange={(value) => setSelectedVerification(value as 'ALL' | 'VERIFIED' | 'UNVERIFIED')}
+              options={[
+                { value: 'ALL', label: 'All Verification' },
+                { value: 'VERIFIED', label: 'Verified Only' },
+                { value: 'UNVERIFIED', label: 'Unverified Only' },
+              ]}
+            />
           </div>
 
           <div>
             <label htmlFor="filter-outcome" className="block text-xs font-semibold text-faint mb-1">
               Outcome
             </label>
-            <select
+            <AppSelect
               id="filter-outcome"
+              ariaLabel="Outcome"
               value={selectedOutcome}
-              onChange={(e) => setSelectedOutcome(e.target.value)}
-              className={selectClass}
-            >
-              <option value="ALL">All Outcomes</option>
-              <option value="CONNECTED">Connected</option>
-              <option value="BUSY">Busy</option>
-              <option value="NO_ANSWER">No Answer</option>
-              <option value="WRONG_NUMBER">Wrong Number</option>
-              <option value="CALL_BACK">Call Back</option>
-            </select>
+              onChange={setSelectedOutcome}
+              options={[
+                { value: 'ALL', label: 'All Outcomes' },
+                { value: 'CONNECTED', label: 'Connected' },
+                { value: 'BUSY', label: 'Busy' },
+                { value: 'NO_ANSWER', label: 'No Answer' },
+                { value: 'WRONG_NUMBER', label: 'Wrong Number' },
+                { value: 'CALL_BACK', label: 'Call Back' },
+              ]}
+            />
           </div>
 
           <div>
             <label htmlFor="filter-date-range" className="block text-xs font-semibold text-faint mb-1">
               Date Range
             </label>
-            <select
+            <AppSelect
               id="filter-date-range"
+              ariaLabel="Date range"
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as DashboardDateRange)}
-              className={selectClass}
-            >
-              <option value="ALL_TIME">All Time</option>
-              <option value="TODAY">Today</option>
-              <option value="YESTERDAY">Yesterday</option>
-              <option value="LAST_7_DAYS">Last 7 Days</option>
-              <option value="LAST_30_DAYS">Last 30 Days</option>
-            </select>
+              onChange={(value) => setDateRange(value as DashboardDateRange)}
+              options={[
+                { value: 'ALL_TIME', label: 'All Time' },
+                { value: 'TODAY', label: 'Today' },
+                { value: 'YESTERDAY', label: 'Yesterday' },
+                { value: 'LAST_7_DAYS', label: 'Last 7 Days' },
+                { value: 'LAST_30_DAYS', label: 'Last 30 Days' },
+              ]}
+            />
           </div>
         </div>
       </div>

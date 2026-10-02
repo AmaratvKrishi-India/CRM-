@@ -127,7 +127,7 @@ export const DeleteAgentModal: React.FC<DeleteAgentModalProps> = ({
                 onChange={(e) => setConfirmName(e.target.value)}
                 placeholder={agent.name}
                 data-autofocus
-                className="w-full bg-inset border border-line focus:border-danger rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all"
+                className="w-full bg-inset border border-line focus:border-danger rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-[color,background-color,border-color,box-shadow,opacity,transform]"
               />
               {confirmName.length > 0 && !isNameMatch && (
                 <p className="text-xs text-danger-text">Name does not match. Type the exact agent name.</p>
@@ -152,7 +152,7 @@ export const DeleteAgentModal: React.FC<DeleteAgentModalProps> = ({
                 type="button"
                 onClick={handleDelete}
                 disabled={isSubmitting || !isNameMatch}
-                className="min-h-11 py-2.5 px-5 rounded-xl text-white text-sm font-bold shadow-lg transition-all flex items-center gap-2 bg-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="min-h-11 py-2.5 px-5 rounded-xl text-white text-sm font-bold shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-2 bg-danger hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

@@ -65,7 +65,9 @@ schema_paths = []
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
-enabled = true
+# Keep fresh local databases free of demo users and leads. Enable explicitly when running
+# integration tests that require the deterministic fixtures in seed.sql.
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]
@@ -367,6 +369,10 @@ enabled = false
 authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
+
+# Provisioning requires an authenticated user JWT at the Edge gateway.
+[functions.create-agent]
+verify_jwt = true
 
 [edge_runtime]
 enabled = true

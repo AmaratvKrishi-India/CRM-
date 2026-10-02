@@ -123,7 +123,6 @@
     "@vitest/coverage-v8": "^4.1.11",
     "@vitest/ui": "^4.0.0",
     "appium": "^3.7.0",
-    "appium-uiautomator2-driver": "^8.7.0",
     "artillery": "^2.0.34",
     "audit-ci": "^7.1.0",
     "autocannon": "^8.0.0",
@@ -167,9 +166,10 @@
     "vitest": "^4.0.0"
   },
   "overrides": {
+    "brace-expansion@^5.0.0": "5.0.12",
     "morgan": "1.12.1",
     "csv-parse": "7.0.2",
-    "serialize-javascript": "7.1.1",
+    "serialize-javascript": "7.1.2",
     "stream-json": "3.7.0",
     "uuid": "11.1.1",
     "hyperid": {

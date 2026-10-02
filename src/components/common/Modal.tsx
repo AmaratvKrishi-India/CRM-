@@ -167,7 +167,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
         </div>
 
-        <div className="min-w-0 overflow-x-hidden overflow-y-auto px-4 sm:px-5 py-4 grow">{children}</div>
+        <div className="min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain px-4 sm:px-5 py-4 grow">{children}</div>
       </div>
     </div>
   );

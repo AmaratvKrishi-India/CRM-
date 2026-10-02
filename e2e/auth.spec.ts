@@ -21,7 +21,7 @@ test.describe('Login & Authentication Flow', () => {
     // Form fields and buttons
     const emailInput = page.getByLabel('Email / Login ID');
     await expect(emailInput).toBeVisible();
-    await expect(emailInput).toHaveAttribute('placeholder', 'e.g. rahul@amaratvkrishi.com');
+    await expect(emailInput).toHaveAttribute('placeholder', 'Enter your email');
 
     const passwordInput = page.getByLabel('Password', { exact: true });
     await expect(passwordInput).toBeVisible();

@@ -50,6 +50,9 @@ jobs:
       - name: Unit tests
         run: npm test -- --runInBand
 
+      - name: Reset disposable local Supabase with integration fixtures
+        run: npx supabase db reset --local --yes --sql-paths ./seed.sql
+
       - name: Child-lead RLS and sync mutation regression
         run: npm run test:vitest -- tests/integration/f047-child-lead-rls.test.ts --reporter dot
 

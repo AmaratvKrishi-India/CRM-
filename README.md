@@ -42,6 +42,8 @@ npx supabase migration up --local
 npm run dev
 ```
 
+The canonical CI environment currently rejects the committed lockfile as out of sync; see [Known issues](./docs/KNOWN_ISSUES.md) before using this checkout for a fresh install.
+
 Set the four variable names listed in [`.env.example`](./.env.example): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, and `VITE_APP_VERSION`. Use only a public anon/publishable key in the client. Never put a service-role key, signing key, password, or customer export in source control. Local Supabase uses API port 15432 and database port 15433.
 
 ## Verification

@@ -28,7 +28,7 @@ The canonical checkout is `C:\Users\PC\Desktop\calling app - Copy`, connected to
 
 ## Prerequisites and local setup
 
-The current package lock was used with Node 26.5.0 and npm 12.0.2. `package.json` does not set an `engines` range. Use the committed `package-lock.json` and `npm ci` in a fresh checkout.
+The current package lock was used with Node 26.5.0 and npm 12.0.2. `package.json` does not set an `engines` range. The current GitHub clean-install job reports that the lockfile is out of sync with the manifest; see [Known issues](./KNOWN_ISSUES.md) before relying on `npm ci` in a fresh checkout.
 
 For the app without a local backend, configure the ignored `.env.local` file for the intended Supabase environment. For local backend development, Docker Desktop must be running:
 

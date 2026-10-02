@@ -60,7 +60,7 @@ export const LoginScreen: React.FC = () => {
 
   return (
     <main
-      className="min-h-screen bg-app text-ink flex flex-col justify-between p-4 sm:p-6 font-sans relative transition-colors duration-200"
+      className="min-h-dvh bg-app text-ink flex flex-col justify-between p-4 sm:p-6 font-sans relative transition-colors duration-200"
       aria-labelledby="login-title"
     >
       {/* Quick Theme Toggle Top-Right */}
@@ -69,7 +69,7 @@ export const LoginScreen: React.FC = () => {
           type="button"
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === 'NIGHT' ? 'Day' : 'Night'} Mode`}
-          className="min-w-11 min-h-11 p-3 rounded-2xl border border-line bg-surface text-ink shadow-md hover:bg-inset transition-all active:scale-90 flex items-center justify-center gap-1.5 text-sm font-bold cursor-pointer"
+          className="min-w-11 min-h-11 p-3 rounded-2xl border border-line bg-surface text-ink shadow-md hover:bg-inset transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98] flex items-center justify-center gap-1.5 text-sm font-bold cursor-pointer"
         >
           {theme === 'DAY' ? (
             <Moon className="w-5 h-5" aria-hidden="true" />
@@ -140,10 +140,10 @@ export const LoginScreen: React.FC = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. rahul@amaratvkrishi.com"
+                  placeholder="Enter your email"
                   autoComplete="email"
                   disabled={isSubmitting}
-                  className="min-h-11 w-full bg-inset border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all disabled:opacity-50"
+                  className="min-h-11 w-full bg-inset border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-[color,background-color,border-color,box-shadow,opacity,transform] disabled:opacity-50"
                   required
                 />
               </div>
@@ -166,7 +166,7 @@ export const LoginScreen: React.FC = () => {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   disabled={isSubmitting}
-                  className="min-h-11 w-full bg-inset border border-line rounded-xl pl-10 pr-12 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all disabled:opacity-50"
+                  className="min-h-11 w-full bg-inset border border-line rounded-xl pl-10 pr-12 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-[color,background-color,border-color,box-shadow,opacity,transform] disabled:opacity-50"
                   required
                 />
                 <button
@@ -190,7 +190,7 @@ export const LoginScreen: React.FC = () => {
               id="login-submit-button"
               type="submit"
               disabled={isSubmitting || !isConfigured}
-              className="min-h-11 w-full py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 mt-2"
+              className="min-h-11 w-full py-3 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 mt-2"
             >
               {isSubmitting ? (
                 <>

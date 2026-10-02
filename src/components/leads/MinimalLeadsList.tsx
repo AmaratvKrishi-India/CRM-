@@ -20,6 +20,7 @@ import { CreateLeadModal } from './CreateLeadModal';
 import { useDebouncedValue } from '../../lib/useDebouncedValue';
 import { labelFor } from '../../lib/labels';
 import { leadStatusBadgeClass } from '../../lib/leadStatusStyles';
+import { AppSelect } from '../common/AppSelect';
 
 /** F9 — page size for the leads list; "Load more" appends the next page. */
 const PAGE_SIZE = 150;
@@ -90,7 +91,7 @@ const LeadsHeader: React.FC<{
           type="button"
           onClick={onAddLead}
           id="add-lead-button"
-          className="min-h-11 bg-accent hover:bg-accent-hover text-on-accent px-3 rounded-xl font-bold text-xs flex items-center gap-1 shadow-xs active:scale-95 transition-all"
+          className="min-h-11 bg-accent hover:bg-accent-hover text-on-accent px-3 rounded-xl font-bold text-xs flex items-center gap-1 shadow-xs active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,opacity,transform]"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
           <span>Add Lead</span>
@@ -153,19 +154,18 @@ const LeadsFilters: React.FC<{
         <label htmlFor="leads-locality" className="text-soft font-medium flex-shrink-0">
           Area:
         </label>
-        <select
+        <AppSelect
           id="leads-locality"
+          ariaLabel="Area"
           value={selectedLocality}
-          onChange={(e) => onLocalityChange(e.target.value)}
-          className="min-h-11 min-w-0 max-w-full text-xs bg-inset border border-line rounded-xl px-3 py-2 text-ink font-medium focus:ring-2 focus:ring-focus-ring"
-        >
-          <option value="ALL">{'All Lucknow Localities (' + localities.length + ')'}</option>
-          {localities.map((locality) => (
-            <option key={locality} value={locality}>
-              {locality}
-            </option>
-          ))}
-        </select>
+          onChange={onLocalityChange}
+          className="min-w-0 flex-1"
+          buttonClassName="min-h-11 text-xs"
+          options={[
+            { value: 'ALL', label: `All Lucknow Localities (${localities.length})` },
+            ...localities.map((locality) => ({ value: locality, label: locality })),
+          ]}
+        />
       </div>
     )}
   </div>
@@ -225,7 +225,7 @@ const LeadsStatePanels: React.FC<{
         <button
           type="button"
           onClick={onAddLead}
-          className="min-h-11 px-4 bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 active:scale-98 transition-all"
+          className="min-h-11 px-4 bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,opacity,transform]"
         >
           <Plus className="w-4 h-4" aria-hidden="true" />
           <span>Add New Field Lead</span>
@@ -244,7 +244,7 @@ const LeadCard: React.FC<{
 }> = ({ lead, index, onOpenLead, onCallLead, onOpenWhatsApp }) => {
   const isCallable = lead.phoneType !== 'invalid' && Boolean(lead.phone);
   return (
-    <div className="ui-card p-3 hover:border-line-strong transition-all flex flex-col gap-2">
+    <div className="ui-card p-3 hover:border-line-strong transition-[color,background-color,border-color,box-shadow,opacity,transform] flex flex-col gap-2">
       <button
         type="button"
         onClick={() => onOpenLead(lead.id)}
@@ -288,7 +288,7 @@ const LeadCard: React.FC<{
               type="button"
               onClick={() => onOpenWhatsApp(lead)}
               aria-label={'Send WhatsApp pitch to ' + lead.businessName}
-              className="min-h-11 py-1.5 px-2.5 bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent rounded-xl transition-all flex items-center gap-1 text-xs font-bold shadow-xs"
+              className="min-h-11 py-1.5 px-2.5 bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent rounded-xl transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-1 text-xs font-bold shadow-xs"
             >
               <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
               <span>WhatsApp</span>
@@ -487,7 +487,7 @@ export const MinimalLeadsList: React.FC<MinimalLeadsListProps> = ({
   const hasMore = leads.length < totalCount;
 
   return (
-    <div className="min-h-screen bg-app flex flex-col pb-safe-nav font-sans">
+    <div className="min-h-dvh bg-app flex flex-col pb-safe-nav font-sans">
       <LeadsHeader
         currentUser={currentUser}
         onOpenImporter={onOpenImporter}

@@ -1,18 +1,23 @@
 # Contributing
 
-Use Node 26 and the committed package lock. Run `npm ci` in a fresh checkout, then
-`npm run dev` for the web app. Copy environment templates only into ignored local
-files. Never commit passwords, session tokens, service-role keys or customer exports.
+This checkout was verified with Node 26.5.0 and npm 12.0.2; `package.json` does not
+declare an engine range. Use the committed package lock. Run `npm ci` in a fresh
+checkout, then `npm run dev` for the web app. Copy environment templates only into
+ignored local files. Never commit passwords, session tokens, service-role keys or
+customer exports.
 Start with [README](README.md), then check [GATES.md](GATES.md) for the current
 acceptance state. Verify local prerequisites directly on the machine; historical
 reports are not maintained in this repository.
 
-For live integration tests, Docker must be running. Use `npx supabase start`, then
+For database-backed tests, Docker must be running. Use `npx supabase start`, then
 `npx supabase migration up --local` to apply pending migrations without resetting
-data. The test harness discovers loopback credentials with `supabase status` and
-refuses remote URLs. Do not paste its credential output into reports. Seed admin
-and agent accounts must be available. `supabase db reset --local` destroys local
-data; use it only for an explicitly disposable stack after preserving needed data.
+data. The top-level Node suite includes F002/F003 fixtures that create uniquely
+named temporary databases in the local `supabase_db_calling_app` container and
+drop them when the suite completes. Vitest integration helpers check that the
+discovered API URL is loopback and clean up the fixtures they create. Do not paste
+`supabase status` credential output into reports. Seed admin and agent accounts
+must be available. `supabase db reset --local` destroys local data; use it only
+for an explicitly disposable stack after preserving needed data.
 
 ## Change and review workflow
 

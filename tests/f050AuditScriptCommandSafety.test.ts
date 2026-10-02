@@ -8,15 +8,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const auditScript = path.resolve(here, '../scripts/accessibility-regional-test.ts');
 
 describe('F050: audit CLI command safety', () => {
-  it('passes CLI-controlled accessibility arguments without shell interpolation', () => {
+  it('scans the configured URL through Playwright without spawning shell commands', () => {
     const source = fs.readFileSync(auditScript, 'utf8');
 
-    assert.match(source, /import \{ spawnSync \} from 'child_process'/);
-    assert.match(source, /spawnSync\(process\.execPath, args,/);
-    assert.match(source, /shell:\s*false/);
-    assert.match(source, /\r?\n\s*pattern,\r?\n\s*`--region=\$\{region\}`/);
-    assert.doesNotMatch(source, /\bexecSync\s*\(/);
-    assert.doesNotMatch(source, /const cmd = `npx/);
+    assert.match(source, /from 'playwright'/);
+    assert.match(source, /const url = options\.url/);
+    assert.match(source, /await page\.goto\(url,/);
+    assert.doesNotMatch(source, /from ['"](?:node:)?child_process['"]/);
+    assert.doesNotMatch(source, /\b(?:exec|execFile|execSync|execFileSync|spawn|spawnSync)\s*\(/);
   });
 
   it('keeps machine-generated verifier output separate from authoritative GATES.md', () => {

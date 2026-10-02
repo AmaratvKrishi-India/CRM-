@@ -335,7 +335,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   };
 
   return (
-    <div className="min-h-screen bg-app text-ink flex flex-col justify-between font-sans ui-shell">
+    <div className="min-h-dvh bg-app text-ink flex flex-col justify-between font-sans ui-shell">
       <a
         href="#app-main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-xl focus:bg-surface focus:px-4 focus:py-3 focus:text-ink focus:shadow-lg"
@@ -476,7 +476,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
               tabIndex={tab === 'DASHBOARD' ? 0 : -1}
               onKeyDown={(e) => handleNavTabKeyDown(e, 'DASHBOARD')}
               onClick={() => setTab('DASHBOARD')}
-              className={`min-h-11 py-1.5 px-2 rounded-xl flex flex-col items-center justify-center transition-all ${
+              className={`min-h-11 py-1.5 px-2 rounded-xl flex flex-col items-center justify-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                 tab === 'DASHBOARD'
                   ? 'text-accent-text bg-accent-soft font-bold'
                   : 'text-faint hover:text-ink'
@@ -503,7 +503,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
                 setLeadsLocalityFilter('ALL');
                 setTab('LEADS');
               }}
-              className={`min-h-11 py-1.5 px-2 rounded-xl flex flex-col items-center justify-center transition-all ${
+              className={`min-h-11 py-1.5 px-2 rounded-xl flex flex-col items-center justify-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                 tab === 'LEADS'
                   ? 'text-accent-text bg-accent-soft font-bold'
                   : 'text-faint hover:text-ink'
@@ -526,7 +526,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
               tabIndex={tab === 'FOLLOW_UPS' ? 0 : -1}
               onKeyDown={(e) => handleNavTabKeyDown(e, 'FOLLOW_UPS')}
               onClick={() => setTab('FOLLOW_UPS')}
-              className={`relative min-h-11 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-all ${
+              className={`relative min-h-11 py-1.5 px-1 rounded-xl flex flex-col items-center justify-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                 tab === 'FOLLOW_UPS'
                   ? 'text-accent-text bg-accent-soft font-bold'
                   : 'text-faint hover:text-ink'
@@ -627,7 +627,7 @@ function MainAppRouter() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-app text-ink flex flex-col items-center justify-center p-4 font-sans">
+      <div className="min-h-dvh bg-app text-ink flex flex-col items-center justify-center p-4 font-sans">
         <div className="w-12 h-12 rounded-2xl bg-accent-soft border border-accent text-accent-text flex items-center justify-center mb-4">
           <Loader2 className="w-6 h-6 animate-spin" aria-hidden="true" />
         </div>

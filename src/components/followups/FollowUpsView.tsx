@@ -148,7 +148,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
     return (
       <div
         key={item.id}
-        className={`ui-card p-3.5 space-y-3 transition-all ${
+        className={`ui-card p-3.5 space-y-3 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
           isOverdue ? 'border-danger/40 bg-danger-soft/40' : 'border-line hover:border-line-strong'
         }`}
       >
@@ -288,7 +288,7 @@ export const FollowUpsView: React.FC<FollowUpsViewProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-app flex flex-col pb-20">
+    <div className="min-h-dvh bg-app flex flex-col pb-20">
       {/* Header */}
       <div className="ui-topbar text-ink px-4 py-3 sticky top-0 z-30">
         <div className="max-w-2xl mx-auto flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">

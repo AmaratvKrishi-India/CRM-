@@ -34,6 +34,7 @@ import { Modal } from '../common/Modal';
 import { useToast } from '../common/Toast';
 import { labelFor } from '../../lib/labels';
 import { SyncRecoveryPanel } from '../sync/SyncRecoveryPanel';
+import { AppSelect } from '../common/AppSelect';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -320,7 +321,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const tabButtonClass = (selected: boolean) =>
-    `min-w-0 min-h-11 py-2 px-1 sm:px-3 text-[11px] min-[360px]:text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-all ${
+    `min-w-0 min-h-11 py-2 px-1 sm:px-3 text-[11px] min-[360px]:text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
       selected
         ? 'border-accent text-accent-text bg-surface'
         : 'border-transparent text-soft hover:text-ink'
@@ -469,7 +470,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     return (
                       <div
                         key={tpl.id}
-                        className={`p-3 rounded-2xl border transition-all ${
+                        className={`p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                           tpl.isDefault
                             ? 'bg-accent-soft border-accent shadow-xs'
                             : 'bg-surface border-line hover:border-line-strong'
@@ -538,7 +539,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   type="button"
                                   onClick={() => handleDelete(tpl.id)}
                                   aria-label={`Confirm delete ${tpl.title}`}
-                                  className="min-h-9 px-2 text-xs font-bold text-white bg-danger hover:opacity-90 rounded-lg"
+                                  className="min-h-11 px-2 text-xs font-bold text-white bg-danger hover:opacity-90 rounded-lg"
                                 >
                                   Yes
                                 </button>
@@ -546,7 +547,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                   type="button"
                                   onClick={() => setDeleteConfirmId(null)}
                                   aria-label="Cancel delete"
-                                  className="min-h-9 px-2 text-xs font-medium text-soft hover:text-ink rounded-lg"
+                                  className="min-h-11 px-2 text-xs font-medium text-soft hover:text-ink rounded-lg"
                                 >
                                   No
                                 </button>
@@ -609,20 +610,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label htmlFor="tpl-category" className="text-xs font-bold text-soft">
                     Category
                   </label>
-                  <select
+                  <AppSelect
                     id="tpl-category"
+                    ariaLabel="Category"
                     value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value as TemplateCategory })
-                    }
-                    className="w-full text-sm bg-inset border border-line rounded-xl p-2.5 mt-1 font-semibold text-ink focus:ring-2 focus:ring-focus-ring"
-                  >
-                    <option value="INTRO">Intro — Introduction & First Pitch</option>
-                    <option value="SAMPLE_OFFER">Sample Offer — 1kg Sample Offer</option>
-                    <option value="PRICING">Pricing — Wholesale Margins & Rates</option>
-                    <option value="FOLLOW_UP">Follow-up — Post-Call Follow-up</option>
-                    <option value="RE_ENGAGE">Re-engage — Re-engagement & Restock</option>
-                  </select>
+                    onChange={(value) => setFormData({ ...formData, category: value as TemplateCategory })}
+                    className="mt-1"
+                    buttonClassName="bg-inset p-2.5 font-semibold"
+                    options={[
+                      { value: 'INTRO', label: 'Intro — Introduction & First Pitch' },
+                      { value: 'SAMPLE_OFFER', label: 'Sample Offer — 1kg Sample Offer' },
+                      { value: 'PRICING', label: 'Pricing — Wholesale Margins & Rates' },
+                      { value: 'FOLLOW_UP', label: 'Follow-up — Post-Call Follow-up' },
+                      { value: 'RE_ENGAGE', label: 'Re-engage — Re-engagement & Restock' },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -642,7 +644,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type="button"
                       onClick={() => handleInsertTag(tag)}
                       aria-label={`Insert ${desc}`}
-                      className="min-h-9 py-1 px-2 rounded-lg text-xs font-mono font-bold bg-accent-soft hover:bg-accent/20 text-accent-text border border-accent transition-colors"
+                      className="min-h-11 py-1 px-2 rounded-lg text-xs font-mono font-bold bg-accent-soft hover:bg-accent/20 text-accent-text border border-accent transition-colors"
                     >
                       + {tag}
                     </button>
@@ -855,7 +857,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="button"
                 onClick={() => synchronizeNow()}
                 disabled={isSyncing}
-                className="min-h-11 py-2 px-3 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:cursor-default flex-shrink-0"
+                className="min-h-11 py-2 px-3 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold flex items-center gap-1.5 transition-colors disabled:bg-inset disabled:text-soft disabled:opacity-100 disabled:cursor-default flex-shrink-0"
               >
                 <RefreshCw
                   className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`}
@@ -887,7 +889,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="button"
                 onClick={() => setTheme('NIGHT')}
                 aria-pressed={theme === 'NIGHT'}
-                className={`min-h-11 flex-1 py-2.5 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                className={`min-h-11 flex-1 py-2.5 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                   theme === 'NIGHT'
                     ? 'bg-ink text-app border-ink shadow-sm'
                     : 'bg-surface text-soft border-line hover:border-line-strong'
@@ -903,7 +905,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="button"
                 onClick={() => setTheme('DAY')}
                 aria-pressed={theme === 'DAY'}
-                className={`min-h-11 flex-1 py-2.5 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                className={`min-h-11 flex-1 py-2.5 rounded-xl border text-sm font-bold flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
                   theme === 'DAY'
                     ? 'bg-warning-soft text-warning-text border-warning shadow-sm'
                     : 'bg-surface text-soft border-line hover:border-line-strong'

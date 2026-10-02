@@ -68,8 +68,8 @@ describe('AdminDashboardView characterization', () => {
     fireEvent.click(screen.getByRole('button', { name: /Total Leads/i }));
     expect(onNavigateToLeads).toHaveBeenCalledWith();
 
-    await screen.findByRole('option', { name: 'Agent One' });
-    fireEvent.change(screen.getByLabelText('Representative'), { target: { value: 'agent-1' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Representative' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Agent One' }));
     await waitFor(() => expect(state.getKpis).toHaveBeenLastCalledWith(state.user, 'ALL_TIME', 'agent-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'View New leads (5)' }));    expect(onNavigateToLeads).toHaveBeenLastCalledWith('NEW', 'agent-1');

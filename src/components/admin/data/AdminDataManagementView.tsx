@@ -39,6 +39,7 @@ import { Modal } from '../../common/Modal';
 import { useToast } from '../../common/Toast';
 import { labelFor } from '../../../lib/labels';
 import { useDebouncedValue } from '../../../lib/useDebouncedValue';
+import { AppSelect } from '../../common/AppSelect';
 
 export type DataSubTab = 'DATABASE' | 'IMPORTS' | 'CLEANUP' | 'HEALTH';
 
@@ -52,9 +53,6 @@ const STATUS_FILTERS: LeadStatus[] = [
   'CUSTOMER',
   'WRONG_NUMBER',
 ];
-
-const SELECT_CLASSES =
-  'min-h-11 w-full bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring';
 
 export const AdminDataManagementView: React.FC = () => {
   const { currentUser } = useAuth();
@@ -361,7 +359,7 @@ export const AdminDataManagementView: React.FC = () => {
       tabIndex={activeSubTab === tab ? 0 : -1}
       onClick={() => setActiveSubTab(tab)}
       onKeyDown={(e) => handleTabKeyDown(e, tab)}
-      className={`min-h-11 px-3 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 whitespace-nowrap ${
+      className={`min-h-11 px-3 rounded-xl text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-1.5 whitespace-nowrap ${
         activeSubTab === tab
           ? 'bg-accent text-on-accent shadow-md'
           : 'text-faint hover:text-ink bg-surface'
@@ -423,61 +421,46 @@ export const AdminDataManagementView: React.FC = () => {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <div>
-                  <label htmlFor="data-filter-status" className="sr-only">
-                    Filter by status
-                  </label>
-                  <select
+                  <AppSelect
                     id="data-filter-status"
+                    ariaLabel="Filter by status"
+                    label="Status"
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className={SELECT_CLASSES}
-                  >
-                    <option value="ALL">All Statuses</option>
-                    {STATUS_FILTERS.map((s) => (
-                      <option key={s} value={s}>
-                        {labelFor(s)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setStatusFilter}
+                    options={[
+                      { value: 'ALL', label: 'All Statuses' },
+                      ...STATUS_FILTERS.map((status) => ({ value: status, label: labelFor(status) })),
+                    ]}
+                  />
                 </div>
 
                 <div>
-                  <label htmlFor="data-filter-locality" className="sr-only">
-                    Filter by locality
-                  </label>
-                  <select
+                  <AppSelect
                     id="data-filter-locality"
+                    ariaLabel="Filter by locality"
+                    label="Locality"
                     value={localityFilter}
-                    onChange={(e) => setLocalityFilter(e.target.value)}
-                    className={SELECT_CLASSES}
-                  >
-                    <option value="ALL">All Localities ({localities.length})</option>
-                    {localities.map((loc) => (
-                      <option key={loc} value={loc}>
-                        {loc}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setLocalityFilter}
+                    options={[
+                      { value: 'ALL', label: `All Localities (${localities.length})` },
+                      ...localities.map((locality) => ({ value: locality, label: locality })),
+                    ]}
+                  />
                 </div>
 
                 {sources.length > 0 && (
                   <div className="col-span-2 sm:col-span-1">
-                    <label htmlFor="data-filter-source" className="sr-only">
-                      Filter by source
-                    </label>
-                    <select
+                    <AppSelect
                       id="data-filter-source"
+                      ariaLabel="Filter by source"
+                      label="Source"
                       value={sourceFilter}
-                      onChange={(e) => setSourceFilter(e.target.value)}
-                      className={SELECT_CLASSES}
-                    >
-                      <option value="ALL">All Sources ({sources.length})</option>
-                      {sources.map((src) => (
-                        <option key={src} value={src}>
-                          {src}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSourceFilter}
+                      options={[
+                        { value: 'ALL', label: `All Sources (${sources.length})` },
+                        ...sources.map((source) => ({ value: source, label: source })),
+                      ]}
+                    />
                   </div>
                 )}
               </div>
@@ -512,7 +495,7 @@ export const AdminDataManagementView: React.FC = () => {
                   return (
                     <div
                       key={lead.id}
-                      className="ui-card-quiet p-3 space-y-1.5 hover:border-line-strong transition-all"
+                      className="ui-card-quiet p-3 space-y-1.5 hover:border-line-strong transition-[color,background-color,border-color,box-shadow,opacity,transform]"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <h4 className="text-sm font-bold text-ink truncate">{lead.businessName}</h4>
@@ -565,7 +548,7 @@ export const AdminDataManagementView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsImporterOpen(true)}
-                className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 shrink-0"
+                className="min-h-11 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-md active:scale-[0.98] flex items-center gap-1.5 shrink-0"
               >
                 <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />
                 <span>Launch Importer</span>

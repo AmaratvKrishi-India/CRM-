@@ -134,7 +134,7 @@ export const LeadAssignmentModal: React.FC<LeadAssignmentModalProps> = ({
               type="button"
               onClick={handleUnassign}
               disabled={submitting}
-              className="min-h-11 px-3 py-1 rounded-lg bg-danger-soft hover:bg-danger/20 text-danger-text text-sm font-semibold border border-danger transition-all active:scale-95"
+              className="min-h-11 px-3 py-1 rounded-lg bg-danger-soft hover:bg-danger/20 text-danger-text text-sm font-semibold border border-danger transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
             >
               Unassign
             </button>
@@ -185,7 +185,7 @@ export const LeadAssignmentModal: React.FC<LeadAssignmentModalProps> = ({
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => setSelectedAgentId(agent.id)}
-                    className={`min-h-11 w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+                    className={`min-h-11 w-full text-left p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-between cursor-pointer ${
                       isSelected
                         ? 'bg-accent-soft border-accent text-ink shadow-sm'
                         : 'bg-surface border-line text-soft hover:bg-inset'
@@ -233,7 +233,7 @@ export const LeadAssignmentModal: React.FC<LeadAssignmentModalProps> = ({
             type="button"
             onClick={handleAssign}
             disabled={submitting || !selectedAgentId || selectedAgentId === lead.assignedTo}
-            className="min-h-11 py-2.5 px-5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50"
+            className="min-h-11 py-2.5 px-5 rounded-xl bg-accent hover:bg-accent-hover text-on-accent text-sm font-bold shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-2 disabled:opacity-50"
           >
             {submitting ? (
               <>

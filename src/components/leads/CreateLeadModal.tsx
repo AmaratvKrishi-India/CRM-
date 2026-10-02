@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
 import type { Lead, LeadStatus } from '../../db/types';
 import { Modal } from '../common/Modal';
+import { AppSelect } from '../common/AppSelect';
 import { labelFor } from '../../lib/labels';
 
 interface CreateLeadModalProps {
@@ -230,18 +231,14 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
           <label htmlFor="create-status" className={labelClass}>
             Initial pipeline status
           </label>
-          <select
+          <AppSelect
             id="create-status"
+            ariaLabel="Initial pipeline status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as LeadStatus)}
-            className={`${inputClass} font-semibold`}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {labelFor(s)}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setStatus(value as LeadStatus)}
+            buttonClassName="min-h-12 bg-inset px-3 py-2 text-base font-semibold"
+            options={STATUS_OPTIONS.map((statusOption) => ({ value: statusOption, label: labelFor(statusOption) }))}
+          />
         </div>
 
         <div>
@@ -259,7 +256,7 @@ export const CreateLeadModal: React.FC<CreateLeadModalProps> = ({
         </div>
 
         {/* Footer Buttons */}
-        <div className="pt-2 flex items-center gap-2">
+        <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-surface border-t border-line flex items-center gap-2">
           <button
             type="button"
             onClick={onClose}

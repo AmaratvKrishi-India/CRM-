@@ -26,7 +26,7 @@ export const ImportStatsCard: React.FC<ImportStatsCardProps> = ({
         type="button"
         onClick={() => onFilterChange('ALL')}
         aria-pressed={activeFilter === 'ALL'}
-        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
           activeFilter === 'ALL'
             ? 'bg-inset-strong text-ink border-line-strong shadow-sm'
             : 'bg-surface text-soft border-line hover:border-line-strong'
@@ -44,7 +44,7 @@ export const ImportStatsCard: React.FC<ImportStatsCardProps> = ({
         type="button"
         onClick={() => onFilterChange('VALID')}
         aria-pressed={activeFilter === 'VALID'}
-        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
           activeFilter === 'VALID'
             ? 'bg-success text-on-accent border-success shadow-sm'
             : 'bg-success-soft text-success-text border-success'
@@ -62,7 +62,7 @@ export const ImportStatsCard: React.FC<ImportStatsCardProps> = ({
         type="button"
         onClick={() => onFilterChange('DUPLICATE')}
         aria-pressed={activeFilter === 'DUPLICATE'}
-        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
           activeFilter === 'DUPLICATE'
             ? 'bg-warning text-ink border-warning shadow-sm'
             : 'bg-warning-soft text-warning-text border-warning'
@@ -80,7 +80,7 @@ export const ImportStatsCard: React.FC<ImportStatsCardProps> = ({
         type="button"
         onClick={() => onFilterChange('INVALID')}
         aria-pressed={activeFilter === 'INVALID'}
-        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all ${
+        className={`min-h-11 flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
           activeFilter === 'INVALID'
             ? 'bg-danger text-on-accent border-danger shadow-sm'
             : 'bg-danger-soft text-danger-text border-danger'

@@ -1,141 +1,85 @@
-# Amaratv Krishi — Field Sales CRM
+# Amaratv Krishi Field Sales CRM
 
-<div align="center">
+Offline-first sales CRM for field representatives and administrators. The web client runs in a browser and is packaged for Android with Capacitor. Local IndexedDB storage and a durable outbox support work during network loss; Supabase PostgreSQL Row Level Security remains the server authorization boundary.
 
-**Offline-first mobile CRM for field sales teams — single Android APK + web admin console**
+**Release status:** this working tree is not approved for release. See [GATES.md](./GATES.md) for checkout-specific verification and remaining release checks.
 
-[Acceptance gates](./GATES.md) · [Contributing](./CONTRIBUTING.md)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue?style=flat-square&logo=typescript)](./tsconfig.json)
-[![React](https://img.shields.io/badge/React-19.2-61dafb?style=flat-square&logo=react)](./package.json)
-[![Capacitor](https://img.shields.io/badge/Capacitor-8.5-119EFF?style=flat-square&logo=capacitor)](./capacitor.config.ts)
-[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20RLS-3ECF8E?style=flat-square&logo=supabase)](./supabase)
+## Canonical project and cloud services
 
-</div>
+- **Local project:** `C:\Users\PC\Desktop\calling app - Copy`
+- **GitHub:** [AmaratvKrishi-India/CRM-](https://github.com/AmaratvKrishi-India/CRM-), default branch `main`.
+- **Vercel:** project `crm`; production URL [crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app). Production is assigned to `main`; Preview builds use the staging Supabase project.
+- **Supabase:** Production project `lahvcodvgubplzfshare`; staging project `dhoinifpzijqyobcamlv`. Client keys are kept in ignored local environment files and Vercel settings, not in this document.
 
----
+Production and Preview have separate Vercel values for the Supabase URL, public anon key, app environment, and app version. The setup and deployment details are in the [project guide](./docs/PROJECT_GUIDE.md); current cloud evidence and limits are in [known issues](./docs/KNOWN_ISSUES.md) and [acceptance gates](./GATES.md).
 
-Amaratv Krishi is a natural nutrition enterprise (*"From Our Fields to Your Home"*). This CRM is built for its ground sales team in Lucknow, UP: reps discover, call, pitch and close B2B deals with gyms, health clubs and wellness centres — often from areas with poor connectivity. Everything works offline first and syncs when the network returns.
+## Capabilities
 
-> The current checkout remains **not release-approved** until the gates in [`GATES.md`](./GATES.md) are green for the exact candidate.
+- ADMIN and AGENT workflows in one application.
+- Lead import, review, assignment, reporting, and data backup/restore.
+- Agent calling and WhatsApp workflows, activity history, and follow-up reminders.
+- Offline-first writes with queued synchronization, conflict handling, and local recovery tools.
+- Supabase Auth, PostgreSQL RLS, Realtime, and an admin-only agent provisioning function.
 
-**Live web admin:** <https://crm-blush-omega.vercel.app> · **Android:** prepare a candidate with `npm run release:android:prepare`
+## Start here
 
-## Highlights
+- [Project guide](./docs/PROJECT_GUIDE.md): architecture, setup, configuration, testing, Android, and deployment.
+- [Known issues and limitations](./docs/KNOWN_ISSUES.md): confirmed limits, historical findings, and evidence gaps.
+- [Acceptance gates](./GATES.md): results from the latest checkout review.
+- [Contributing](./CONTRIBUTING.md): local workflow and safety notes.
+- [Audit tool inventory](./AUDIT_TOOL_INVENTORY.md) and [audit runbook](./AUDIT_TOOL_USE_RUNBOOK.md): optional audit tooling.
 
-- **One APK, two roles.** ADMIN and AGENT share a single binary; routing and data access are enforced per role, with PostgreSQL Row Level Security as the authority (not UI filtering).
-- **Offline-first.** Every mutation lands in a durable Dexie (IndexedDB) outbox, survives app restarts, and uses durable mutation identities for idempotent retry after reconnect.
-- **Honest call data.** The call lifecycle state machine refuses fabricated talk time: dial-only calls are recorded as UNVERIFIED with zero duration.
-- **Excel import + bulk assignment.** Column mapping, phone normalisation (+91 / Lucknow STD), duplicate detection, and audited bulk assignment.
-- **Multi-device sync.** The local integration suite exercises actual outbox push and second-client pull. Android/staging verification must be rerun for the exact checkout before release decisions.
+## Quick start
 
-## Feature matrix
-
-| Admin | Agent |
-|---|---|
-| Org-wide dashboard, KPIs, live activity feed | Personal dashboard with assigned leads only |
-| Excel lead import with dedup | 1-tap dialler integration + outcome logging |
-| Lead review, create, edit, assign (single + bulk) | WhatsApp pitch templates (intent-based) |
-| Agent provisioning via Edge Function, edit/deactivate | Remarks, follow-ups, activities, message history |
-| Analytics reports + CSV export | Local-notification follow-up reminders |
-| Backup / restore (validated JSON snapshot and merge) | Full offline autonomy with auto-sync |
-
-## Architecture
-
-```text
-┌────────────────────────────┐        ┌──────────────────────────────┐
-│  React 19 + Vite + Tailwind│        │  Supabase                    │
-│  (Capacitor 8 → Android)   │  push  │  PostgreSQL + RLS            │
-│                            │ ─────► │  Auth · Realtime · Edge Fn   │
-│  Dexie (IndexedDB)         │  pull  │  (create-agent, admin-only)  │
-│  outbox queue + sync engine│ ◄───── │                              │
-└────────────────────────────┘        └──────────────────────────────┘
-```
-
-- **Client:** React + TypeScript + Vite + Tailwind, wrapped with Capacitor for Android.
-- **Local store:** Dexie repositories; every write creates an outbox record.
-- **Sync:** conditional writes against server revisions, durable mutation UUIDs, incremental server-revision cursors, classified retries and explicit retained conflicts. Data writes and outbox enqueues are atomic. Realtime events complement the authoritative pull.
-- **Security:** organization isolation, agent lead isolation, immutable records, purge controls, abuse controls, operational reporting boundaries, and child-record hardening are represented in the ordered migration history. The current deployment status is documented separately; this checkout contains 14 migration files.
-
-## Getting started
-
-Prereqs: Node 26+, Docker Desktop (for the local Supabase stack), Android Studio (for emulator/APK work).
+Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. The available checkout was verified with Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
 
 ```powershell
-npm install
-copy .env.example .env.local   # then fill in your Supabase URL + anon key
-
-npx supabase start             # local Supabase on 127.0.0.1:15432 (Docker)
-npm run dev                    # dev server
+npm ci
+Copy-Item .env.example .env.local
+# Edit .env.local with the required values; keep it out of Git.
+npx supabase start
+npx supabase migration up --local
+npm run dev
 ```
 
-`.env.local` targets the local Docker stack; other Vite modes are environment-specific and must be verified before use. See [`.env.example`](./.env.example) for the required variables.
+Set the four variable names listed in [`.env.example`](./.env.example): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_ENV`, and `VITE_APP_VERSION`. Use only a public anon/publishable key in the client. Never put a service-role key, signing key, password, or customer export in source control. Local Supabase uses API port 15432 and database port 15433.
 
-## Testing
+## Verification
 
-The repository contains several overlapping test runners. Treat verification results as scoped evidence, and use [GATES.md](./GATES.md) for the current release decision.
+```powershell
+npm run typecheck
+npm run test:type
+npm run lint
+npm test -- --runInBand
+npm run test:vitest
+npm run test:e2e:chromium
+npm run build
+```
 
-| Suite | Command | Current status source |
-|---|---|---|
-| Node-runner suite | `npm run test:node` | [GATES.md](./GATES.md) |
-| Vitest suite | `npm run test:vitest` | [GATES.md](./GATES.md) |
-| Playwright E2E (desktop + mobile) | `npm run test:e2e` | Latest scoped verification only; do not reuse historical counts |
-| Real PostgreSQL + RLS (Docker) | `npx tsx --test tests/realSupabasePostgres.test.ts` | Latest scoped verification only |
-| Multi-device / Android acceptance | `npx tsx --test tests/multiDeviceSync.test.ts` | Latest scoped verification only |
-| Production build | `npm run build` | [GATES.md](./GATES.md) |
+The Node suite and Vitest integration tests need the local Docker-backed Supabase stack. The Chromium suite starts a strict local Vite server and uses test auth mocks. Read [GATES.md](./GATES.md) for exact results and limitations before using historical or partial evidence as a release decision.
 
-Android testing uses dynamically detected Android Studio emulators (AVDs) — physical devices are not required.
+## Builds and release
 
-## Database & migrations
+- `npm run build` runs the release configuration gate, TypeScript, and the production Vite build.
+- `npm run build:staging` validates staging configuration and creates a staging build.
+- `npm run release:android:prepare` builds the web app, syncs Capacitor Android assets, and verifies release asset configuration.
+- Android signing properties are supplied through `ANDROID_KEYSTORE_PROPERTIES` or the ignored `android/keystore.properties` file. Keep all signing material external to Git.
+- `vercel.json` contains web security headers. The canonical Vercel project is `crm`, with production on `main` and Preview using staging settings. Pushes to the connected GitHub branch use Vercel's configured build; cloud database changes require their separately approved migration workflow.
 
-Fourteen ordered migrations live in [`supabase/migrations/`](./supabase/migrations). Local, staging, and production application status must be verified independently before any database deployment:
-
-1. Central schema (10 tables, FKs, base indexes)
-2. Org-level RLS + profile immutability trigger
-3. Call-duration analytics indexes
-4. Realtime publication
-5. Bulk-assignment audits
-6. Agent lead isolation + lead immutability trigger
-7. Call-record extended fields, child-delete policy, and purge controls
-8–14. Server ordering, agent-provisioning abuse controls, lead purge, operational reporting, conflict HTTP status, call-attempt identity, and child-lead RLS hardening
-
-RLS guarantees: users only ever see their own organisation's data; agents only see leads they were assigned or created; audit tables are admin-only.
-
-## Android release
-
-Run `npm run release:android:prepare` to build the web app, sync Capacitor, and verify
-the release configuration. Keep signed APK/AAB files and their hashes outside this
-repository unless a release task explicitly requires them.
-
-## Deployment
-
-- **Web:** Vercel (project `crm`, scope `amaratv-krishi`) — deploys `main` automatically.
-- **Backend:** Supabase is the backend platform. Production is protected and migrations are applied manually with explicit approval; verify the target project and migration state before every operation.
-- **Runbook:** follow the deployment commands in `package.json` and confirm the target project before every deployment.
-
-## Documentation
-
-Project guidance is intentionally kept concise and close to the code: this README,
-[`CONTRIBUTING.md`](./CONTRIBUTING.md), [`GATES.md`](./GATES.md), and the source,
-tests, and configuration files are authoritative. Historical reports and generated
-release documents are not kept in the repository.
-
-## Repository layout
+## Project layout
 
 ```text
-src/            React app (components, context, db repositories, services)
-  services/sync     SyncEngine: push, pull, queue, conflict resolver, background sync
-  services/realtime Org-filtered realtime channels
-supabase/       Migrations, seed, Edge Function (create-agent)
-android/        Capacitor Android project
-tests/          Unit/integration + real-Postgres + multi-device suites
-e2e/            Playwright specs
-scripts/        Verification & probe tooling
-public/          Static web assets
+src/                 React application, components, data, and services
+src/db/              Dexie database and repositories
+src/services/sync/   outbox, push/pull, conflict recovery, and sync state
+supabase/            18 ordered migration files, local config, and Edge Function
+android/             Capacitor Android project
+tests/               Node, Vitest, database, and service tests
+e2e/                 Playwright browser tests and Maestro flows
+scripts/              build, verification, audit, and release helpers
+docs/                 project guide and known issues
 ```
 
 ## License
 
-© 2026 Amaratv Krishi India. All rights reserved. Proprietary — see [LICENSE](./LICENSE).
-Built on open-source software; full attribution and license texts in
-[THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).
-*From Our Fields to Your Home.*
+Proprietary; see [LICENSE](./LICENSE). Third-party notices are in [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).

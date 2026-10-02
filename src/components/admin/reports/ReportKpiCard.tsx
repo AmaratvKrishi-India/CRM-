@@ -75,7 +75,7 @@ export const ReportKpiCard: React.FC<ReportKpiCardProps> = ({
 
   if (onClick) {
     return (
-      <button type="button" onClick={onClick} className={`${baseClass} active:scale-98`}>
+      <button type="button" onClick={onClick} className={`${baseClass} active:scale-[0.98]`}>
         {content}
       </button>
     );

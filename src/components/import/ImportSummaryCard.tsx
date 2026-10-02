@@ -75,7 +75,7 @@ export const ImportSummaryCard: React.FC<ImportSummaryCardProps> = ({
         <button
           type="button"
           onClick={onViewLeads}
-          className="min-h-11 w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover text-on-accent active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          className="min-h-11 w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover text-on-accent active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2"
         >
           <span>View Leads in CRM</span>
           <ArrowRight aria-hidden="true" className="w-4 h-4" />

@@ -48,7 +48,7 @@ appId: "com.amaratvkrishi.salescrm"
     id: "edit-status"
 - scrollUntilVisible:
     element: "Contacted"
-    direction: UP
+    direction: DOWN
     timeout: 30000
 - tapOn: "Contacted"
 - tapOn:

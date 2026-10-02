@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { PencilLine, CheckCircle2, Loader2 } from 'lucide-react';
 import { Modal } from '../common/Modal';
+import { AppSelect } from '../common/AppSelect';
 import { useAuth } from '../../context/AuthContext';
 import { crmData } from '../../db';
 import type { Lead, LeadStatus } from '../../db/types';
@@ -229,18 +230,14 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
           <label htmlFor="edit-status" className={labelClass}>
             Pipeline status
           </label>
-          <select
+          <AppSelect
             id="edit-status"
+            ariaLabel="Pipeline status"
             value={status}
-            onChange={(e) => setStatus(e.target.value as LeadStatus)}
-            className={`${inputClass} font-semibold`}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {labelFor(s)}
-              </option>
-            ))}
-          </select>
+            onChange={(value) => setStatus(value as LeadStatus)}
+            buttonClassName="bg-inset px-3 py-2.5 font-semibold"
+            options={STATUS_OPTIONS.map((statusOption) => ({ value: statusOption, label: labelFor(statusOption) }))}
+          />
         </div>
 
         <div>
@@ -256,7 +253,7 @@ export const EditLeadModal: React.FC<EditLeadModalProps> = ({
           />
         </div>
 
-        <div className="pt-1 flex items-center gap-2">
+        <div className="sticky bottom-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-surface border-t border-line flex items-center gap-2">
           <button
             type="button"
             onClick={onClose}

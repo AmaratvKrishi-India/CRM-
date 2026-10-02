@@ -36,6 +36,7 @@ import { LiveActivityFeed } from './LiveActivityFeed';
 import { RealtimeService } from '../../services/realtime/realtimeService';
 import type { User, LeadStatus } from '../../db/types';
 import { getDatabase } from '../../db/database';
+import { AppSelect } from '../common/AppSelect';
 
 interface AdminDashboardViewProps {
   onEnterSalesMode: () => void;
@@ -109,7 +110,7 @@ const PipelineSection: React.FC<PipelineSectionProps> = ({
               <div className="w-full h-2 bg-inset-strong rounded-full overflow-hidden">
                 <svg
                   aria-hidden="true"
-                  className="block w-full h-full transition-all duration-500"
+                  className="block w-full h-full transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-500"
                   viewBox="0 0 100 1"
                   preserveAspectRatio="none"
                 >
@@ -173,7 +174,7 @@ const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
         <button
           type="button"
           onClick={() => onNavigateToLeads()}
-          className="p-4 bg-surface border border-line hover:border-info rounded-2xl shadow-md transition-all active:scale-98 group text-left"
+          className="p-4 bg-surface border border-line hover:border-info rounded-2xl shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98] group text-left"
         >
           <div className="flex items-center justify-between text-xs text-soft mb-1">
             <span className="font-semibold uppercase tracking-wider">Total Leads</span>
@@ -192,7 +193,7 @@ const ExecutiveKpiCards: React.FC<ExecutiveKpiCardsProps> = ({
         <button
           type="button"
           onClick={onOpenCallHistory}
-          className="p-4 bg-surface border border-line hover:border-success rounded-2xl shadow-md transition-all active:scale-98 group text-left"
+          className="p-4 bg-surface border border-line hover:border-success rounded-2xl shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98] group text-left"
         >
           <div className="flex items-center justify-between text-xs text-soft mb-1">
             <span className="font-semibold uppercase tracking-wider">Total Calls</span>
@@ -333,7 +334,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <button
               type="button"
               onClick={onEnterSalesMode}
-              className="min-h-11 py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-98"
+              className="min-h-11 py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-on-accent font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98]"
             >
               <PhoneCall className="w-4 h-4" aria-hidden="true" />
               <span>Sales Mode</span>
@@ -343,7 +344,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <button
               type="button"
               onClick={() => setIsCallHistoryOpen(true)}
-              className="min-h-11 py-2.5 px-3.5 rounded-xl bg-inset hover:bg-inset-strong text-accent-text border border-accent/40 font-bold text-sm flex items-center justify-center gap-1.5 transition active:scale-98"
+              className="min-h-11 py-2.5 px-3.5 rounded-xl bg-inset hover:bg-inset-strong text-accent-text border border-accent/40 font-bold text-sm flex items-center justify-center gap-1.5 transition active:scale-[0.98]"
             >
               <Clock className="w-4 h-4" aria-hidden="true" />
               <span>Call History</span>
@@ -358,39 +359,35 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <span className="text-sm text-soft font-semibold">Filters:</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="dashboard-date-range" className="sr-only">
-              Date range
-            </label>
-            <select
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
+            <AppSelect
               id="dashboard-date-range"
+              ariaLabel="Date range"
+              label="Date range"
               value={dateRange}
-              onChange={(e) => setDateRange(e.target.value as DashboardDateRange)}
-              className="min-h-11 bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
-            >
-              <option value="ALL_TIME">All Time</option>
-              <option value="TODAY">Today</option>
-              <option value="YESTERDAY">Yesterday</option>
-              <option value="LAST_7_DAYS">Last 7 Days</option>
-              <option value="LAST_30_DAYS">Last 30 Days</option>
-            </select>
+              onChange={(value) => setDateRange(value as DashboardDateRange)}
+              className="w-full sm:min-w-44"
+              options={[
+                { value: 'ALL_TIME', label: 'All Time' },
+                { value: 'TODAY', label: 'Today' },
+                { value: 'YESTERDAY', label: 'Yesterday' },
+                { value: 'LAST_7_DAYS', label: 'Last 7 Days' },
+                { value: 'LAST_30_DAYS', label: 'Last 30 Days' },
+              ]}
+            />
 
-            <label htmlFor="dashboard-agent" className="sr-only">
-              Representative
-            </label>
-            <select
+            <AppSelect
               id="dashboard-agent"
+              ariaLabel="Representative"
+              label="Representative"
               value={selectedAgentId}
-              onChange={(e) => setSelectedAgentId(e.target.value)}
-              className="min-h-11 bg-inset border border-line rounded-xl px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
-            >
-              <option value="ALL">All Representatives</option>
-              {agentsList.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedAgentId}
+              className="w-full sm:min-w-52"
+              options={[
+                { value: 'ALL', label: 'All Representatives' },
+                ...agentsList.map((agent) => ({ value: agent.id, label: agent.name })),
+              ]}
+            />
           </div>
         </div>
       </div>

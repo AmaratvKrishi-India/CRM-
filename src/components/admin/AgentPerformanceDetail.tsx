@@ -132,7 +132,7 @@ export const AgentPerformanceDetail: React.FC<AgentPerformanceDetailProps> = ({
             <button
               type="button"
               onClick={handleCallAgent}
-              className="min-h-11 py-2.5 px-3 bg-accent hover:bg-accent-hover text-on-accent rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-98"
+              className="min-h-11 py-2.5 px-3 bg-accent hover:bg-accent-hover text-on-accent rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-[0.98]"
             >
               <Phone className="w-4 h-4" aria-hidden="true" />
               <span>Call Agent ({summary.phone || 'N/A'})</span>
@@ -144,7 +144,7 @@ export const AgentPerformanceDetail: React.FC<AgentPerformanceDetailProps> = ({
                 onClose();
                 onViewLeadsForAgent(agentId);
               }}
-              className="min-h-11 py-2.5 px-3 bg-inset hover:bg-inset-strong text-accent-text border border-accent/40 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition active:scale-98"
+              className="min-h-11 py-2.5 px-3 bg-inset hover:bg-inset-strong text-accent-text border border-accent/40 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition active:scale-[0.98]"
             >
               <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
               <span>View Assigned Leads ({assignedLeads.length})</span>

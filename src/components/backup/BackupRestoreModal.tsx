@@ -199,7 +199,7 @@ const ExportBackupPanel: React.FC<ExportBackupPanelProps> = ({
         type="button"
         onClick={onExport}
         disabled={isProcessing || loadingSummary}
-        className="min-h-11 w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        className="min-h-11 w-full py-3.5 px-4 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2 disabled:opacity-50"
       >
         {isProcessing ? (
           <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />

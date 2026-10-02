@@ -29,6 +29,7 @@ import { ImportPreviewList } from './ImportPreviewList';
 import { DuplicateConfirmModal } from './DuplicateConfirmModal';
 import { ImportSummaryCard } from './ImportSummaryCard';
 import { SyncStatusBadge } from '../sync/SyncStatusBadge';
+import { AppSelect } from '../common/AppSelect';
 
 interface ExcelImporterProps {
   onImportComplete?: () => void;
@@ -289,7 +290,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                     openFilePicker();
                   }
                 }}
-                className="border border-dashed border-accent bg-surface hover:bg-accent-soft rounded-2xl p-6 text-center cursor-pointer transition-all shadow-xs group focus:outline-none focus:ring-2 focus:ring-focus-ring"
+                className="border border-dashed border-accent bg-surface hover:bg-accent-soft rounded-2xl p-6 text-center cursor-pointer transition-[color,background-color,border-color,box-shadow,opacity,transform] shadow-xs group focus:outline-none focus:ring-2 focus:ring-focus-ring"
               >
                 <input
                   ref={fileInputRef}
@@ -340,7 +341,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                     type="button"
                     onClick={handleLoadSampleDataset}
                     disabled={loadingFile}
-                    className="min-h-11 bg-accent hover:bg-accent-hover text-on-accent px-4 rounded-xl font-bold text-sm shrink-0 self-center transition-all active:scale-95 disabled:opacity-50"
+                    className="min-h-11 bg-accent hover:bg-accent-hover text-on-accent px-4 rounded-xl font-bold text-sm shrink-0 self-center transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98] disabled:opacity-50"
                   >
                     {loadingFile ? 'Loading...' : 'Load 141 Leads'}
                   </button>
@@ -359,18 +360,15 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                   <label htmlFor="import-sheet-select" className="font-semibold text-soft shrink-0">
                     Select Sheet:
                   </label>
-                  <select
+                  <AppSelect
                     id="import-sheet-select"
+                    ariaLabel="Select sheet"
                     value={selectedSheet}
-                    onChange={(e) => handleSheetChange(e.target.value)}
-                    className="min-h-11 bg-inset rounded-xl px-3 text-sm font-medium text-ink border border-line focus:outline-none focus:ring-2 focus:ring-focus-ring"
-                  >
-                    {parseResult.sheetNames.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={handleSheetChange}
+                    className="min-w-0 flex-1"
+                    buttonClassName="min-h-11 bg-inset px-3 font-medium"
+                    options={parseResult.sheetNames.map((sheet) => ({ value: sheet, label: sheet }))}
+                  />
                 </div>
               )}
 
@@ -436,7 +434,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
                     type="button"
                     onClick={handleStartImportClick}
                     disabled={parseResult.summary.valid === 0 && parseResult.summary.duplicates === 0}
-                    className="min-h-11 flex-1 py-2 px-4 bg-accent hover:bg-accent-hover disabled:bg-inset-strong disabled:text-faint text-on-accent font-bold text-sm rounded-xl shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                    className="min-h-11 flex-1 py-2 px-4 bg-accent hover:bg-accent-hover disabled:bg-inset-strong disabled:text-faint text-on-accent font-bold text-sm rounded-xl shadow-md active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2"
                   >
                     <Check className="w-4 h-4" aria-hidden="true" />
                     <span>
@@ -473,7 +471,7 @@ export const ExcelImporter: React.FC<ExcelImporterProps> = ({
               >
                 <svg
                   aria-hidden="true"
-                  className="block w-full h-full transition-all duration-150"
+                  className="block w-full h-full transition-[color,background-color,border-color,box-shadow,opacity,transform] duration-150"
                   viewBox="0 0 100 1"
                   preserveAspectRatio="none"
                 >

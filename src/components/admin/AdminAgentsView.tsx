@@ -102,7 +102,7 @@ export const AdminAgentsView: React.FC = () => {
           type="button"
           onClick={() => setStatusFilter('ALL')}
           aria-pressed={statusFilter === 'ALL'}
-          className={`p-3 rounded-xl border text-center transition-all ${
+          className={`p-3 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
             statusFilter === 'ALL'
               ? 'bg-accent-soft border-accent text-accent-text'
               : 'bg-surface border-line hover:border-line-strong'
@@ -116,7 +116,7 @@ export const AdminAgentsView: React.FC = () => {
           type="button"
           onClick={() => setStatusFilter('ACTIVE')}
           aria-pressed={statusFilter === 'ACTIVE'}
-          className={`p-3 rounded-xl border text-center transition-all ${
+          className={`p-3 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
             statusFilter === 'ACTIVE'
               ? 'bg-success-soft border-success shadow-sm'
               : 'bg-surface border-line hover:border-line-strong'
@@ -130,7 +130,7 @@ export const AdminAgentsView: React.FC = () => {
           type="button"
           onClick={() => setStatusFilter('INACTIVE')}
           aria-pressed={statusFilter === 'INACTIVE'}
-          className={`p-3 rounded-xl border text-center transition-all ${
+          className={`p-3 rounded-xl border text-center transition-[color,background-color,border-color,box-shadow,opacity,transform] ${
             statusFilter === 'INACTIVE'
               ? 'bg-danger-soft border-danger shadow-sm'
               : 'bg-surface border-line hover:border-line-strong'
@@ -156,7 +156,7 @@ export const AdminAgentsView: React.FC = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name, email or phone..."
-            className="w-full min-h-11 bg-inset border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-all"
+            className="w-full min-h-11 bg-inset border border-line rounded-xl pl-10 pr-3.5 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-focus-ring transition-[color,background-color,border-color,box-shadow,opacity,transform]"
           />
         </div>
       </div>

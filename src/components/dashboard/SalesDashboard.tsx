@@ -132,7 +132,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   // F4 — visible error state with retry instead of a blank screen.
   if (loadError && !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col pb-safe-nav ui-screen">
+      <div className="min-h-dvh bg-app flex flex-col pb-safe-nav ui-screen">
         <div className="ui-topbar px-4 py-4 sticky top-0 z-30">
           <div className="ui-screen flex items-center gap-2">
             <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
@@ -162,7 +162,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col pb-safe-nav ui-screen">
+      <div className="min-h-dvh bg-app flex flex-col pb-safe-nav ui-screen">
         <div className="ui-topbar px-4 py-4 sticky top-0 z-30">
           <div className="ui-screen flex items-center gap-2">
             <img src="/logo.png" alt="Amaratv Krishi Logo" className="w-7 h-7 object-contain bg-white rounded-lg p-0.5" />
@@ -178,7 +178,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const { metrics, todayFollowUps, pipeline, localities, recentActivities } = data;
 
   return (
-    <div className="min-h-screen bg-app flex flex-col pb-safe-nav ui-screen">
+    <div className="min-h-dvh bg-app flex flex-col pb-safe-nav ui-screen">
       {/* Top Brand Header */}
       <div className="ui-topbar px-4 py-3 sticky top-0 z-30">
         <div className="ui-screen flex flex-wrap items-center justify-between gap-2">
@@ -236,7 +236,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             {/* Total Leads */}
             <div className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-surface p-3 rounded-2xl border border-line shadow-xs`}>
               <div className="flex items-center justify-between text-faint mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Total Leads</span>
+                <span className="text-xs font-semibold tracking-tight">Total Leads</span>
                 <Users className="hidden sm:block w-3.5 h-3.5 text-info" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.totalLeads}</span>
@@ -245,7 +245,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             {/* Calls Today */}
             <div className="bg-surface p-3 rounded-2xl border border-line shadow-xs">
               <div className="flex items-center justify-between text-faint mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Calls Today</span>
+                <span className="text-xs font-semibold tracking-tight">Calls Today</span>
                 <PhoneCall className="hidden sm:block w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.callsToday}</span>
@@ -254,7 +254,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             {/* WhatsApp Today */}
             <div className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-surface p-3 rounded-2xl border border-line shadow-xs`}>
               <div className="flex items-center justify-between text-faint mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">WA Pitches</span>
+                <span className="text-xs font-semibold tracking-tight">WA Pitches</span>
                 <MessageSquare className="hidden sm:block w-3.5 h-3.5 text-accent-text" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.whatsAppToday}</span>
@@ -267,7 +267,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               className="bg-success-soft hover:bg-success/20 p-3 rounded-2xl border border-success/30 shadow-xs transition-colors text-left"
             >
               <div className="flex items-center justify-between text-success-text mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Interested</span>
+                <span className="text-xs font-semibold tracking-tight">Interested</span>
                 <TrendingUp className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-success-text">{metrics.interested}</span>
@@ -280,7 +280,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               className={`${showSecondaryMetricsMobile ? '' : 'hidden sm:block'} bg-warning-soft hover:bg-warning/20 p-3 rounded-2xl border border-warning/30 shadow-xs transition-colors text-left`}
             >
               <div className="flex items-center justify-between text-warning-text mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Samples</span>
+                <span className="text-xs font-semibold tracking-tight">Samples</span>
                 <Package className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-warning-text">{metrics.samplesRequested}</span>
@@ -293,7 +293,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               className="bg-success hover:opacity-90 p-3 rounded-2xl border border-success text-on-accent shadow-xs transition-colors text-left"
             >
               <div className="flex items-center justify-between text-on-accent mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Customers</span>
+                <span className="text-xs font-semibold tracking-tight">Customers</span>
                 <Award className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-on-accent">{metrics.customers}</span>
@@ -306,7 +306,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               className="bg-surface p-3 rounded-2xl border border-line shadow-xs hover:border-line-strong transition-colors text-left"
             >
               <div className="flex items-center justify-between text-faint mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Due Today</span>
+                <span className="text-xs font-semibold tracking-tight">Due Today</span>
                 <Calendar className="hidden sm:block w-3.5 h-3.5 text-info" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.followUpsToday}</span>
@@ -319,7 +319,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               className="bg-danger-soft hover:bg-danger/20 p-3 rounded-2xl border border-danger/30 shadow-xs transition-colors text-left"
             >
               <div className="flex items-center justify-between text-danger-text mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Overdue</span>
+                <span className="text-xs font-semibold tracking-tight">Overdue</span>
                 <AlertTriangle className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-danger-text">{metrics.overdueFollowUps}</span>
@@ -332,7 +332,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               className="bg-surface p-3 rounded-2xl border border-line shadow-xs hover:border-line-strong transition-colors text-left"
             >
               <div className="flex items-center justify-between text-faint mb-1">
-                <span className="text-xs font-bold uppercase tracking-tight">Uncontacted</span>
+                <span className="text-xs font-semibold tracking-tight">Uncontacted</span>
                 <Users className="hidden sm:block w-3.5 h-3.5" aria-hidden="true" />
               </div>
               <span className="text-xl font-black text-ink">{metrics.notContacted}</span>
@@ -465,7 +465,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 key={stage.status}
                 type="button"
                 onClick={() => onOpenLeadsWithStatus(stage.status)}
-                className={`${index >= 4 && !showFullPipelineMobile ? 'hidden sm:flex' : 'flex'} bg-surface hover:bg-inset p-3 min-h-11 rounded-2xl border border-line shadow-xs transition-all items-center justify-between group text-left`}
+                className={`${index >= 4 && !showFullPipelineMobile ? 'hidden sm:flex' : 'flex'} bg-surface hover:bg-inset p-3 min-h-11 rounded-2xl border border-line shadow-xs transition-[color,background-color,border-color,box-shadow,opacity,transform] items-center justify-between group text-left`}
               >
                 <div>
                   <span className="text-xs font-bold text-soft block truncate group-hover:text-accent-text">

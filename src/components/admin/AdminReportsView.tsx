@@ -38,6 +38,7 @@ import {
 } from '../../services/adminReportsService';
 import { ReportKpiCard } from './reports/ReportKpiCard';
 import { ReportFilterBar } from './reports/ReportFilterBar';
+import { AppSelect } from '../common/AppSelect';
 import { RealtimeService } from '../../services/realtime/realtimeService';
 import type { User } from '../../db/types';
 import { getDatabase } from '../../db/database';
@@ -372,14 +373,13 @@ export const AdminReportsView: React.FC = () => {
       {/* Report Category Navigation Tabs */}
       <div className="sm:hidden">
         <label htmlFor="report-category" className="block text-sm font-semibold text-soft mb-1.5">Report category</label>
-        <select
+        <AppSelect
           id="report-category"
+          ariaLabel="Report category"
           value={activeTab}
-          onChange={(event) => setActiveTab(event.target.value as ReportTab)}
-          className="w-full min-h-11 px-3 rounded-xl bg-inset border border-line text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-focus-ring"
-        >
-          {TAB_ORDER.map((tabId) => <option key={tabId} value={tabId}>{TAB_META[tabId].label}</option>)}
-        </select>
+          onChange={(value) => setActiveTab(value as ReportTab)}
+          options={TAB_ORDER.map((tabId) => ({ value: tabId, label: TAB_META[tabId].label }))}
+        />
       </div>
       <div
         role="tablist"
@@ -403,7 +403,7 @@ export const AdminReportsView: React.FC = () => {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tabId)}
               onKeyDown={(e) => handleTabKeyDown(e, tabId)}
-              className={`min-h-11 py-2 px-3 rounded-xl font-bold text-sm flex items-center gap-1.5 whitespace-nowrap transition-all active:scale-95 ${
+              className={`min-h-11 py-2 px-3 rounded-xl font-bold text-sm flex items-center gap-1.5 whitespace-nowrap transition-[color,background-color,border-color,box-shadow,opacity,transform] active:scale-[0.98] ${
                 isActive
                   ? 'bg-accent text-on-accent shadow-md'
                   : 'bg-surface border border-line text-soft hover:text-ink hover:bg-inset'

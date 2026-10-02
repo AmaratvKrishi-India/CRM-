@@ -255,7 +255,7 @@ const LeadProfileCard: React.FC<LeadProfileCardProps> = ({
             onClick={() => onCallLead(lead)}
             disabled={!isCallable}
             id="call-button"
-            className="min-h-12 py-3 px-3 rounded-xl bg-ink hover:opacity-90 disabled:opacity-40 text-app font-bold text-sm shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+            className="min-h-12 py-3 px-3 rounded-xl bg-ink hover:opacity-90 disabled:opacity-40 text-app font-bold text-sm shadow-md active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2"
           >
             <PhoneCall className="w-4 h-4 text-success" aria-hidden="true" />
             <span>Call</span>
@@ -264,7 +264,7 @@ const LeadProfileCard: React.FC<LeadProfileCardProps> = ({
             <button
               type="button"
               onClick={() => onOpenWhatsApp(lead)}
-              className="min-h-12 py-3 px-3 rounded-xl bg-accent hover:bg-accent-hover active:scale-[0.99] text-on-accent font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+              className="min-h-12 py-3 px-3 rounded-xl bg-accent hover:bg-accent-hover active:scale-[0.98] text-on-accent font-bold text-sm shadow-md transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center justify-center gap-2"
             >
               <MessageSquare className="w-4 h-4" aria-hidden="true" />
               <span>WhatsApp</span>
@@ -694,7 +694,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
 
   if (loading) {
     return (
-      <div id="lead-detail" className="min-h-screen bg-app flex flex-col pb-20">
+      <div id="lead-detail" className="min-h-dvh bg-app flex flex-col pb-20">
         <div className="ui-topbar px-4 py-2.5 sticky top-0 z-30">
           <div className="max-w-2xl mx-auto">
             <button
@@ -728,7 +728,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-app flex flex-col items-center justify-center p-4">
+      <div className="min-h-dvh bg-app flex flex-col items-center justify-center p-4">
         <div className="bg-surface rounded-2xl border border-line p-6 max-w-sm w-full text-center space-y-4 shadow-sm" role="alert">
           <AlertCircle className="w-10 h-10 text-danger mx-auto" aria-hidden="true" />
           <h3 className="text-base font-bold text-ink">Lead profile error</h3>
@@ -748,7 +748,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
   const { lead, callHistory, remarks, messageHistory, followUps } = data;
 
   return (
-    <div id="lead-detail" className="min-h-screen bg-app flex flex-col pb-20">
+    <div id="lead-detail" className="min-h-dvh bg-app flex flex-col pb-20">
       {/* Sticky Header Bar */}
       <div className="bg-surface text-ink px-4 py-3 sticky top-0 z-30 shadow-md border-b border-line">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">

@@ -7,7 +7,17 @@ $url = $vars['VITE_SUPABASE_URL']
 $anon = $vars['VITE_SUPABASE_ANON_KEY']
 $headers = @{ 'apikey' = $anon; 'Authorization' = "Bearer $anon" }
 
-try { $r = Invoke-WebRequest -Uri 'https://crm-blush-omega.vercel.app' -UseBasicParsing -TimeoutSec 30; Write-Output ("VERCEL_WEB = " + $r.StatusCode) } catch { Write-Output ("VERCEL_WEB = ERROR " + $_.Exception.Message) }
+$webUrl = $env:CRM_WEB_URL
+if ([string]::IsNullOrWhiteSpace($webUrl)) {
+    Write-Output 'WEB = SKIPPED (set CRM_WEB_URL to the current deployment URL)'
+} else {
+    $webUri = $null
+    if ([Uri]::TryCreate($webUrl.Trim(), [UriKind]::Absolute, [ref]$webUri) -and $webUri.Scheme -in @('http', 'https')) {
+        try { $r = Invoke-WebRequest -Uri $webUri -UseBasicParsing -TimeoutSec 30; Write-Output ("WEB = " + $r.StatusCode) } catch { Write-Output ("WEB = ERROR " + $_.Exception.Message) }
+    } else {
+        Write-Output 'WEB = ERROR (CRM_WEB_URL must be an absolute HTTP or HTTPS URL)'
+    }
+}
 
 try { $r = Invoke-WebRequest -Uri "$url/rest/v1/leads?select=id&limit=1" -Headers $headers -UseBasicParsing -TimeoutSec 30; Write-Output ("REST_LEADS = " + $r.StatusCode) } catch { Write-Output ("REST_LEADS = ERROR " + $_.Exception.Message) }
 

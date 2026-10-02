@@ -140,7 +140,7 @@ export const ConfirmStatusModal: React.FC<ConfirmStatusModalProps> = ({
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className={`min-h-11 py-2.5 px-5 rounded-xl text-on-accent text-sm font-bold shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 ${
+            className={`min-h-11 py-2.5 px-5 rounded-xl text-on-accent text-sm font-bold shadow-lg transition-[color,background-color,border-color,box-shadow,opacity,transform] flex items-center gap-2 disabled:opacity-50 ${
               isDeactivating ? 'bg-danger hover:opacity-90' : 'bg-accent hover:bg-accent-hover'
             }`}
           >

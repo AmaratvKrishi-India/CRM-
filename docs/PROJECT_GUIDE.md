@@ -28,7 +28,7 @@ The canonical checkout is `C:\Users\PC\Desktop\calling app - Copy`, connected to
 
 ## Prerequisites and local setup
 
-The current package lock was used with Node 26.5.0 and npm 12.0.2. `package.json` does not set an `engines` range. The current GitHub clean-install job reports that the lockfile is out of sync with the manifest; see [Known issues](./KNOWN_ISSUES.md) before relying on `npm ci` in a fresh checkout.
+GitHub CI and Vercel use Node 24. `package.json` does not set an `engines` range. This desktop checkout uses Node 26.5.0 and npm 12.0.2; a clean `npm ci --allow-remote=all` passed here. npm 12 blocked 15 package lifecycle scripts pending local approval, while the updated Node 24 CI run is pending. See [Known issues](./KNOWN_ISSUES.md) for the remaining dependency-audit finding.
 
 For the app without a local backend, configure the ignored `.env.local` file for the intended Supabase environment. For local backend development, Docker Desktop must be running:
 
@@ -40,6 +40,8 @@ npx supabase start
 npx supabase migration up --local
 npm run dev
 ```
+
+On this desktop's npm 12 installation, use `npm ci --allow-remote=all` because its local remote-fetch policy otherwise blocks registry packages. Do not add that setting to the project configuration; the GitHub and Vercel Node 24 environments use the normal `npm ci` command.
 
 The local API is configured on `127.0.0.1:15432`; the database is on port 15433. Local Studio is configured on port 15435. Do not run `supabase db reset` on a stack that contains data you need; it destroys local database contents.
 

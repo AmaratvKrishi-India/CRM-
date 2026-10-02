@@ -31,9 +31,9 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 
 ## Quick start
 
-Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. The available checkout was verified with Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
+Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. GitHub CI and Vercel use Node 24. This desktop checkout currently has Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
 
-**Fresh-install status:** the committed lockfile is currently out of sync with `package.json`, so `npm ci` fails in GitHub CI. The commands below show the intended setup once the lockfile is repaired; see [Known issues](./docs/KNOWN_ISSUES.md) for the current blocker.
+**Fresh-install status:** the lockfile matches the manifest. A clean install passed here with `npm ci --allow-remote=all`; npm 12 blocked 15 lifecycle scripts because this local npm version requires package approval. The updated GitHub CI run is pending. See [Known issues](./docs/KNOWN_ISSUES.md) for the dependency-audit blocker.
 
 ```powershell
 npm ci
@@ -58,7 +58,7 @@ npm run test:e2e:chromium
 npm run build
 ```
 
-The Node suite and Vitest integration tests need the local Docker-backed Supabase stack. The Chromium suite starts a strict local Vite server and uses test auth mocks. Read [GATES.md](./GATES.md) for exact results and limitations before using historical or partial evidence as a release decision.
+The Node suite and Vitest integration tests need the local Docker-backed Supabase stack. The Chromium suite starts a strict local Vite server and uses test auth mocks; backend-only cases may skip. Read [GATES.md](./GATES.md) for exact results and limitations before using historical or partial evidence as a release decision.
 
 ## Builds and release
 

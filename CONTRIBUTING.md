@@ -1,8 +1,10 @@
 # Contributing
 
-This checkout was verified with Node 26.5.0 and npm 12.0.2; `package.json` does not
-declare an engine range. Use the committed package lock. Run `npm ci` in a fresh
-checkout, then `npm run dev` for the web app. Copy environment templates only into
+GitHub CI and Vercel use Node 24. This desktop checkout has Node 26.5.0 and npm
+12.0.2; `package.json` does not declare an engine range. Use the committed package
+lock. Run `npm ci` in a fresh checkout, then `npm run dev` for the web app. On this
+desktop's npm 12 installation, use `npm ci --allow-remote=all`; do not add a project
+`.npmrc` override. Copy environment templates only into
 ignored local files. Never commit passwords, session tokens, service-role keys or
 customer exports.
 Start with [README](README.md), then check [GATES.md](GATES.md) for the current

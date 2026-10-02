@@ -27,10 +27,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -49,6 +49,9 @@ jobs:
 
       - name: Unit tests
         run: npm test -- --runInBand
+
+      - name: Child-lead RLS and sync mutation regression
+        run: npm run test:vitest -- tests/integration/f047-child-lead-rls.test.ts --reporter dot
 
       - name: Dependency security gate
         run: npm audit --audit-level=high
@@ -71,6 +74,12 @@ jobs:
       - name: Browser tests
         run: npm run test:e2e:chromium
 
+      - name: Tablet responsive browser test
+        run: npx playwright test e2e/tablet-responsive.spec.ts --project=Tablet
+
+      - name: Local Supabase browser tests (CRUD and multi-client)
+        run: npm run test:e2e:real
+
   android-toolchain:
     name: Android build validation
     environment: Production
@@ -79,16 +88,16 @@ jobs:
     needs: web-quality
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}

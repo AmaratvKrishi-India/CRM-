@@ -48,9 +48,10 @@ test.describe('Dedicated Tablet Release Gate', () => {
     await expect(page.getByRole('button', { name: /Log call outcome & add remark/i })).toBeVisible();
     await page.getByRole('button', { name: /Log call outcome & add remark/i }).click();
     await page.locator('#custom-note').fill('Tablet release-gate note');
-    await page.locator('#pipeline-status').selectOption('INTERESTED');
+    await page.getByRole('combobox', { name: 'Lead pipeline status' }).click();
+    await page.getByRole('option', { name: 'Interested', exact: true }).click();
     await expect(page.locator('#custom-note')).toHaveValue('Tablet release-gate note');
-    await expect(page.locator('#pipeline-status')).toHaveValue('INTERESTED');
+    await expect(page.getByRole('combobox', { name: 'Lead pipeline status' })).toContainText('Interested');
     await page.getByRole('button', { name: /Skip \/ do not record/i }).click();
 
     await page.getByRole('button', { name: /Schedule follow-up/i }).first().click();

@@ -33,7 +33,7 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 
 Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. GitHub CI and Vercel use Node 24. This desktop checkout currently has Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
 
-**Fresh-install status:** the lockfile matches the manifest. A clean install passed here with `npm ci --allow-remote=all` and in the Node 24 GitHub run. Local npm 12 blocked 15 lifecycle scripts because this npm version requires package approval. The full GitHub run stops later at the dependency-audit gate; see [Known issues](./docs/KNOWN_ISSUES.md).
+**Fresh-install and audit status:** the lockfile matches the manifest. GitHub CI passed `npm ci` and the high-severity audit gate on the merged revision. Local npm 12 installed the lockfile but withheld 15 lifecycle scripts pending its package-approval mechanism; use the repository-supported Node 24 CI environment for a clean-install result. See [Known issues](./docs/KNOWN_ISSUES.md) for the exact local limitation and current warnings.
 
 ```powershell
 npm ci
@@ -55,10 +55,11 @@ npm run lint
 npm test -- --runInBand
 npm run test:vitest
 npm run test:e2e:chromium
+npm run test:e2e:real
 npm run build
 ```
 
-The Node suite and Vitest integration tests need the local Docker-backed Supabase stack. The Chromium suite starts a strict local Vite server and uses test auth mocks; backend-only cases may skip. Read [GATES.md](./GATES.md) for exact results and limitations before using historical or partial evidence as a release decision.
+The Node suite and Vitest integration tests need the local Docker-backed Supabase stack. The Chromium suite starts a strict local Vite server and uses test auth mocks. `npm run test:e2e:real` runs the local-Supabase CRUD and multi-client browser cases; its endpoint guard refuses non-loopback database targets. The CI workflow schedules both suites separately. Read [GATES.md](./GATES.md) for exact results and limitations before using historical or partial evidence as a release decision.
 
 ## Builds and release
 
@@ -74,7 +75,7 @@ The Node suite and Vitest integration tests need the local Docker-backed Supabas
 src/                 React application, components, data, and services
 src/db/              Dexie database and repositories
 src/services/sync/   outbox, push/pull, conflict recovery, and sync state
-supabase/            18 ordered migration files, local config, and Edge Function
+supabase/            19 ordered migration files, local config, and Edge Function
 android/             Capacitor Android project
 tests/               Node, Vitest, database, and service tests
 e2e/                 Playwright browser tests and Maestro flows

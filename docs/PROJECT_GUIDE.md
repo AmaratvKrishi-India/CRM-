@@ -28,7 +28,7 @@ The canonical checkout is `C:\Users\PC\Desktop\calling app - Copy`, connected to
 
 ## Prerequisites and local setup
 
-GitHub CI and Vercel use Node 24. `package.json` does not set an `engines` range. This desktop checkout uses Node 26.5.0 and npm 12.0.2; a clean `npm ci --allow-remote=all` passed here. npm 12 blocked 15 package lifecycle scripts pending local approval, while the updated Node 24 CI run is pending. See [Known issues](./KNOWN_ISSUES.md) for the remaining dependency-audit finding.
+GitHub CI and Vercel use Node 24. `package.json` does not set an `engines` range. This desktop checkout uses Node 26.5.0 and npm 12.0.2; a clean `npm ci --allow-remote=all` passed here. npm 12 blocked 15 package lifecycle scripts pending local approval. GitHub's Node 24.21.0/npm 11.19.0 clean install passed on run [37051425163](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37051425163), but its dependency-audit step failed. See [Known issues](./KNOWN_ISSUES.md).
 
 For the app without a local backend, configure the ignored `.env.local` file for the intended Supabase environment. For local backend development, Docker Desktop must be running:
 

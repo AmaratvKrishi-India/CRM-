@@ -33,7 +33,7 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 
 Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. GitHub CI and Vercel use Node 24. This desktop checkout currently has Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
 
-**Fresh-install status:** the lockfile matches the manifest. A clean install passed here with `npm ci --allow-remote=all`; npm 12 blocked 15 lifecycle scripts because this local npm version requires package approval. The updated GitHub CI run is pending. See [Known issues](./docs/KNOWN_ISSUES.md) for the dependency-audit blocker.
+**Fresh-install status:** the lockfile matches the manifest. A clean install passed here with `npm ci --allow-remote=all` and in the Node 24 GitHub run. Local npm 12 blocked 15 lifecycle scripts because this npm version requires package approval. The full GitHub run stops later at the dependency-audit gate; see [Known issues](./docs/KNOWN_ISSUES.md).
 
 ```powershell
 npm ci

@@ -8,7 +8,7 @@ Reviewed 2026-10-03.
 
 - Preserve the main checkout at C:\Users\PC\Desktop\calling app - Copy and C:\Users\PC\Desktop\keys. Read-only checks confirmed both remain.
 - No 2FA setting was changed. Sign-in and account checks used password only.
-- The user confirmed manual cleanup. Read-only checks on 2026-10-03 found all 15 external and 20 internal cleanup targets absent. The protected project, signing files, `.lostpixel/.gitignore`, and `html.meta.json.gz` remain.
+- The user confirmed manual cleanup. Read-only checks on 2026-10-03 found all 15 external and 20 internal cleanup targets absent. The protected project, signing files, and `.lostpixel/.gitignore` remain. The generated, Git-ignored `html.meta.json.gz` had no code references and has since been removed from the repository.
 - Only the main checkout is registered as a Git worktree; `C:\Users\PC\Desktop\AUDIT` is absent and has no registered worktree.
 
 ## Verification record

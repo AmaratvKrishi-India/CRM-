@@ -197,6 +197,9 @@
   .slide-in-from-bottom { --ui-enter-transform: translateY(16px); }
   .pb-safe-tabbar { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
   .pb-safe-nav { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+  .native-platform .ui-topbar {
+    padding-top: calc(max(var(--safe-area-inset-top, env(safe-area-inset-top, 3.25rem)), 3.25rem) + 0.625rem);
+  }
 }
 
 /* F11 / accessibility — respect users who prefer reduced motion */

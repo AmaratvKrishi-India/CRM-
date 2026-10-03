@@ -4,21 +4,22 @@ import { readFileSync } from 'node:fs';
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
-test('current lead edit flow targets the named lead instead of a volatile list index', () => {
+test('current lead edit flow updates the designated test lead instead of a volatile list index', () => {
   const flow = read('e2e/maestro/current/leads/edit.yaml');
   assert.doesNotMatch(flow, /id:\s*"lead-item-0"/);
-  assert.match(flow, /tapOn:\s*\n\s*text:\s*"\.\*Gold Gym Hazratganj\.\*"/);
+  assert.match(flow, /Maestro Smoke Gym/);
+  assert.match(flow, /id:\s*"edit-phone"/);
+  assert.match(flow, /eraseText:\s*30\s*\n-\s*inputText:\s*"9000000001"/);
+  assert.match(flow, /assertVisible:\s*"\.\*9000000001\.\*"/);
 });
 
-test('lead edit flows reveal Contacted by scrolling toward the preceding native select option', () => {
-  for (const path of ['e2e/maestro/current/leads/edit.yaml', 'e2e/maestro/leads/edit.yaml']) {
-    const flow = read(path);
-    assert.match(
-      flow,
-      /scrollUntilVisible:\s*\n\s*element:\s*"Contacted"\s*\n\s*direction:\s*DOWN/,
-      path
-    );
-  }
+test('legacy lead edit flow reveals Contacted by scrolling toward the preceding native select option', () => {
+  const flow = read('e2e/maestro/leads/edit.yaml');
+  assert.match(
+    flow,
+    /scrollUntilVisible:\s*\n\s*element:\s*"Contacted"\s*\n\s*direction:\s*DOWN/,
+    'e2e/maestro/leads/edit.yaml'
+  );
 });
 
 test('offline conflict flow targets its uniquely named lead instead of volatile list indices', () => {

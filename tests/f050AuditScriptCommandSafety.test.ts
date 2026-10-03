@@ -24,6 +24,17 @@ describe('F050: audit CLI command safety', () => {
     assert.match(verifySource, /AUTOMATED_VERIFICATION_GATES\.md/);
     assert.doesNotMatch(verifySource, /const gatesFile = path\.join\(rootDir, 'GATES\.md'\)/);
   });
+
+  it('confines lockfile-derived license inventory probes to node_modules', () => {
+    const licenseSource = fs.readFileSync(path.resolve(here, '../scripts/generate-third-party-licenses.mjs'), 'utf8');
+
+    assert.match(licenseSource, /const packageRoot = path\.resolve\(root, 'node_modules'\)/);
+    assert.match(licenseSource, /const packagePath = path\.resolve\(root, location\)/);
+    assert.match(licenseSource, /path\.relative\(packageRoot, packagePath\)/);
+    assert.match(licenseSource, /relative\.startsWith\(`\.\.\$\{path\.sep\}`\)/);
+    assert.match(licenseSource, /path\.isAbsolute\(relative\)/);
+  });
+
   it('does not interpolate ADB paths or serials through a shell', () => {
     const verifySource = fs.readFileSync(path.resolve(here, '../scripts/verify.ts'), 'utf8');
     const multiDeviceSource = fs.readFileSync(path.resolve(here, './multiDeviceSync.test.ts'), 'utf8');

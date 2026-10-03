@@ -278,6 +278,7 @@ function validateLocalOnlyEnvironment(flows: string[]): void {
   const requiresAdmin = normalized.some(flow =>
     flow.includes('/admin/') ||
     flow.endsWith('/auth/logout.yaml') ||
+    flow.endsWith('/auth/admin-logout.yaml') ||
     flow.endsWith('/leads/assign.yaml')
   );
   const requiresProvisionedAgent = normalized.some(flow => flow.endsWith('/admin/agents.yaml'));
@@ -403,16 +404,17 @@ function stopCreateAgentServer(child: ChildProcess | null): void {
 function maestroArguments(device: string, outputDir: string, flowPath: string): string[] {
   const executable = process.env.MAESTRO_BIN || (process.platform === 'win32' ? 'C:\\maestro\\bin\\maestro.bat' : 'maestro');
   const args = [
-    'test', flowPath, '--config', process.env.MAESTRO_CONFIG || 'maestro.config.yaml',
+    'test', '--config', process.env.MAESTRO_CONFIG || 'maestro.config.yaml',
     '--device', device, '--no-ansi', '--test-output-dir', outputDir,
   ];
-  if (process.env.MAESTRO_AGENT_EMAIL) args.push(`-e=MAESTRO_AGENT_EMAIL=${process.env.MAESTRO_AGENT_EMAIL}`);
-  if (process.env.MAESTRO_AGENT_PASSWORD) args.push(`-e=MAESTRO_AGENT_PASSWORD=${process.env.MAESTRO_AGENT_PASSWORD}`);
-  if (process.env.MAESTRO_ADMIN_EMAIL) args.push(`-e=MAESTRO_ADMIN_EMAIL=${process.env.MAESTRO_ADMIN_EMAIL}`);
-  if (process.env.MAESTRO_ADMIN_PASSWORD) args.push(`-e=MAESTRO_ADMIN_PASSWORD=${process.env.MAESTRO_ADMIN_PASSWORD}`);
-  if (process.env.MAESTRO_PROVISIONED_AGENT_EMAIL) args.push(`-e=MAESTRO_PROVISIONED_AGENT_EMAIL=${process.env.MAESTRO_PROVISIONED_AGENT_EMAIL}`);
-  if (process.env.MAESTRO_PROVISIONED_AGENT_PASSWORD) args.push(`-e=MAESTRO_PROVISIONED_AGENT_PASSWORD=${process.env.MAESTRO_PROVISIONED_AGENT_PASSWORD}`);
-  if (process.env.MAESTRO_RUN_TAG) args.push(`-e=MAESTRO_RUN_TAG=${process.env.MAESTRO_RUN_TAG}`);
+  if (process.env.MAESTRO_AGENT_EMAIL) args.push('-e', `MAESTRO_AGENT_EMAIL=${process.env.MAESTRO_AGENT_EMAIL}`);
+  if (process.env.MAESTRO_AGENT_PASSWORD) args.push('-e', `MAESTRO_AGENT_PASSWORD=${process.env.MAESTRO_AGENT_PASSWORD}`);
+  if (process.env.MAESTRO_ADMIN_EMAIL) args.push('-e', `MAESTRO_ADMIN_EMAIL=${process.env.MAESTRO_ADMIN_EMAIL}`);
+  if (process.env.MAESTRO_ADMIN_PASSWORD) args.push('-e', `MAESTRO_ADMIN_PASSWORD=${process.env.MAESTRO_ADMIN_PASSWORD}`);
+  if (process.env.MAESTRO_PROVISIONED_AGENT_EMAIL) args.push('-e', `MAESTRO_PROVISIONED_AGENT_EMAIL=${process.env.MAESTRO_PROVISIONED_AGENT_EMAIL}`);
+  if (process.env.MAESTRO_PROVISIONED_AGENT_PASSWORD) args.push('-e', `MAESTRO_PROVISIONED_AGENT_PASSWORD=${process.env.MAESTRO_PROVISIONED_AGENT_PASSWORD}`);
+  if (process.env.MAESTRO_RUN_TAG) args.push('-e', `MAESTRO_RUN_TAG=${process.env.MAESTRO_RUN_TAG}`);
+  args.push(flowPath);
 
   if (process.platform === 'win32') {
     const invocation = process.env.MAESTRO_BIN ? `call "${executable}"` : 'maestro';

@@ -365,7 +365,8 @@ test.describe('CRM real browser to Supabase state transitions', () => {
     await expect(page.getByText(updatedBusinessName, { exact: true })).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'New', exact: true }).click();
     await expect(page.getByText(updatedBusinessName, { exact: true })).toBeVisible({ timeout: 15_000 });
-    await page.locator('#leads-locality').selectOption('Gomti Nagar');
+    await page.getByRole('combobox', { name: 'Area' }).click();
+    await page.getByRole('option', { name: 'Gomti Nagar', exact: true }).click();
     await expect(page.getByText(updatedBusinessName, { exact: true })).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: new RegExp(`^${updatedBusinessName}`) }).first().click();
@@ -424,7 +425,8 @@ test.describe('CRM real browser to Supabase state transitions', () => {
     await expect(page.getByRole('alert')).toContainText('PIN code must be exactly 6 digits.');
     await page.locator('#edit-pincode').fill('226010');
     await page.locator('#edit-business-name').fill(visualUpdatedBusinessName);
-    await page.locator('#edit-status').selectOption('INTERESTED');
+    await page.getByRole('combobox', { name: 'Pipeline status' }).click();
+    await page.getByRole('option', { name: 'Interested', exact: true }).click();
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(page.getByRole('heading', { name: visualUpdatedBusinessName, exact: true })).toBeVisible({ timeout: 15_000 });
     await expect.poll(async () => {

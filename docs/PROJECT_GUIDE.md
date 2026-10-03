@@ -28,7 +28,7 @@ The canonical checkout is `C:\Users\PC\Desktop\calling app - Copy`, connected to
 
 ## Prerequisites and local setup
 
-GitHub CI and Vercel use Node 24. `package.json` does not set an `engines` range. This desktop checkout uses Node 26.5.0 and npm 12.0.2; a clean `npm ci --allow-remote=all` passed here. npm 12 blocked 15 package lifecycle scripts pending local approval. GitHub's Node 24.21.0/npm 11.19.0 clean install passed on run [37051425163](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/37051425163), but its dependency-audit step failed. See [Known issues](./KNOWN_ISSUES.md).
+GitHub CI and Vercel use Node 24. This desktop checkout uses Node 26.5.0/npm 12.0.2; npm audit reports zero vulnerabilities, but npm 12 may withhold package lifecycle scripts under its local approval policy. Hosted Node 24 CI clean install and the dependency security gate pass. See Known Issues for remaining verification limits.
 
 For the app without a local backend, configure the ignored `.env.local` file for the intended Supabase environment. For local backend development, Docker Desktop must be running:
 
@@ -90,9 +90,9 @@ Node tests that create temporary PostgreSQL databases require the local Docker c
 
 ## Database and deployment
 
-The local Supabase project configuration and migrations live under `supabase/`. The migration directory currently contains 18 SQL files; the latest child-read reassignment hardening is `20260923000017_child_read_reassignment_hardening.sql`. Production and staging both report all 18 migrations applied and RLS enabled on all 16 public tables. Live SQL inspection verified all five affected child-read policies in both projects: linked records follow current parent-lead visibility while retaining organization-admin access. The `activities` policy also allows a user to read their own unlinked activities. The deployed `create-agent` source matches local code in both projects, and both report `verify_jwt=true`; an unauthenticated staging POST returned HTTP 401. Production was not changed during the staging alignment. Keep applied migrations immutable and add a new migration for future schema or policy changes.
+The local Supabase project configuration and migrations live under supabase/. The migration directory contains 19 SQL files; migration revoke_anon_sync_mutate removes anonymous EXECUTE on public.sync_mutate while retaining authenticated and service_role access. Staging and Production both have it applied. RLS is enabled for all 16 public tables. The child-read reassignment migration remains verified in both projects. Keep applied migrations immutable and add a new migration for future schema or policy changes.
 
-Local migration application is documented in the setup section. Vercel project `crm` uses the repository root, the Vite framework, `npm run build`, and Node.js 24. Its install command and output directory are not explicitly overridden; Vercel applies package-manager and Vite defaults (`dist`). Production uses the `main` branch and the production Supabase project; Preview uses the staging Supabase project. The canonical checkout is locally linked to this Vercel project. Vercel handles deployments from its Git connection. Apply staging or production migrations only through the current approved backend workflow after confirming the target and migration state. A local build does not prove deployment success.
+Local migration application is documented in the setup section. Vercel project crm uses the repository root, Vite, npm run build, and Node 24; its install command and output directory use Vercel defaults (dist). Production uses main and Supabase project lahvcodvgubplzfshare; Preview uses staging project dhoinifpzijqyobcamlv. The hosted Auth Site URLs and redirect allowlists are recorded in GATES.md. The sync_mutate migration was applied to Staging before Production. Future database changes should use the reviewed migration workflow after confirming the target.
 
 ## Android workflow
 

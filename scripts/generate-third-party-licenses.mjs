@@ -14,8 +14,15 @@ function packageName(location) {
   return parts[0].startsWith('@') ? `${parts[0]}/${parts[1]}` : parts[0];
 }
 
+const packageRoot = path.resolve(root, 'node_modules');
+
 function installed(location) {
-  return fs.existsSync(path.join(root, ...location.split('/')));
+  const packagePath = path.resolve(root, location);
+  const relative = path.relative(packageRoot, packagePath);
+  if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    return false;
+  }
+  return fs.existsSync(packagePath);
 }
 
 function licenseLabel(value) {

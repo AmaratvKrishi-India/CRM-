@@ -750,7 +750,7 @@ export const LeadDetailView: React.FC<LeadDetailViewProps> = ({
   return (
     <div id="lead-detail" className="min-h-dvh bg-app flex flex-col pb-20">
       {/* Sticky Header Bar */}
-      <div className="bg-surface text-ink px-4 py-3 sticky top-0 z-30 shadow-md border-b border-line">
+      <div className="ui-topbar bg-surface text-ink px-4 py-3 sticky top-0 z-30 shadow-md border-b border-line">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
           <button
             type="button"

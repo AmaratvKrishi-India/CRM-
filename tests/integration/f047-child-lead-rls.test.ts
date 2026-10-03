@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { createClient } from '@supabase/supabase-js';
 import {
   cleanupLocalSupabase,
   createOtherOrganization,
@@ -131,5 +132,79 @@ describe('F047 authenticated child-record parent-lead authorization', () => {
       payload: childPayload('call_records', visibleLead.id),
     });
     expect(allowedSync.error).toBeNull();
+  }, 30_000);
+
+  it('blocks sync_mutate reassignment of an inaccessible lead and sibling-table fields', async () => {
+    const protectedLead = await createTestLead(context, {
+      created_by: context.adminProfileId,
+      assigned_to: context.adminProfileId,
+    });
+    const { data: original, error: lookupError } = await context.service
+      .from('leads')
+      .select('id, organization_id, assigned_to, sync_revision')
+      .eq('id', protectedLead.id)
+      .single();
+    expect(lookupError).toBeNull();
+    expect(original?.assigned_to).toBe(context.adminProfileId);
+
+    const deniedReassignment = await context.agent.rpc('sync_mutate', {
+      entity: 'leads',
+      operation: 'UPDATE',
+      mutation_id: crypto.randomUUID(),
+      expected_revision: original!.sync_revision,
+      payload: {
+        id: original!.id,
+        organization_id: original!.organization_id,
+        assigned_to: context.agentProfileId,
+      },
+    });
+    expect(deniedReassignment.error).toBeNull();
+    expect((deniedReassignment.data as { status?: string } | null)?.status).toBe('CONFLICT');
+
+    const siblingFieldProbe = await context.agent.rpc('sync_mutate', {
+      entity: 'leads',
+      operation: 'UPDATE',
+      mutation_id: crypto.randomUUID(),
+      expected_revision: original!.sync_revision,
+      payload: {
+        id: original!.id,
+        organization_id: original!.organization_id,
+        assigned_to: context.agentProfileId,
+        recipient_phone: '+919876543210',
+      },
+    });
+    expect(siblingFieldProbe.error).toBeTruthy();
+    expect(siblingFieldProbe.error?.message).toContain('Unknown mutation field');
+
+    const { data: after, error: afterError } = await context.service
+      .from('leads')
+      .select('assigned_to')
+      .eq('id', protectedLead.id)
+      .single();
+    expect(afterError).toBeNull();
+    expect(after?.assigned_to).toBe(context.adminProfileId);
+  }, 30_000);
+
+  it('does not grant anonymous clients EXECUTE on sync_mutate', async () => {
+    const anonymous = createClient(context.apiUrl, context.anonKey, {
+      auth: {
+        storageKey: `f047-anonymous-${crypto.randomUUID()}`,
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    });
+    const result = await anonymous.rpc('sync_mutate', {
+      entity: 'leads',
+      operation: 'CREATE',
+      mutation_id: crypto.randomUUID(),
+      expected_revision: 0,
+      payload: {
+        id: crypto.randomUUID(),
+        organization_id: context.organizationId,
+      },
+    });
+    expect(result.error?.message).toMatch(/permission denied for function sync_mutate/i);
+    await anonymous.auth.signOut();
   }, 30_000);
 });

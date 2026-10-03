@@ -1,12 +1,15 @@
 # Android device acceptance
 
-## Current APK
+## Last tested APK
+
+This debug APK was used for the recorded emulator acceptance. Its generated in-repository build output was later removed as part of manual cleanup, so the path below is no longer present. No external copy location was checked. Use a retained external copy if available; otherwise rebuild before another install.
 
 - File: C:\Users\PC\Desktop\calling app - Copy\android\app\build\outputs\apk\debug\app-debug.apk
 - SHA-256: E8599D0A9A43882B297855A3F9B93A559552A7491805262F8C233E4828DD6D04
 - Package: com.amaratvkrishi.salescrm
 - Version: 2.0.0, version code 2
 - This is a debug APK, not an externally signed release APK.
+- Rebuild the debug APK with `android\gradlew.bat -p android assembleDebug` if the recorded artifact was not retained outside the project.
 
 ## Emulator evidence
 

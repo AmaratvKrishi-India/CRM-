@@ -8,7 +8,7 @@ Reviewed 2026-10-03. **Manual cleanup is complete.** The user confirmed completi
 - `C:\Users\PC\Desktop\keys` remains. Its `CRM KEYS\amaratv-crm-production.jks` and `keystore.properties` exist; their contents were not opened during the final check.
 - The separate OneDrive signing directory and its `amaratv-release-key.jks` and `keystore.properties` remain.
 - `C:\Users\PC\Desktop\CRM-Release-Artifacts-2026-09-15` is absent. Its PEM certificate was public certificate material matching the preserved Desktop release keystore; no signing-material hold remains.
-- Inside the project, `.lostpixel/.gitignore` and `html.meta.json.gz` remain.
+- Inside the project, `.lostpixel/.gitignore` remains. The generated, Git-ignored `html.meta.json.gz` had no code references and has been removed from the repository.
 
 ## External Desktop targets checked absent
 

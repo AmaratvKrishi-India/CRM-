@@ -27,7 +27,7 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 - [Known issues and limitations](./docs/KNOWN_ISSUES.md): confirmed limits, historical findings, and evidence gaps.
 - [Acceptance gates](./GATES.md): results from the latest checkout review.
 - [Contributing](./CONTRIBUTING.md): local workflow and safety notes.
-- [Audit tool inventory](./AUDIT_TOOL_INVENTORY.md) and [audit runbook](./AUDIT_TOOL_USE_RUNBOOK.md): optional audit tooling.
+
 
 ## Quick start
 

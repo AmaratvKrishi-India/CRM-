@@ -1,6 +1,6 @@
 {
   "name": "amaratvkrishi-sales-crm",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "Amaratv Krishi Field Sales CRM — offline-first mobile CRM (React + Capacitor + Supabase)",
   "private": true,
   "scripts": {

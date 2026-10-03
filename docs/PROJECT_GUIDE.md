@@ -22,7 +22,7 @@ The client stores work locally in Dexie/IndexedDB. A mutation and its outbox ent
 - `e2e/`: Playwright browser suites, snapshots, and Maestro Android flows.
 - `scripts/`: configuration guards, verification runners, build analysis, and audit helpers.
 
-The main checked-in package version is 2.0.0. The Android application ID is `com.amaratvkrishi.salescrm`; the Gradle configuration uses version name 2.0.0, version code 2, minimum SDK 24, and target SDK 36.
+The main checked-in package version is 2.0.2. The Android application ID is `com.amaratvkrishi.salescrm`; the Gradle configuration uses version name 2.0.2, version code 3, minimum SDK 24, and target SDK 36.
 
 The canonical checkout is `C:\Users\PC\Desktop\calling app - Copy`, connected to [AmaratvKrishi-India/CRM-](https://github.com/AmaratvKrishi-India/CRM-) on `main`. Vercel project `crm` serves production at [crm-blush-omega.vercel.app](https://crm-blush-omega.vercel.app).
 
@@ -65,7 +65,7 @@ Vercel keeps Production and Preview settings separate:
 | Production | `production` | `lahvcodvgubplzfshare` |
 | Preview | `staging` | `dhoinifpzijqyobcamlv` |
 
-Both targets use app version `2.0.0`. The staging and production local environment files are ignored by Git. Do not copy their key values into documentation or source.
+Set the app version label to the version being deployed. Retained Staging deployments can remain on their earlier version. The staging and production local environment files are ignored by Git. Do not copy their key values into documentation or source.
 
 The read-only `scripts/prod_smoke.ps1` utility reads `.env.production` for Supabase URL and anon-key values, then requests one lead ID and calls `current_profile_id`. Set `CRM_WEB_URL` to the absolute HTTP(S) production URL to include a website GET; without it, that check is skipped. It does not create or change records. Current results are recorded in [GATES.md](../GATES.md).
 

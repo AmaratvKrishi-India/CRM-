@@ -1,6 +1,6 @@
 # Known issues and verification limits
 
-Reviewed 2026-10-03. The release gate is in GATES.md. Manual cleanup is not confirmed; the overall consolidation goal remains open until the user confirms it.
+Reviewed 2026-10-03. The release gate is in GATES.md. Consolidation and manual cleanup are complete. Read-only checks confirmed all 15 external and 20 internal cleanup targets absent; the protected project and signing material remain.
 
 ## Confirmed product limits
 
@@ -16,7 +16,7 @@ Reviewed 2026-10-03. The release gate is in GATES.md. Manual cleanup is not conf
 - GitHub Actions: action references were updated to checkout v7, setup-node v7, and setup-java v6 to clear the former Node 20 action-runtime/deprecation warning. Non-failing Gradle/Android SDK toolchain deprecations may still appear.
 - Production API CRUD: a unique test marker was created, updated, deleted with the authenticated sync_mutate path, and queried as absent. The cleanup result is confirmed; no customer data was included. The guarded application hard-delete/export acknowledgement UI was not exercised, so that UI path remains unverified.
 - License inventory safety: package locations from the lockfile are constrained beneath node_modules. A targeted regression test covers path traversal.
-- The current APK and device checklist are in Android Device Acceptance.
+- The last tested APK identity, checksum, emulator results, and device checklist are in Android Device Acceptance. Its generated in-repository build output was removed during manual cleanup; rebuild it before another install if no external copy was retained.
 
 ## Verification limits that remain
 

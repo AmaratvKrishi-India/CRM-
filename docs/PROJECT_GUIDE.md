@@ -15,7 +15,7 @@ The client stores work locally in Dexie/IndexedDB. A mutation and its outbox ent
 - `src/db/`: Dexie schema, account-scoped repositories, and local persistence.
 - `src/services/sync/`: durable mutation queue, push/pull, revision checks, retry classification, and retained conflicts.
 - `src/services/realtime/`: Supabase Realtime subscriptions and local reconciliation.
-- `supabase/migrations/`: 18 ordered SQL migrations for schema, RLS, sync, audit, and integrity controls.
+- `supabase/migrations/`: 19 ordered SQL migrations for schema, RLS, sync, audit, and integrity controls.
 - `supabase/functions/create-agent/`: administrator-authorized agent provisioning.
 - `android/` and `capacitor.config.ts`: Capacitor Android project and native plugins.
 - `tests/`: top-level Node tests plus Vitest service, database, utility, and integration tests.

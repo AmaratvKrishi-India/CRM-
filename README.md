@@ -2,7 +2,7 @@
 
 Offline-first sales CRM for field representatives and administrators. The web client runs in a browser and is packaged for Android with Capacitor. Local IndexedDB storage and a durable outbox support work during network loss; Supabase PostgreSQL Row Level Security remains the server authorization boundary.
 
-**Release status:** this working tree is not approved for release. See [GATES.md](./GATES.md) for checkout-specific verification and remaining release checks.
+**Release version:** 2.0.2. Signed Android artifacts and release verification are distributed through [GitHub Releases](https://github.com/AmaratvKrishi-India/CRM-/releases). See [GATES.md](./GATES.md) for acceptance evidence and remaining limitations.
 
 ## Canonical project and cloud services
 

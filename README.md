@@ -33,7 +33,7 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 
 Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. GitHub CI and Vercel use Node 24. This desktop checkout currently has Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.
 
-**Fresh-install and audit status:** the lockfile matches the manifest. GitHub CI passed `npm ci` and the high-severity audit gate on the merged revision. Local npm 12 installed the lockfile but withheld 15 lifecycle scripts pending its package-approval mechanism; use the repository-supported Node 24 CI environment for a clean-install result. See [Known issues](./docs/KNOWN_ISSUES.md) for the exact local limitation and current warnings.
+**Fresh-install and audit status:** package.json and package-lock.json are synchronized, and npm audit reports zero vulnerabilities. Hosted Node 24 CI clean install and the dependency security gate pass. Local npm 12 can block package lifecycle scripts under its approval policy. Current acceptance evidence and cleanup/device checklists are in GATES.md, docs/KNOWN_ISSUES.md, docs/ANDROID_DEVICE_ACCEPTANCE.md, and docs/CONSOLIDATION_CLEANUP.md.
 
 ```powershell
 npm ci
@@ -67,7 +67,7 @@ The Node suite and Vitest integration tests need the local Docker-backed Supabas
 - `npm run build:staging` validates staging configuration and creates a staging build.
 - `npm run release:android:prepare` builds the web app, syncs Capacitor Android assets, and verifies release asset configuration.
 - Android signing properties are supplied through `ANDROID_KEYSTORE_PROPERTIES` or the ignored `android/keystore.properties` file. Keep all signing material external to Git.
-- `vercel.json` contains web security headers. The canonical Vercel project is `crm`, with production on `main` and Preview using staging settings. Pushes to the connected GitHub branch use Vercel's configured build; cloud database changes require their separately approved migration workflow.
+The canonical Vercel project is crm, with Production on main and Preview using staging settings. The sync_mutate security migration has been applied to hosted Staging and then Production. Future database changes should use the reviewed migration workflow and confirm the target first.
 
 ## Project layout
 

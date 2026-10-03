@@ -44,8 +44,6 @@ if "%PREVIEW_READY%"=="1" (
   call :run "ZAP local baseline"
   set "COMMAND=npx --no-install autocannon -c 10 -d 30 http://127.0.0.1:4174/"
   call :run "Autocannon smoke load"
-  set "COMMAND=npx --no-install artillery quick --count 10 --num 5 http://127.0.0.1:4174/"
-  call :run "Artillery smoke load"
   set "K6_BIN=C:\ProgramData\chocolatey\bin\k6.exe"
   if not exist "!K6_BIN!" set "K6_BIN=k6"
   set "COMMAND=!K6_BIN! run --vus 10 --duration 30s -e TARGET_URL=http://127.0.0.1:4174/ --summary-export test-results\manual-audit\%RUN_ID%\k6-summary.json scripts\k6-smoke.js"

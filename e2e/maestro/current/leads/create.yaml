@@ -1,21 +1,9 @@
-# Current UI contract: agent creates a locally queued lead through the real form.
+# Current UI contract: an authenticated agent creates the designated test lead through the real form.
 appId: "com.amaratvkrishi.salescrm"
 
 ---
 - launchApp:
-    clearState: true
-
-- extendedWaitUntil:
-    visible:
-      id: "login-email"
-    timeout: 30000
-- tapOn:
-    id: "login-email"
-- inputText: ${MAESTRO_AGENT_EMAIL}
-- tapOn:
-    id: "login-password"
-- inputText: ${MAESTRO_AGENT_PASSWORD}
-- tapOn: "Sign In"
+    clearState: false
 
 - extendedWaitUntil:
     visible:
@@ -23,11 +11,8 @@ appId: "com.amaratvkrishi.salescrm"
     timeout: 30000
 - tapOn:
     id: "app-tab-LEADS"
-- extendedWaitUntil:
-    visible:
-      text: ".*Gold Gym Hazratganj.*"
-    timeout: 30000
-- tapOn: "Add Lead"
+- tapOn:
+    id: "add-lead-button"
 - extendedWaitUntil:
     visible:
       id: "create-business-name"

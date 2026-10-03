@@ -1,21 +1,9 @@
-# Current UI contract: seeded Rahul lead is searchable, openable, and returnable.
+# Current UI contract: the designated test lead created earlier in this suite is readable and returnable.
 appId: "com.amaratvkrishi.salescrm"
 
 ---
 - launchApp:
-    clearState: true
-
-- extendedWaitUntil:
-    visible:
-      id: "login-email"
-    timeout: 30000
-- tapOn:
-    id: "login-email"
-- inputText: ${MAESTRO_AGENT_EMAIL}
-- tapOn:
-    id: "login-password"
-- inputText: ${MAESTRO_AGENT_PASSWORD}
-- tapOn: "Sign In"
+    clearState: false
 
 - extendedWaitUntil:
     visible:
@@ -25,23 +13,23 @@ appId: "com.amaratvkrishi.salescrm"
     id: "app-tab-LEADS"
 - extendedWaitUntil:
     visible:
-      text: ".*Gold Gym Hazratganj.*"
+      text: ".*Maestro Smoke Gym.*"
     timeout: 30000
 - assertVisible:
-    text: ".*Gold Gym Hazratganj.*"
+    text: ".*Maestro Smoke Gym.*"
 
 - tapOn:
-    text: ".*Gold Gym Hazratganj.*"
+    text: ".*Maestro Smoke Gym.*"
 - extendedWaitUntil:
     visible:
-      text: ".*Gold Gym Hazratganj.*"
+      text: ".*Maestro Smoke Gym.*"
     timeout: 30000
 - assertVisible:
-    text: ".*Gold Gym Hazratganj.*"
-- assertVisible: "+919876543210"
+    text: ".*Maestro Smoke Gym.*"
+- assertVisible: ".*9000000001.*"
 - tapOn:
     id: "back-button"
 - extendedWaitUntil:
     visible:
-      text: ".*Gold Gym Hazratganj.*"
+      text: ".*Maestro Smoke Gym.*"
     timeout: 30000

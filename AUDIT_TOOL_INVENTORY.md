@@ -2,6 +2,10 @@
 
 Historical audit-prompt inventory transcribed from section 81.1 of the master audit prompt. The versions and environment-specific profiles below preserve that snapshot; use `package.json` and `package-lock.json` for current dependency versions. The current lockfile includes Appium 3.8.0 CLI but does not bundle a UiAutomator2 driver; see [Known issues](./docs/KNOWN_ISSUES.md).
 
+## Current supported test runners
+
+The repository's maintained test workflows use `node:test` with `tsx`, Vitest, Playwright, and Maestro. The historical inventory below is retained as a record of the audit-prompt snapshot; AVA, TAP, Karma, Nightwatch, TestCafe, Artillery, and Detox are not installed in the current dependency tree. Login-shell coverage is provided by Playwright; local load checks use Autocannon and k6.
+
 ## Unit, integration, component, and API
 
 - node:test via tsx

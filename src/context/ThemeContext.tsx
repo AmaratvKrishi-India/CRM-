@@ -27,6 +27,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 function applyThemeToDocument(mode: ThemeMode): void {
   if (typeof document !== 'undefined') {
     document.documentElement.setAttribute('data-theme', mode.toLowerCase());
+    document.documentElement.classList.toggle('native-platform', Capacitor.isNativePlatform());
     // Also set color-scheme for native form elements and browser/system chrome.
     document.documentElement.style.colorScheme = mode === 'DAY' ? 'light' : 'dark';
     const themeColor = mode === 'DAY' ? '#f4f6fa' : '#0e1726';

@@ -28,7 +28,6 @@ Production and Preview have separate Vercel values for the Supabase URL, public 
 - [Acceptance gates](./GATES.md): results from the latest checkout review.
 - [Contributing](./CONTRIBUTING.md): local workflow and safety notes.
 
-
 ## Quick start
 
 Prerequisites: Node.js and npm, plus Docker Desktop for local Supabase and database-backed tests. GitHub CI and Vercel use Node 24. This desktop checkout currently has Node 26.5.0 and npm 12.0.2; `package.json` does not declare a Node engine range.

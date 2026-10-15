@@ -1,0 +1,78 @@
+name: Manual CRM source backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      category:
+        description: Drive retention folder for this verified source snapshot
+        type: choice
+        options:
+          - Daily
+          - Weekly
+          - Monthly
+        default: Weekly
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crm-source-backup-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backup-source:
+    if: github.ref == 'refs/heads/development/crm-storage-backup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: crm-drive-backups
+    env:
+      RCLONE_CONFIG: ${{ runner.temp }}/rclone.conf
+      CRM_GDRIVE_REMOTE: gdrive
+      CRM_SOURCE_BACKUP_CATEGORY: ${{ inputs.category }}
+      CRM_SOURCE_BRANCH: ${{ github.ref_name }}
+      CRM_BACKUP_DIR: ${{ runner.temp }}/crm-backups
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install rclone if needed
+        run: |
+          if ! command -v rclone >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y rclone
+          fi
+
+      - name: Write protected rclone configuration
+        shell: bash
+        env:
+          RCLONE_CONFIG_B64: ${{ secrets.RCLONE_CONFIG_B64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${RCLONE_CONFIG_B64:-}" ]]; then
+            echo 'Repository secret RCLONE_CONFIG_B64 is required.' >&2
+            exit 2
+          fi
+          python3 - <<'PY'
+          import base64, os
+          data = base64.b64decode(os.environ['RCLONE_CONFIG_B64'], validate=True)
+          if b'[gdrive]' not in data or b'type = drive' not in data:
+              raise SystemExit('The protected config must contain a gdrive Drive remote.')
+          path = os.environ['RCLONE_CONFIG']
+          fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(fd, 'wb') as f:
+              f.write(data)
+          PY
+          echo 'RCLONE_CONFIG_B64=' >> "$GITHUB_ENV"
+
+      - name: Verify Drive access with a temporary file
+        run: scripts/google-drive-backup.sh verify
+
+      - name: Upload verified source archive and setup documents
+        run: scripts/google-drive-backup.sh source "$GITHUB_SHA"
+
+      - name: Remove temporary rclone credentials
+        if: always()
+        run: rm -f -- "$RCLONE_CONFIG"

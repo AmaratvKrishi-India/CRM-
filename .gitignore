@@ -65,3 +65,11 @@ e2e/android/reports/
 /graft/
 .env*
 !.env.example
+
+# Local backup artifacts and credentials; backups are uploaded explicitly.
+/backup-artifacts/
+/local-backups/
+/.rclone.conf
+/rclone.conf
+*.rclone.conf
+/.backup-secrets/

@@ -6,28 +6,108 @@
       "id": "preflight",
       "title": "Preserve work and verify release",
       "tasks": [
-        {"id":"latest-main","title":"Fetch main and verify PRs 7, 8, 9 ancestry","status":"completed","depends_on":[],"result":"Clean isolated worktree from 0eea4febfa7e7e1babf0384f3ce47909d28970e8; original work branch preserved."},
-        {"id":"cleanup","title":"Delete confirmed merged obsolete branch","status":"completed","depends_on":["latest-main"],"result":"fix/post-release-security was unprotected, had zero unique commits, and was deleted normally; remote then contained only main."}
+        {
+          "id": "latest-main",
+          "title": "Fetch main and verify PRs 7, 8, 9 ancestry",
+          "status": "completed",
+          "depends_on": [],
+          "result": "Clean isolated worktree from 0eea4febfa7e7e1babf0384f3ce47909d28970e8; original work branch preserved."
+        },
+        {
+          "id": "cleanup",
+          "title": "Delete confirmed merged obsolete branch",
+          "status": "completed",
+          "depends_on": [
+            "latest-main"
+          ],
+          "result": "fix/post-release-security was unprotected, had zero unique commits, and was deleted normally; remote then contained only main."
+        }
       ]
     },
     {
       "id": "database",
       "title": "Verify recovery gates and hosted boundaries",
       "tasks": [
-        {"id":"catalog-audit","title":"Recheck both projects, histories, grants and advisors","status":"completed","depends_on":["latest-main"],"result":"Both retain 19 migrations and mismatched final timestamps; effective boundaries intact. One equivalent CHECK deparser difference recorded."},
-        {"id":"hosted-backups","title":"Create, retain, decrypt and rehearse separate hosted backups","status":"blocked","depends_on":["catalog-audit"],"blocker":"No approved PostgreSQL credentials, permitted TCP destinations, retained backup destination/key custody, or secured disposable restore target are configured."},
-        {"id":"staging-repair","title":"Repair Staging history only after verified recovery","status":"blocked","depends_on":["hosted-backups"],"blocker":"Verified backup and restore gate has not passed; no hosted mutations permitted."},
-        {"id":"production-repair","title":"Repair Production history after Staging and project-specific approval","status":"blocked","depends_on":["staging-repair"],"blocker":"Independent Production recovery verification and explicit authorization for lahvcodvgubplzfshare are still required."}
+        {
+          "id": "catalog-audit",
+          "title": "Recheck both projects, histories, grants and advisors",
+          "status": "completed",
+          "depends_on": [
+            "latest-main"
+          ],
+          "result": "Both retain 19 migrations and mismatched final timestamps; effective boundaries intact. One equivalent CHECK deparser difference recorded."
+        },
+        {
+          "id": "hosted-backups",
+          "title": "Create, retain, decrypt and rehearse separate hosted backups",
+          "status": "blocked",
+          "depends_on": [
+            "catalog-audit"
+          ],
+          "blocker": "No approved PostgreSQL credentials, permitted TCP destinations, retained backup destination/key custody, or secured disposable restore target are configured."
+        },
+        {
+          "id": "staging-repair",
+          "title": "Repair Staging history only after verified recovery",
+          "status": "blocked",
+          "depends_on": [
+            "hosted-backups"
+          ],
+          "blocker": "Verified backup and restore gate has not passed; no hosted mutations permitted."
+        },
+        {
+          "id": "production-repair",
+          "title": "Repair Production history after Staging and project-specific approval",
+          "status": "blocked",
+          "depends_on": [
+            "staging-repair"
+          ],
+          "blocker": "Independent Production recovery verification and explicit authorization for lahvcodvgubplzfshare are still required."
+        }
       ]
     },
     {
       "id": "verification",
       "title": "Run cloud verification and preserve evidence",
       "tasks": [
-        {"id":"regression","title":"Verify local gates and hosted disposable regression","status":"in_progress","depends_on":["latest-main"]},
-        {"id":"live-smoke","title":"Run unauthenticated read-only Production browser smoke from Actions","status":"pending","depends_on":["latest-main"]},
-        {"id":"environment","title":"Verify five skills, bootstrap, memory and environment status","status":"in_progress","depends_on":["latest-main"]},
-        {"id":"report","title":"Commit current evidence and precise remaining owner actions","status":"pending","depends_on":["catalog-audit","regression","live-smoke","environment"]}
+        {
+          "id": "regression",
+          "title": "Verify local gates and hosted disposable regression",
+          "status": "completed",
+          "depends_on": [
+            "latest-main"
+          ],
+          "result": "Local types/lint/build/bundle/audits/secrets and 306 Node, 238 Vitest, 42 Chromium, 2 tablet passed. Released-main CI 68 verifies full disposable Supabase regression; PR checks provide new-head verification."
+        },
+        {
+          "id": "live-smoke",
+          "title": "Run unauthenticated read-only Production browser smoke from Actions",
+          "status": "blocked",
+          "depends_on": [
+            "latest-main"
+          ],
+          "blocker": "GitHub-hosted anonymous browser was redirected to Vercel Deployment Protection. Approved automation access and a designated account are absent; no application smoke pass is claimed."
+        },
+        {
+          "id": "environment",
+          "title": "Verify five skills, bootstrap, memory and environment status",
+          "status": "completed",
+          "depends_on": [
+            "latest-main"
+          ],
+          "result": "Fresh five-skill bootstrap and SAFE scanner passed; runtime revision 7 current/running, storage healthy. Publication is explicitly unverified and requires UI evidence."
+        },
+        {
+          "id": "report",
+          "title": "Commit current evidence and precise remaining owner actions",
+          "status": "completed",
+          "depends_on": [
+            "catalog-audit",
+            "regression",
+            "environment"
+          ],
+          "result": "Hinglish report, redacted evidence, recovery design and fresh-task instructions committed for PR review. Blocked hosted work remains clearly identified."
+        }
       ]
     }
   ]

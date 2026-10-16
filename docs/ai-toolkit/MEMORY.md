@@ -61,3 +61,5 @@ This file stores only durable project engineering context. Do not add customer n
 - Deleted unprotected merged branch `fix/post-release-security` normally after verifying zero unique commits. Original local work was preserved.
 - Rechecked hosted RLS, internal-table grants and anonymous sync_mutate denial. Columns/policies/indexes/table grants/triggers match; all 18 function definitions and ACLs match after normalization. One CHECK has equivalent array-cast formatting. No hosted SQL mutation or customer-row export occurred.
 - Reproduced all five toolkit skills and pinned SkillSpector SAFE fixture. Current recovery entrypoints are FRESH-TASK-RECOVERY.md and the newest maintenance report; old plans/reports are historical snapshots.
+
+- 2026-10-17 IST: GitHub-hosted public Production smoke reached Vercel Deployment Protection instead of the CRM. Approved automation access is required; a blocked artifact/warning is not an application smoke pass. No Vercel protection setting was weakened.

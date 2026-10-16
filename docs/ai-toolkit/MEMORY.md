@@ -63,3 +63,5 @@ This file stores only durable project engineering context. Do not add customer n
 - Reproduced all five toolkit skills and pinned SkillSpector SAFE fixture. Current recovery entrypoints are FRESH-TASK-RECOVERY.md and the newest maintenance report; old plans/reports are historical snapshots.
 
 - 2026-10-17 IST: GitHub-hosted public Production smoke reached Vercel Deployment Protection instead of the CRM. Approved automation access is required; a blocked artifact/warning is not an application smoke pass. No Vercel protection setting was weakened.
+
+- 2026-10-17 IST PostgreSQL follow-up: upstream 17.7–17.11 contain security fixes after 17.6; published Supabase .164 build config pins 17.6. Exact hosted security-backport coverage is unverified. Prioritize provider confirmation of patched GA target/backports; do not treat .166 or npm audit zero as proof of database patch coverage. No upgrade authorized or performed.

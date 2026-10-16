@@ -77,6 +77,19 @@ jobs:
       - name: Browser tests
         run: npm run test:e2e:chromium
 
+      - name: Print visual review previews on failure
+        if: failure()
+        shell: bash
+        run: |
+          for name in login-desktop login-mobile admin-dashboard; do
+            image="e2e/visual-regression.spec.ts-snapshots/${name}-chromium-ubuntu24.png"
+            if [[ -f "$image" ]]; then
+              printf 'VISUAL_PREVIEW_%s_BEGIN\n' "$name"
+              base64 -w 8192 "$image"
+              printf 'VISUAL_PREVIEW_%s_END\n' "$name"
+            fi
+          done
+
       - name: Upload visual comparison images on failure
         if: failure()
         uses: actions/upload-artifact@v4

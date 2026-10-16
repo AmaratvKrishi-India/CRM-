@@ -31,7 +31,7 @@
           "title": "Run Android lint, debug, unsigned release, and host unit tasks",
           "status": "completed",
           "depends_on": ["verify-refs"],
-          "result": "Local lint/debug/unsigned-release builds passed; testDebugUnitTest passed its single template test. Run 58 passed guarded assets and debug/unsigned release builds, 425 Gradle tasks."
+          "result": "Local lint/debug/unsigned-release builds passed; testDebugUnitTest passed its single template test. Runs 58 and 60 passed guarded assets and debug/unsigned release builds, 425 Gradle tasks. Run 60 also validated and uploaded the synthetic-backend debug APK artifact."
         },
         {
           "id": "android-runtime",
@@ -45,14 +45,14 @@
           "title": "Run disposable Supabase, full tests, browser checks, and security gates",
           "status": "completed",
           "depends_on": ["verify-refs"],
-          "result": "Run 58 passed: Node 349/349, Vitest 21 files and 279/279, Chromium 42 passed, tablet 2/2, real Supabase browser 11/11, audit gate, secret scan, production build, and bundle budget."
+          "result": "Run 60 passed on commit be104b7c6881cce15b101af90ee3e2edc6c3e108: Node 349/349, Vitest 21 files and 279/279, Chromium 42 passed, tablet 2/2, real Supabase browser 11/11, audit gate, secret scan, production build, and bundle budget. Run 58 had the same counts on the Android resource fix."
         },
         {
           "id": "sync-integrity",
           "title": "Verify offline queues, retries, conflicts, RLS, and multi-client recovery",
           "status": "completed",
           "depends_on": ["hosted-regression"],
-          "result": "F040/F047/supabase-sync and Dexie tests passed on disposable Supabase. Real browser coverage passed offline create/reconnect, concurrent offline edits, and missed-Realtime recovery. No Android-device offline run was possible."
+          "result": "F040/F047/supabase-sync and Dexie tests passed on disposable Supabase in runs 58 and 60. Real browser coverage passed offline create/reconnect, concurrent offline edits, and missed-Realtime recovery. No Android-device offline run was possible."
         }
       ]
     },

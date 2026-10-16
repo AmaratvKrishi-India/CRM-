@@ -60,6 +60,12 @@ const standardProjectTestIgnore = [
   ...apiTestIgnore,
   '**/tablet-responsive.spec.ts',
 ];
+// Playwright's `linux` suffix covers every Linux distribution. Keep the hosted
+// Ubuntu 24.04 baselines separate from the local Codex Cloud distro so font
+// rasterization differences do not mask real UI changes.
+const snapshotPathTemplate = process.env.GITHUB_ACTIONS === 'true'
+  ? '{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-ubuntu24{ext}'
+  : '{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}';
 
 /**
  * Playwright configuration for Amaratv Krishi Sales CRM.
@@ -88,6 +94,7 @@ export default defineConfig({
         ['html', { open: 'never', outputFolder: 'playwright-report' }],
       ],
   outputDir: 'test-results/playwright',
+  snapshotPathTemplate,
   use: {
     baseURL,
     actionTimeout: 10_000,

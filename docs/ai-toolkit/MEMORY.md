@@ -2,6 +2,15 @@
 
 This file stores only durable project engineering context. Do not add customer names, phone numbers, emails, CRM records, credentials, access tokens, private keys, or secrets.
 
+## Current post-release status
+
+- Released main is `f6f9d7e`; PRs #7 and #8 are merged. Historical draft/merge holds below are superseded.
+- Owner excludes Android real-backend synchronization testing; it is not pending work for this release. VoIP and Drive remain deferred.
+- Production Vercel matches main; Production Supabase is `lahvcodvgubplzfshare`, Preview is CRM-Staging `dhoinifpzijqyobcamlv`. Both hosted histories still need only the final timestamp repair, blocked by verified recovery/CLI prerequisites and separate production approval.
+- Post-release candidate removes the optional vulnerable Snyk npm wrapper; full and production audits are zero. Use official standalone Snyk for optional manual audits. Check the PR merge status before treating released main as repaired.
+- Both obsolete merged remote development branches were deleted and verified. See POST-RELEASE-VERIFICATION.md and FRESH-TASK-RECOVERY.md for current evidence and limitations.
+- This task observes cloud revision 2 running; reusable environment publication is unverified. Earlier revision 4 observations belong to an older task.
+
 ## Project context
 
 - The repository is an offline-first sales CRM built with React, TypeScript, Vite, Capacitor, and Supabase.
@@ -31,8 +40,8 @@ This file stores only durable project engineering context. Do not add customer n
 
 ## Pending work
 
-- Obtain explicit user acceptance for the four moderate Snyk development-only findings before merge, or wait for a safe upstream patch. Keep the npm audit gate unchanged.
-- Complete Android runtime checks on a supplied emulator/device, or obtain the user's explicit acceptance of this remaining gap before merge.
+- Merge the reviewed post-release repair only after its CI succeeds and production release timing is approved; the candidate removes the Snyk npm chain and preserves audit gates.
+- Android real-backend synchronization is excluded by the owner and is not an outstanding requirement.
 - Obtain user approval before merging while Vercel `main` promotion is configured to deploy to Production; obtain the required PR review and confirm branch-protection rules.
 - Keep local PostgreSQL testing on GitHub-hosted runners; Codex Cloud's VFS container setup cannot fit the Supabase PostgreSQL image.
 - The task-local toolkit bootstrap is reproducible and verified. The cloud environment currently reports spec revision 4 observed at revision 4 and running; no publish/write action is exposed in this session.

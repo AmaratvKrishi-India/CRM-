@@ -1,5 +1,7 @@
 # Hosted Supabase migration and security preflight — 2026-10-16
 
+See [the post-release follow-up](POST-RELEASE-RECONCILIATION.md) for confirmed Production/Preview linkage and current recovery blockers. Release-hold statements below are historical.
+
 **Status:** Read-only verification completed; migration-history reconciliation **NOT performed**. **Do not run `db push`, `migration repair`, `db reset`, or production deployment against a hosted project until the prerequisites below are met.**
 
 This document describes **live, read-only checks** against the two Supabase projects connected to this account. No database objects, migrations, auth settings, or user records were changed. The local Codex/GitHub disposable Supabase database used by CI is separate.

@@ -60,20 +60,19 @@ if "%MAESTRO_READY%"=="1" (
   >>"%SUMMARY%" echo - Maestro: **SKIPPED** because local credentials were not supplied.
 )
 
-set "SNYK_BIN=%ROOT%node_modules\.bin\snyk.cmd"
-if not exist "%SNYK_BIN%" set "SNYK_BIN=snyk"
-where.exe snyk >nul 2>&1
-if errorlevel 1 if not exist "%ROOT%node_modules\.bin\snyk.cmd" (
-  >>"%SUMMARY%" echo - Snyk: **SKIPPED** because the CLI was not found.
+rem Use the separately installed official standalone binary; do not restore the npm wrapper.
+where.exe snyk.exe >nul 2>&1
+if errorlevel 1 (
+  >>"%SUMMARY%" echo - Snyk: **SKIPPED** because the optional standalone snyk.exe was not found. See docs/security/POST-RELEASE-DEPENDENCIES.md.
 ) else (
   >>"%RUN_LOG%" echo.
   >>"%RUN_LOG%" echo ==== Snyk authentication status ====
-  call "%SNYK_BIN%" whoami >>"%RUN_LOG%" 2>&1
+  call snyk.exe whoami >>"%RUN_LOG%" 2>&1
   if errorlevel 1 (
     echo Snyk is not authenticated. Complete the browser login now.
-    call "%SNYK_BIN%" auth >>"%RUN_LOG%" 2>&1
+    call snyk.exe auth >>"%RUN_LOG%" 2>&1
   )
-  set "COMMAND=npx --no-install snyk test --all-projects --severity-threshold=high --json-file-output=test-results\manual-audit\%RUN_ID%\snyk.json"
+  set "COMMAND=snyk.exe test --all-projects --severity-threshold=high --json-file-output=test-results\manual-audit\%RUN_ID%\snyk.json"
   call :run "Snyk dependency scan"
 )
 

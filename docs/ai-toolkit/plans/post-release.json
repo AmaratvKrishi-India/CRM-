@@ -1,0 +1,90 @@
+{
+  "id": "post-release-20261016",
+  "milestone": "Verify the released CRM and preserve reproducible Codex context",
+  "phases": [
+    {
+      "id": "workspace",
+      "title": "Synchronize workspace and verify five toolkit skills",
+      "tasks": [
+        {
+          "id": "workspace-check",
+          "title": "Synchronize workspace and verify five toolkit skills",
+          "status": "completed",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "database",
+      "title": "Recheck hosted metadata, permissions and recovery prerequisites",
+      "tasks": [
+        {
+          "id": "database-check",
+          "title": "Recheck hosted metadata, permissions and recovery prerequisites",
+          "status": "in_progress",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "dependencies",
+      "title": "Remove optional vulnerable npm Snyk wrapper without changing security gates",
+      "tasks": [
+        {
+          "id": "dependencies-check",
+          "title": "Remove optional vulnerable npm Snyk wrapper without changing security gates",
+          "status": "in_progress",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "title": "Verify production deployment and configuration",
+      "tasks": [
+        {
+          "id": "web-check",
+          "title": "Verify production deployment and configuration",
+          "status": "in_progress",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "cleanup",
+      "title": "Delete verified merged and unprotected obsolete branches",
+      "tasks": [
+        {
+          "id": "cleanup-check",
+          "title": "Delete verified merged and unprotected obsolete branches",
+          "status": "pending",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "regression",
+      "title": "Validate fixes locally and through disposable Supabase CI",
+      "tasks": [
+        {
+          "id": "regression-check",
+          "title": "Validate fixes locally and through disposable Supabase CI",
+          "status": "pending",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "continuity",
+      "title": "Record evidence and fresh-task recovery instructions",
+      "tasks": [
+        {
+          "id": "continuity-check",
+          "title": "Record evidence and fresh-task recovery instructions",
+          "status": "pending",
+          "depends_on": []
+        }
+      ]
+    }
+  ]
+}

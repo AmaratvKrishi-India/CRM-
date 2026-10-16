@@ -22,16 +22,17 @@ concurrency:
 
 jobs:
   backup-source:
-    if: github.ref == 'refs/heads/development/crm-storage-backup'
+    # Drive backups are postponed. Main-branch manual dispatch also needs an explicit repository opt-in.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && vars.ENABLE_CRM_DRIVE_BACKUPS == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: crm-drive-backups
     env:
-      RCLONE_CONFIG: ${{ runner.temp }}/rclone.conf
+      RCLONE_CONFIG: /tmp/crm-rclone-${{ github.run_id }}.conf
       CRM_GDRIVE_REMOTE: gdrive
       CRM_SOURCE_BACKUP_CATEGORY: ${{ inputs.category }}
       CRM_SOURCE_BRANCH: ${{ github.ref_name }}
-      CRM_BACKUP_DIR: ${{ runner.temp }}/crm-backups
+      CRM_BACKUP_DIR: /tmp/crm-backups-${{ github.run_id }}
     steps:
       - name: Checkout selected branch
         uses: actions/checkout@v7

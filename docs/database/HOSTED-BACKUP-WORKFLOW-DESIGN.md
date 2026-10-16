@@ -4,7 +4,7 @@ Reviewed 17 October 2026 IST (16 October UTC). **Design only: not enabled or exe
 
 ## Missing prerequisites
 
-The attached environment has no approved PostgreSQL secret bindings or TCP grants. Connected Supabase SQL access does not provide a PostgreSQL login to `pg_dump` or the CLI. No owner-approved private backup destination, independently retained decryption key, or secured disposable recovery target is configured. A cloud workspace containing catalog evidence is not a recovery backup.
+The attached environment has no approved PostgreSQL secret bindings or TCP grants. Existing GitHub recovery-secret inventory could not be verified through the available connector or failed CLI authentication; do not infer that no such secrets exist. The owner must designate approved bindings accessible to the reviewed recovery workflow. Connected Supabase SQL access does not provide a PostgreSQL login to `pg_dump` or the CLI. No owner-approved private backup destination, independently retained decryption key, or secured disposable recovery target is configured. A cloud workspace containing catalog evidence is not a recovery backup.
 
 Use GitHub-hosted infrastructure after the owner configures the protections below. No owner PC, Drive connection, paid project, database reset, or subscription upgrade is necessary for the proposed route. Do not create paid storage or infrastructure as part of setup.
 

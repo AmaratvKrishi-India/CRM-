@@ -60,7 +60,7 @@ Catalog snapshot mein other active sessions, possible DDL aur exclusive locks ze
 
 ### Backup/recovery blocker aur safe next operation
 
-Attached cloud environment mein approved PostgreSQL credentials, permitted database TCP destinations, independent key custody, private external retention store aur secured disposable restore target configured nahi hain. Connected SQL tools ka access CLI/pg_dump login nahi deta. Existing provider backups ki accessible recovery readiness establish nahi hui. Free plan par paid-plan daily backups ka assumption nahi kiya.
+Attached cloud environment mein PostgreSQL secret bindings/TCP grants absent hain; approved credentials, independent key custody, private external retention aur secured disposable restore target is task ko available/verified nahi hain. Existing GitHub recovery-secret inventory available connector/failed CLI authentication se verify nahi ho saki; owner existing approved bindings designate kar sakta hai. Connected SQL tools ka access CLI/pg_dump login nahi deta. Existing provider backups ki accessible recovery readiness establish nahi hui. Free plan par paid-plan daily backups ka assumption nahi kiya.
 
 [Protected manual backup workflow design](../database/HOSTED-BACKUP-WORKFLOW-DESIGN.md) complete hai: separate reviewer-protected environments, fixed project mapping, main-only manual dispatch, TLS, secret-file handling, complete schema/data/Auth/migration metadata, encrypt-before-upload, private retention, download/decrypt integrity, secured PG17-compatible restore aur exact metadata rollback rehearsal. **Design enabled workflow ya verified backup nahi hai.** Existing development-only backup guards unchanged hain.
 
@@ -116,4 +116,4 @@ Fresh task: inspect status/worktrees, fetch latest origin/main, preserve local w
 5. **Withdrawn build/optional password plan decision:** Supabase support/Infrastructure mein `.164/withdrawn` reason aur offered GA target confirm karein; upgrade ke liye separate approval tabhi jab recovery tested ho. Leaked-password protection chahiye to Pro decision owner ka hai; subscription unchanged hai.
 6. **Maintenance PR review:** PR #10 review karein. Main merge Production deployment trigger karega, isliye owner approval ke bina merge nahi kiya.
 
-Android real-backend testing, VoIP, Drive activation, database reset, customer deletion, force-push aur paid resource creation is task mein nahi hue.
+Android real-backend testing, VoIP, Drive activation, hosted database reset, customer deletion, force-push aur paid resource creation is task mein nahi hue. CI ki disposable local database fixtures hosted CRM projects se separate hain.

@@ -54,7 +54,7 @@ The workflow then failed at its existing `npm audit --audit-level=high` security
 | --- | ---: |
 | Writable filesystem before toolkit installation | 429,555,712 bytes used; 31,605,874,688 available. |
 | After scanner install | 669,679,616 bytes used; 31,365,750,784 available. |
-| Final after removing review clones and duplicate rebuild, retaining the pinned scanner checkout | 564,097,024 bytes used; 31,471,333,376 available (about 29.3 GiB). |
+| Final after all toolkit and regression runs, retaining the pinned scanner checkout | 636,669,952 bytes used; 31,398,760,448 available (about 29.3 GiB). |
 | Scanner virtual environment and editable source checkout | 217 MiB under `work/ai-toolkit/venv/skillspector`; 19 MiB under `work/ai-toolkit/upstream/skillspector`. |
 | Existing CRM dependencies | `node_modules` remains about 1.1 GiB; it was present before this toolkit work and was not reinstalled. |
 | Playwright browser | The headless Chromium test install downloaded about 267 MB to the environment browser cache; no browser binaries are in Git. |

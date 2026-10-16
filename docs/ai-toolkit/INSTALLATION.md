@@ -37,7 +37,7 @@ The writable filesystem is 32 GiB. Existing Docker uses the VFS driver and had a
 
 The root filesystem is an overlay with read-only base layers. `du` of visible files can exceed the filesystem's reported writable usage. `check-storage.sh` measures available space and reports VFS; it does not delete files or modify infrastructure. The public review clones and the duplicate clean reconstruction were removed after use. The pinned 19 MiB SkillSpector checkout stays under ignored `work/ai-toolkit/upstream/` because the installed package is editable and uses that source tree.
 
-After removing task-created review clones and the duplicate reconstruction environment while retaining the scanner checkout, the workspace reported 564,097,024 bytes used and 31,471,333,376 bytes available. The active scanner venv measured 217 MiB and its source checkout 19 MiB. The Playwright headless Chromium install separately downloaded about 267 MB to the environment browser cache for the requested tests; browser binaries are not in the repository.
+After all toolkit and regression runs, with task-created review clones removed and the scanner checkout retained, the workspace reported 636,669,952 bytes used and 31,398,760,448 bytes available. The active scanner venv measured 217 MiB and its source checkout 19 MiB. The Playwright headless Chromium install separately downloaded about 267 MB to the environment browser cache for the requested tests; browser binaries are not in the repository.
 
 ## Codex Cloud persistence
 

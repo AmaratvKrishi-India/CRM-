@@ -24,6 +24,8 @@ No application dependency was added to `package.json` or `package-lock.json`. Th
 
 Codex discovers these skills from `.agents/skills/<directory>/SKILL.md` when the repository is open. Invoke one by its slash name or let Codex select it from the description. Read the chosen `SKILL.md` only when needed; the five skill files are not added to every task's context.
 
+See [post-release verification](POST-RELEASE-VERIFICATION.md) and [fresh-task recovery](FRESH-TASK-RECOVERY.md) for the latest release state; the audit results below are historical.
+
 ## Current status
 
 - NVIDIA SkillSpector 2.12.0 is installed and verified in an isolated Python 3.12 environment. The pinned source commit and full lockfile are in `scripts/ai-toolkit/bootstrap.sh`.

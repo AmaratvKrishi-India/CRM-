@@ -146,7 +146,6 @@
     "pactum": "^3.9.1",
     "rollup-plugin-visualizer": "^6.0.0",
     "secretlint": "^13.0.5",
-    "snyk": "^1.1307.3",
     "storybook": "^10.6.0",
     "supabase": "^2.116.0",
     "supertest": "^7.2.2",

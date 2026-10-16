@@ -1,0 +1,126 @@
+{
+  "id": "post-release-20261016",
+  "milestone": "Verify the released CRM and preserve reproducible Codex context",
+  "phases": [
+    {
+      "id": "workspace",
+      "title": "Synchronize workspace and verify five toolkit skills",
+      "tasks": [
+        {
+          "id": "workspace-check",
+          "title": "Synchronize workspace and verify five toolkit skills",
+          "status": "completed",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "database",
+      "title": "Recheck hosted metadata, permissions and recovery prerequisites",
+      "tasks": [
+        {
+          "id": "database-check",
+          "title": "Complete read-only hosted migration and security audit",
+          "status": "completed",
+          "depends_on": []
+        },
+        {
+          "id": "staging-repair",
+          "title": "Repair staging migration history only after recovery and CLI verification",
+          "status": "blocked",
+          "depends_on": [
+            "database-check"
+          ],
+          "blocker": "No verified restorable backup, rollback rehearsal or CLI database credentials/network access."
+        },
+        {
+          "id": "production-repair",
+          "title": "Repair production history after staging and project-specific approval",
+          "status": "blocked",
+          "depends_on": [
+            "staging-repair"
+          ],
+          "blocker": "Verified recovery and explicit authorization for lahvcodvgubplzfshare are absent."
+        }
+      ]
+    },
+    {
+      "id": "dependencies",
+      "title": "Remove optional vulnerable npm Snyk wrapper without changing security gates",
+      "tasks": [
+        {
+          "id": "dependencies-check",
+          "title": "Remove optional vulnerable npm Snyk wrapper without changing security gates",
+          "status": "completed",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "title": "Verify production deployment and configuration",
+      "tasks": [
+        {
+          "id": "web-check",
+          "title": "Verify production deployment and configuration",
+          "status": "completed",
+          "depends_on": []
+        },
+        {
+          "id": "production-login",
+          "title": "Run designated-account read-only production browser smoke",
+          "status": "blocked",
+          "depends_on": [
+            "web-check"
+          ],
+          "blocker": "No designated account; direct browser egress to production is denied. Static captured build rendering passed."
+        }
+      ]
+    },
+    {
+      "id": "cleanup",
+      "title": "Delete verified merged and unprotected obsolete branches",
+      "tasks": [
+        {
+          "id": "cleanup-check",
+          "title": "Delete verified merged and unprotected obsolete branches",
+          "status": "completed",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "regression",
+      "title": "Validate fixes locally and through disposable Supabase CI",
+      "tasks": [
+        {
+          "id": "regression-check",
+          "title": "Verify candidate with disposable Supabase CI after passed local regression",
+          "status": "in_progress",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "continuity",
+      "title": "Record evidence and fresh-task recovery instructions",
+      "tasks": [
+        {
+          "id": "continuity-check",
+          "title": "Record evidence and fresh-task recovery instructions",
+          "status": "completed",
+          "depends_on": []
+        },
+        {
+          "id": "publish-environment",
+          "title": "Verify reusable Codex environment revision publication",
+          "status": "blocked",
+          "depends_on": [
+            "continuity-check"
+          ],
+          "blocker": "Status-only tools expose no publish control; owner UI publication and a fresh-task check are required."
+        }
+      ]
+    }
+  ]
+}

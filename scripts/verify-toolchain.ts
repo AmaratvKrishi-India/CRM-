@@ -31,7 +31,7 @@ const tools: Tool[] = [
   { name: 'Dependency Cruiser', category: 'Architecture', command: 'depcruise', scope: 'project-local' },
   { name: 'Knip', category: 'Dead code/dependencies', command: 'knip', scope: 'project-local' },
   { name: 'Secretlint', category: 'Secret scanning', command: 'secretlint', scope: 'project-local' },
-  { name: 'Snyk', category: 'Dependency/security scanning', command: 'snyk', scope: 'project-local', note: 'CLI is installed; account/token is only needed for authenticated Snyk services.' },
+  { name: 'Snyk', category: 'Dependency/security scanning', command: 'snyk', scope: 'standalone', note: 'Optional official standalone binary; the npm wrapper is excluded because its dependency tree is vulnerable. Authentication is checked when the manual scan starts.' },
   { name: 'Supabase CLI', category: 'Database/functions', command: 'supabase', scope: 'project-local', paths: isWindows ? [join(projectRoot, 'node_modules', '@supabase', 'cli-windows-x64', 'bin', 'supabase.exe')] : [], probeArgs: ['--version'] },
   { name: 'Capacitor CLI', category: 'Native packaging', command: 'cap', scope: 'project-local' },
   { name: 'Mocha', category: 'Alternative unit runner', command: 'mocha', scope: 'project-local', note: 'Installed but Vitest is the project’s configured unit runner.' },

@@ -12,7 +12,9 @@ import { join, relative } from 'path';
 
 program
   .option('-p, --pattern <glob>', 'File pattern to scan', '**/*')
-  .option('-e, --exclude <patterns>', 'Comma-separated exclude patterns', 'node_modules/**,dist/**,build/**,**/build/**,.git/**,.env*,graft/**,android/app/src/main/assets/**,*.lock,*.log,coverage/**,test-results/**,scratch/**,local/**,strix/**,reports/**')
+  // Task-local tool dependencies and captured artifacts are ignored by Git,
+  // just like node_modules; keep their upstream test fixtures out of CRM scans.
+  .option('-e, --exclude <patterns>', 'Comma-separated exclude patterns', 'node_modules/**,dist/**,build/**,**/build/**,.git/**,.env*,graft/**,android/app/src/main/assets/**,*.lock,*.log,coverage/**,test-results/**,scratch/**,work/**,local/**,strix/**,reports/**')
   .option('-o, --output <file>', 'Output JSON file', 'test-results/security/secret-scan.json')
   .option('--fail-on-found', 'Exit with error code if secrets found', true)
   .parse(process.argv);

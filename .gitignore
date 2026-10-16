@@ -75,6 +75,6 @@ e2e/android/reports/
 /.backup-secrets/
 
 # Reproducible Codex AI toolkit binaries, upstream checkouts, and local reports.
-/work/ai-toolkit/
+/work/
 __pycache__/
 *.py[cod]

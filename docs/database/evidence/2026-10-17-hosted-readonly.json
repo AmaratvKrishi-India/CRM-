@@ -1,0 +1,666 @@
+{
+  "observed_at_utc": "2026-10-16T21:33:00Z",
+  "date_note": "Catalog observations from 21:33-21:41 UTC; 17 October IST. Read-only snapshots, not a schema freeze.",
+  "main": "0eea4febfa7e7e1babf0384f3ce47909d28970e8",
+  "hosted_writes": false,
+  "customer_rows_exported": false,
+  "canonical_final_version": "20261003000018",
+  "projects": [
+    {
+      "id": "dhoinifpzijqyobcamlv",
+      "environment": "Staging",
+      "counts": {
+        "columns": 213,
+        "indexes": 48,
+        "policies": 28,
+        "functions": 18
+      },
+      "migrations": 19,
+      "sync_mutate": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "possible_ddl": 0,
+      "non_rls_tables": 0,
+      "active_sessions": 0,
+      "exclusive_locks": 0,
+      "final_migration": [
+        {
+          "name": "revoke_anon_sync_mutate",
+          "version": "20261003055436",
+          "statements": [
+            "BEGIN;\n\n-- Supabase default function grants include anon. Mutations are for signed-in\n-- clients; keep service_role access for trusted operational tooling.\nREVOKE ALL ON FUNCTION public.sync_mutate(text, text, uuid, bigint, jsonb)\n  FROM PUBLIC, anon;\nGRANT EXECUTE ON FUNCTION public.sync_mutate(text, text, uuid, bigint, jsonb)\n  TO authenticated, service_role;\n\nCOMMIT;"
+          ]
+        }
+      ],
+      "postgres_version": "17.6",
+      "internal_boundaries": [
+        {
+          "table": "sync_revision_heads",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "sync_deleted_keys",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "agent_provisioning_policy",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "agent_provisioning_rate_limits",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "operational_error_readers",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        }
+      ],
+      "client_create_public": {
+        "anon": false,
+        "authenticated": false
+      },
+      "fingerprints": [
+        {
+          "category": "columns",
+          "fingerprint": "c2031dc2d2d67b00a6134dcbcf3a17a1"
+        },
+        {
+          "category": "policies",
+          "fingerprint": "0d6233e3c12fd22c7adfd2f464d2a0fd"
+        },
+        {
+          "category": "indexes",
+          "fingerprint": "f60473d4cf07a8fe7b3de33244a1a4a5"
+        },
+        {
+          "category": "functions",
+          "fingerprint": "006c0da52e3e794508910c37b527cccb"
+        },
+        {
+          "category": "tables_rls_grants",
+          "fingerprint": "efbc4bde67f3a032f98b4010d79696d9"
+        },
+        {
+          "category": "constraints",
+          "fingerprint": "abb5e0f66244e8ed937be24f4ab82bd0"
+        },
+        {
+          "category": "triggers",
+          "fingerprint": "9fca8fa610ec2dcef4f9f81ea7b3e674"
+        }
+      ],
+      "recovery_inventory": {
+        "extensions": [
+          {
+            "name": "pg_cron",
+            "version": "1.6.4"
+          },
+          {
+            "name": "pg_stat_statements",
+            "version": "1.11"
+          },
+          {
+            "name": "pgcrypto",
+            "version": "1.3"
+          },
+          {
+            "name": "plpgsql",
+            "version": "1.0"
+          },
+          {
+            "name": "supabase_vault",
+            "version": "0.3.1"
+          },
+          {
+            "name": "uuid-ossp",
+            "version": "1.1"
+          }
+        ],
+        "definer_boundaries": [
+          {
+            "name": "assign_sync_revision",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "can_access_lead_for_current_user",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "can_read_operational_errors",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "current_profile_id",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "current_user_org_id",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "current_user_role",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "expire_operational_errors",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "finalize_agent_provisioning",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "is_active_org_user",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "is_org_admin",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "protect_follow_up_agent_updates",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "protect_lead_immutable_fields",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "protect_profile_immutable_fields",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "report_operational_error",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "reserve_agent_provisioning",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "sync_head",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "sync_was_deleted",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          }
+        ],
+        "storage_object_count": 0
+      },
+      "backup_created": false,
+      "decryption_verified": false,
+      "restore_rehearsed": false,
+      "migration_repaired": false,
+      "advisor_counts": [
+        {
+          "type": "security",
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "count": 5,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+        },
+        {
+          "type": "security",
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "count": 10,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+        },
+        {
+          "type": "security",
+          "name": "auth_leaked_password_protection",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+        },
+        {
+          "type": "performance",
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "count": 20,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+        },
+        {
+          "type": "performance",
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+        },
+        {
+          "type": "performance",
+          "name": "unused_index",
+          "level": "INFO",
+          "count": 9,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+        }
+      ]
+    },
+    {
+      "id": "lahvcodvgubplzfshare",
+      "environment": "Production",
+      "counts": {
+        "columns": 213,
+        "indexes": 48,
+        "policies": 28,
+        "functions": 18
+      },
+      "migrations": 19,
+      "sync_mutate": {
+        "anon": false,
+        "service_role": true,
+        "authenticated": true
+      },
+      "possible_ddl": 0,
+      "non_rls_tables": 0,
+      "active_sessions": 0,
+      "exclusive_locks": 0,
+      "final_migration": [
+        {
+          "name": "revoke_anon_sync_mutate",
+          "version": "20261003055551",
+          "statements": [
+            "BEGIN;\n\n-- Supabase default function grants include anon. Mutations are for signed-in\n-- clients; keep service_role access for trusted operational tooling.\nREVOKE ALL ON FUNCTION public.sync_mutate(text, text, uuid, bigint, jsonb)\n  FROM PUBLIC, anon;\nGRANT EXECUTE ON FUNCTION public.sync_mutate(text, text, uuid, bigint, jsonb)\n  TO authenticated, service_role;\n\nCOMMIT;"
+          ]
+        }
+      ],
+      "postgres_version": "17.6",
+      "internal_boundaries": [
+        {
+          "table": "sync_revision_heads",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "sync_deleted_keys",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "agent_provisioning_policy",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "agent_provisioning_rate_limits",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "table": "operational_error_readers",
+          "anon_select": false,
+          "service_role_select": true,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        }
+      ],
+      "client_create_public": {
+        "anon": false,
+        "authenticated": false
+      },
+      "fingerprints": [
+        {
+          "category": "columns",
+          "fingerprint": "c2031dc2d2d67b00a6134dcbcf3a17a1"
+        },
+        {
+          "category": "policies",
+          "fingerprint": "0d6233e3c12fd22c7adfd2f464d2a0fd"
+        },
+        {
+          "category": "indexes",
+          "fingerprint": "f60473d4cf07a8fe7b3de33244a1a4a5"
+        },
+        {
+          "category": "functions",
+          "fingerprint": "71a570128fa9ed5295f6ad27792a0e94"
+        },
+        {
+          "category": "tables_rls_grants",
+          "fingerprint": "efbc4bde67f3a032f98b4010d79696d9"
+        },
+        {
+          "category": "constraints",
+          "fingerprint": "adc75aa8a88291c9b33432c499003726"
+        },
+        {
+          "category": "triggers",
+          "fingerprint": "9fca8fa610ec2dcef4f9f81ea7b3e674"
+        }
+      ],
+      "recovery_inventory": {
+        "extensions": [
+          {
+            "name": "pg_cron",
+            "version": "1.6.4"
+          },
+          {
+            "name": "pg_stat_statements",
+            "version": "1.11"
+          },
+          {
+            "name": "pgcrypto",
+            "version": "1.3"
+          },
+          {
+            "name": "plpgsql",
+            "version": "1.0"
+          },
+          {
+            "name": "supabase_vault",
+            "version": "0.3.1"
+          },
+          {
+            "name": "uuid-ossp",
+            "version": "1.1"
+          }
+        ],
+        "definer_boundaries": [
+          {
+            "name": "assign_sync_revision",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "can_access_lead_for_current_user",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "can_read_operational_errors",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "current_profile_id",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "current_user_org_id",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "current_user_role",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "expire_operational_errors",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "finalize_agent_provisioning",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "is_active_org_user",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "is_org_admin",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "protect_follow_up_agent_updates",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "protect_lead_immutable_fields",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "protect_profile_immutable_fields",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "report_operational_error",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "reserve_agent_provisioning",
+            "search_path": [
+              "search_path=public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": false
+          },
+          {
+            "name": "sync_head",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          },
+          {
+            "name": "sync_was_deleted",
+            "search_path": [
+              "search_path=pg_catalog, public"
+            ],
+            "anon_execute": false,
+            "authenticated_execute": true
+          }
+        ],
+        "storage_object_count": 0
+      },
+      "backup_created": false,
+      "decryption_verified": false,
+      "restore_rehearsed": false,
+      "migration_repaired": false,
+      "advisor_counts": [
+        {
+          "type": "security",
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "count": 5,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+        },
+        {
+          "type": "security",
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "count": 10,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable"
+        },
+        {
+          "type": "security",
+          "name": "auth_leaked_password_protection",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection"
+        },
+        {
+          "type": "performance",
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "count": 20,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys"
+        },
+        {
+          "type": "performance",
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "count": 1,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0003_auth_rls_initplan"
+        },
+        {
+          "type": "performance",
+          "name": "unused_index",
+          "level": "INFO",
+          "count": 26,
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index"
+        }
+      ]
+    }
+  ],
+  "comparison": {
+    "columns_policies_indexes_rls_grants_triggers": "matching fingerprints",
+    "functions": "all 18 definitions match after whitespace normalization and ACL sorting",
+    "constraints": "one equivalent CHECK deparser difference: bulk_assignment_audits_status_check casts varchar array to text[] versus each element; same four allowed status values. All other constraints match.",
+    "final_sql": "Both final stored statements match canonical Git SQL after trimming trailing whitespace."
+  },
+  "vercel_config": [
+    {
+      "target": "preview",
+      "project": "dhoinifpzijqyobcamlv",
+      "urlMatches": true,
+      "publicKeyMatchesActiveProjectKey": true,
+      "keyName": "anon",
+      "keyType": "legacy"
+    },
+    {
+      "target": "production",
+      "project": "lahvcodvgubplzfshare",
+      "urlMatches": true,
+      "publicKeyMatchesActiveProjectKey": true,
+      "keyName": "anon",
+      "keyType": "legacy"
+    }
+  ]
+}

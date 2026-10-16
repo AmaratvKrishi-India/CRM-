@@ -19,7 +19,7 @@ This file stores only durable project engineering context. Do not add customer n
 
 ## Decisions
 
-- Keep the development work on `development/crm-storage-backup`; leave `main` unchanged and keep PR #7 as a draft.
+- Historical PR #7 draft/merge holds are superseded: PRs #7, #8 and #9 are merged. Current verified released main is `0eea4febfa7e7e1babf0384f3ce47909d28970e8`. See the newest maintenance report before acting on older entries.
 - Google Drive setup remains postponed. Preserve its existing scripts and documentation; do not configure OAuth, rclone, uploads, scheduling, or tests.
 - Keep Codex skills and task memory in Git. Rebuild SkillSpector from the pinned upstream commit and lockfile when a cloud task starts.
 - Use a local Markdown memory adapter in place of the complete Claude-Mem worker. Do not persist customer data, secrets, credentials, or transcripts.
@@ -40,11 +40,13 @@ This file stores only durable project engineering context. Do not add customer n
 
 ## Pending work
 
-- Merge the reviewed post-release repair only after its CI succeeds and production release timing is approved; the candidate removes the Snyk npm chain and preserves audit gates.
-- Android real-backend synchronization is excluded by the owner and is not an outstanding requirement.
-- Obtain user approval before merging while Vercel `main` promotion is configured to deploy to Production; obtain the required PR review and confirm branch-protection rules.
-- Keep local PostgreSQL testing on GitHub-hosted runners; Codex Cloud's VFS container setup cannot fit the Supabase PostgreSQL image.
-- The task-local toolkit bootstrap is reproducible and verified. The cloud environment currently reports spec revision 4 observed at revision 4 and running; no publish/write action is exposed in this session.
+- Hosted backups and recovery rehearsal remain blocked: no approved PostgreSQL credentials, private external retention destination, independent encryption-key custody or secured disposable restore target are configured. No hosted migration history may change before these gates pass.
+- Both hosted projects retain 19 migrations. Final versions: Staging `20261003055436`, Production `20261003055551`; canonical Git version `20261003000018`. Production also requires successful Staging repair and explicit authorization naming `lahvcodvgubplzfshare`.
+- Review Production `17.6.1.164/withdrawn` with Supabase support. No public explanation established a security incident or urgency. Staging is `17.6.1.166/ga`. Do not upgrade without tested recovery and explicit approval.
+- Leaked-password protection still requires Pro or above; organization is Free. No paid upgrade or login-setting change was made. Review Free password-strength controls on Staging and recommend unique long passwords/password managers.
+- Authenticated live smoke requires a designated securely supplied test account and synthetic authorized records. Android real-backend testing, VoIP and Drive remain excluded.
+- Runtime most recently reports revision 7 desired/observed, running/connected, enforced restricted network and no secret bindings or outbound identities. Reusable environment publication is unverified. Check Codex Settings → Environments → CRM and Publish in the UI if the saved revision is still Draft.
+- Preserve the original `work` checkout. Maintenance work uses an isolated worktree based on latest main; any new PR remains unmerged pending approval where main triggers Vercel Production.
 
 ## Verification notes
 
@@ -53,3 +55,9 @@ This file stores only durable project engineering context. Do not add customer n
 - 2026-10-16: security and regression follow-up; never store live credentials, customer records, or production test data in this memory.
 - 2026-10-16: run 58 passed 349 Node tests, 279 Vitest tests, 42 Chromium tests, 2 tablet tests, 11 real-Supabase browser tests, and Android debug/unsigned release build validation on PR head `c6b940b`; no Android device was attached.
 - 2026-10-16: run 59's web regression and standard Android builds passed; its artifact job exposed that `rg` is not installed on the Android runner. Removed the redundant search, relied on the existing synthetic asset validator, and made the checksum basename-relative. Run 60 passed and uploaded artifact `CRM-2.0.2-debug-test-only` (ID 12046784892; expires 2026-10-23).
+
+- 2026-10-17 IST maintenance: PR #9 Snyk wrapper removal is released; current full and production npm audits both report zero vulnerabilities. Earlier Snyk-risk-acceptance instructions are superseded.
+- Released-main CI #68 (`38960369058`) passed 349 Node, 279 Vitest, 42 Chromium, 2 tablet and 11 disposable-Supabase browser scenarios, plus RLS/build/security gates.
+- Deleted unprotected merged branch `fix/post-release-security` normally after verifying zero unique commits. Original local work was preserved.
+- Rechecked hosted RLS, internal-table grants and anonymous sync_mutate denial. Columns/policies/indexes/table grants/triggers match; all 18 function definitions and ACLs match after normalization. One CHECK has equivalent array-cast formatting. No hosted SQL mutation or customer-row export occurred.
+- Reproduced all five toolkit skills and pinned SkillSpector SAFE fixture. Current recovery entrypoints are FRESH-TASK-RECOVERY.md and the newest maintenance report; old plans/reports are historical snapshots.

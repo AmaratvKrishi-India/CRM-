@@ -31,13 +31,15 @@ This file stores only durable project engineering context. Do not add customer n
 
 ## Pending work
 
-- Run the updated GitHub-hosted workflow and verify F040, `supabase-sync`, the full disposable database reset/migrations/seed, real-Supabase browser CRUD/multi-client, Chromium, tablet, and Android build checks.
-- Revisit the four moderate Snyk dependency findings when upstream publishes a safe patched tree. Keep the npm audit gate unchanged.
+- Obtain explicit user acceptance for the four moderate Snyk development-only findings before merge, or wait for a safe upstream patch. Keep the npm audit gate unchanged.
+- Complete Android runtime checks on a supplied emulator/device, or obtain the user's explicit acceptance of this remaining gap before merge.
+- Obtain user approval before merging while Vercel `main` promotion is configured to deploy to Production; obtain the required PR review and confirm branch-protection rules.
 - Keep local PostgreSQL testing on GitHub-hosted runners; Codex Cloud's VFS container setup cannot fit the Supabase PostgreSQL image.
-- Publish the environment revision in Codex Cloud settings if a retained environment image is desired; the UI action is not exposed in the current session.
+- The task-local toolkit bootstrap is reproducible and verified. The cloud environment currently reports spec revision 4 observed at revision 4 and running; no publish/write action is exposed in this session.
 
 ## Verification notes
 
 - 2026-10-16: memory retrieval smoke test completed. This line is harmless and exists to verify cross-process retrieval of tracked memory.
 - 2026-10-16: Codex memory append and retrieval smoke test passed across separate processes
 - 2026-10-16: security and regression follow-up; never store live credentials, customer records, or production test data in this memory.
+- 2026-10-16: run 58 passed 349 Node tests, 279 Vitest tests, 42 Chromium tests, 2 tablet tests, 11 real-Supabase browser tests, and Android debug/unsigned release build validation on PR head `c6b940b`; no Android device was attached.

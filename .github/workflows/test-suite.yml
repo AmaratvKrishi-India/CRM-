@@ -150,3 +150,29 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew assembleDebug assembleRelease --no-daemon
+
+      - name: Prepare test-only Android assets
+        env:
+          VITE_SUPABASE_URL: https://codex-offline-test.supabase.co
+          VITE_SUPABASE_ANON_KEY: offline-test-only-placeholder-do-not-authenticate
+        run: npm run release:android:prepare
+
+      - name: Verify synthetic backend is in packaged web assets
+        run: rg -l --glob '*.js' --fixed-strings 'https://codex-offline-test.supabase.co' android/app/src/main/assets/public > /dev/null
+
+      - name: Assemble debug APK with synthetic backend
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Checksum test-only debug APK
+        run: sha256sum android/app/build/outputs/apk/debug/app-debug.apk > android/app/build/outputs/apk/debug/app-debug.apk.sha256
+
+      - name: Upload test-only Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CRM-2.0.2-debug-test-only
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 7

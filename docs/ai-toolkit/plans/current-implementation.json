@@ -1,93 +1,119 @@
 {
-  "id": "codex-cloud-ai-toolkit",
-  "milestone": "Complete the Codex Cloud CRM toolkit and regression verification",
+  "id": "crm-final-release-readiness",
+  "milestone": "Verify the CRM release candidate and preserve merge gates",
   "phases": [
     {
       "id": "preserve",
-      "title": "Preserve branch and prior work",
+      "title": "Verify and preserve repository state",
       "tasks": [
         {
-          "id": "check-branch",
-          "title": "Fetch and verify the existing development branch and prior commits",
+          "id": "verify-refs",
+          "title": "Verify live main, development, and PR 7 references",
           "status": "completed",
-          "depends_on": []
+          "depends_on": [],
+          "result": "Main was 729208d15b6f0b7629b5e17c3176dafc6166bc25. Run 58 verified Android-fix commit c6b940b0421807a87c0c0871920b056a1f53b3c1 on PR 7; this checkpoint also adds the synthetic-backend APK workflow and updated verification records."
         },
         {
-          "id": "confirm-pr",
-          "title": "Confirm PR 7 remains open and draft through GitHub",
+          "id": "preserve-worktrees",
+          "title": "Preserve staged work and the active PR branch",
           "status": "completed",
-          "depends_on": [
-            "check-branch"
-          ]
+          "depends_on": ["verify-refs"],
+          "result": "The release worktree is isolated. The separate original checkout's staged changes were left untouched; the active development branch remains because PR 7 is open."
         }
       ]
     },
     {
-      "id": "review-tools",
-      "title": "Review and install or adapt the five tools",
+      "id": "verify",
+      "title": "Run Android, synchronization, and regression checks",
       "tasks": [
         {
-          "id": "scan-tools",
-          "title": "Install SkillSpector and statically scan the four public upstream skill sources",
+          "id": "android-builds",
+          "title": "Run Android lint, debug, unsigned release, and host unit tasks",
           "status": "completed",
-          "depends_on": [
-            "check-branch"
-          ]
+          "depends_on": ["verify-refs"],
+          "result": "Local lint/debug/unsigned-release builds passed; testDebugUnitTest passed its single template test. Run 58 passed guarded assets and debug/unsigned release builds, 425 Gradle tasks."
         },
         {
-          "id": "add-skills",
-          "title": "Add Codex skills, helpers, documentation, and sample plans",
+          "id": "android-runtime",
+          "title": "Install and exercise the app on an Android emulator or device",
+          "status": "blocked",
+          "depends_on": ["android-builds"],
+          "result": "No emulator binary, adb target, KVM, or device-testing service is available. Await a device run or explicit user acceptance of the runtime-test gap."
+        },
+        {
+          "id": "hosted-regression",
+          "title": "Run disposable Supabase, full tests, browser checks, and security gates",
           "status": "completed",
-          "depends_on": [
-            "scan-tools"
-          ]
+          "depends_on": ["verify-refs"],
+          "result": "Run 58 passed: Node 349/349, Vitest 21 files and 279/279, Chromium 42 passed, tablet 2/2, real Supabase browser 11/11, audit gate, secret scan, production build, and bundle budget."
+        },
+        {
+          "id": "sync-integrity",
+          "title": "Verify offline queues, retries, conflicts, RLS, and multi-client recovery",
+          "status": "completed",
+          "depends_on": ["hosted-regression"],
+          "result": "F040/F047/supabase-sync and Dexie tests passed on disposable Supabase. Real browser coverage passed offline create/reconnect, concurrent offline edits, and missed-Realtime recovery. No Android-device offline run was possible."
         }
       ]
     },
     {
-      "id": "verify-crm",
-      "title": "Verify the CRM and database strategy",
+      "id": "security-and-environment",
+      "title": "Record security risk and reproducible Codex setup",
       "tasks": [
         {
-          "id": "run-local-regression",
-          "title": "Run supported type, lint, build, unit, security, and browser checks",
+          "id": "dependency-review",
+          "title": "Review the complete audit and production dependency exposure",
           "status": "completed",
-          "depends_on": [
-            "add-skills"
-          ]
+          "depends_on": ["hosted-regression"],
+          "result": "Four moderate npm findings remain in the dev-only Snyk chain (GHSA-hp3w-g68c-fv3c); production audit is clean and the existing high-severity gate passes."
         },
         {
-          "id": "run-db-ci",
-          "title": "Run full PostgreSQL/Supabase integration checks on GitHub-hosted CI",
+          "id": "moderate-risk-acceptance",
+          "title": "Obtain explicit acceptance for the unresolved Snyk moderate finding",
+          "status": "blocked",
+          "depends_on": ["dependency-review"],
+          "result": "No safe patched upstream version is available; user acceptance is required before merge."
+        },
+        {
+          "id": "toolkit-reproducibility",
+          "title": "Verify all five skills and fresh-task toolkit bootstrap",
           "status": "completed",
-          "depends_on": [
-            "commit-and-update-pr"
-          ],
-          "result": "GitHub Actions run 47: Supabase startup, all 349 Node tests, database reset/migrations/seed, and F047 RLS test passed. Workflow later failed at npm audit, so subsequent browser/security/build steps were skipped."
+          "depends_on": ["verify-refs"],
+          "result": "Fresh task-local bootstrap and verify passed for SkillSpector, GSD planning, project memory, Agent-Reach, and No AI Slop. Cloud environment reports spec 4 observed at 4 and running."
         }
       ]
     },
     {
-      "id": "publish",
-      "title": "Commit and update the existing pull request",
+      "id": "merge-gates",
+      "title": "Keep merge and branch cleanup behind explicit release gates",
       "tasks": [
         {
-          "id": "commit-and-update-pr",
-          "title": "Commit changes to the existing development branch and update PR 7 as draft",
-          "status": "completed",
-          "depends_on": [
-            "run-local-regression"
-          ]
+          "id": "production-impact-approval",
+          "title": "Resolve the Vercel production deployment impact of merging",
+          "status": "blocked",
+          "depends_on": ["verify-refs"],
+          "result": "Vercel deploys main to Production. Obtain explicit deployment approval or change the deployment policy before merging."
         },
         {
-          "id": "confirm-ci",
-          "title": "Record GitHub-hosted PostgreSQL/Supabase workflow result and verify PR status",
-          "status": "completed",
-          "depends_on": [
-            "commit-and-update-pr",
-            "run-db-ci"
-          ],
-          "result": "PR 7 remains open and draft on 239c5a2. Run 47 database checks passed; dependency audit failed and later workflow steps were skipped."
+          "id": "pr-review-requirements",
+          "title": "Satisfy review requirements and verify branch protection",
+          "status": "blocked",
+          "depends_on": ["verify-refs"],
+          "result": "PR 7 has no reviews and remains Draft. Branch-protection read returned 403; requirements are unverified."
+        },
+        {
+          "id": "merge-pr-7",
+          "title": "Merge PR 7 into main after every required gate passes",
+          "status": "blocked",
+          "depends_on": ["android-runtime", "moderate-risk-acceptance", "production-impact-approval", "pr-review-requirements"],
+          "result": "Do not merge until the blocked gates are resolved and final checks are green on the latest head."
+        },
+        {
+          "id": "clean-branches",
+          "title": "Delete only obsolete unprotected development branches after merge verification",
+          "status": "blocked",
+          "depends_on": ["merge-pr-7"],
+          "result": "Only main and the active development branch exist. Retain both while the PR is open."
         }
       ]
     }

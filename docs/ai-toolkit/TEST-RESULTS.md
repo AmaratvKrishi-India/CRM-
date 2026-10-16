@@ -69,6 +69,45 @@ No SQLite or mock database is used as a substitute for PostgreSQL coverage. The 
 
 The Snyk npm wrapper is present at 1.1308.1, but its first run tried to fetch the CLI binary from `downloads.snyk.io` and `static.snyk.io`; both connections were reset by the environment’s enforced egress policy. No alternate network route was used. `npm audit` remains available and was run locally and in the CI security gate.
 
+## Final Android and synchronization checkpoint
+
+Verified against Android-fix commit `c6b940b0421807a87c0c0871920b056a1f53b3c1` on 2026-10-16. GitHub [Release readiness run 58](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/38899226143) completed successfully on the PR merge ref. Main remained at `729208d15b6f0b7629b5e17c3176dafc6166bc25`.
+
+### Android
+
+- `npm run release:android:prepare` passed with synthetic Supabase values locally; Capacitor copied the web app and the Android release-asset gate passed. No production service was contacted.
+- Local `bash ./gradlew lint assembleDebug assembleRelease --no-daemon` passed with no lint issues. GitHub run 58 independently passed the guarded asset check and `assembleDebug assembleRelease` (425/425 Gradle tasks, 2m 41s).
+- Local `testDebugUnitTest` passed its single template arithmetic test. The app’s instrumented test is only a package-name assertion and was not run because no emulator or device was available.
+- Android config is Java 21, compile/target SDK 36, min SDK 24; application ID `com.amaratvkrishi.salescrm`, version 2.0.2. Capacitor sync resolved `@capacitor/app`, `@capacitor/local-notifications`, and `@capacitor/share`. MainActivity uses `BridgeActivity`; WebView debugging is enabled only in debug builds.
+- The merged manifest includes Internet, notification, boot, wake-lock, and exact-alarm permissions; no call, contacts, camera, or location permission is declared. The release APK is unsigned because no production signing key was configured.
+- No `adb` target, emulator binary, KVM, or device-testing service was available. Therefore install/startup on Android, authentication, native plugin use, airplane-mode behavior, persistence across app restarts, background/resume, crash-log review, and Android-specific customer/lead/order/follow-up flows remain unverified on device. The debug APK from local scratch used a nonfunctional synthetic backend and is not an authenticated test build.
+
+### Hosted regression and data integrity
+
+Run 58 passed all required hosted checks on the current PR head:
+
+- Node suite: **349/349**.
+- Vitest: **21 files, 279/279 tests**, including F040, F047, `supabase-sync`, Dexie synchronization, authorization/RLS, retry, idempotency, and conflict cases. CI started and reset disposable local Supabase, applying migrations and seed fixtures.
+- Chromium: **42 passed, 11 skipped** in the standard profile; those 11 real-Supabase cases ran in the separate integration step.
+- Ubuntu visual comparisons: **11/11** passed as part of the Chromium suite; tablet browser tests: **2/2**.
+- Real local-Supabase browser CRUD and multi-client tests: **11/11**. These include creating offline and syncing to PostgreSQL, concurrent offline edits in two authenticated browsers, and recovery after a missed Realtime update/reconnect.
+- Local browser synchronization coverage is not a substitute for the unavailable Android-device run. The three-Android-emulator suite was not run; run 58’s browser clients and hosted Supabase are separate coverage.
+- TypeScript application typecheck, local `npm run test:type`, ESLint, production build (2,020 modules), bundle budget, audit gate, and secret scan passed. Bundle: 1,166,394 bytes raw, 310,375 gzip, 263,941 Brotli, 17 chunks, no budget warnings.
+- Secret scan: 473 files; 0 critical/high, 8 moderate and 46 low heuristic matches (possible UUIDs, Supabase URLs, and configuration/path references); scanner outcome **PASSED**. The production-only npm audit remains at 0 findings.
+
+The synchronization evidence is for unit/integration tests and browser clients against disposable data; production Supabase was not used. Token expiry is covered by auth-service error tests, but no real Android token-refresh flow was exercised.
+
+### Remaining release gates
+
+- The full npm audit still reports four moderate entries for the one Snyk-only GHSA chain. The high-severity gate passes; the moderate finding is not waived and needs explicit user acceptance before merge.
+- Android runtime/device testing is unavailable in this environment. Explicit user acceptance of the gap or a supplied test device/emulator run is required before treating Android release testing as complete.
+- The current Vercel project deploys `main` to Production, so merging the PR would trigger an automatic production deployment. No deployment or merge was performed; explicit deployment approval is required before merging.
+- PR #7 remains Draft with no submitted reviews. Branch-protection details could not be read with the available GitHub permissions (403), so review requirements are unverified.
+- The Codex Cloud environment currently reports spec revision 4 observed at revision 4 and running. The repository bootstrap/verification workflow passed in a fresh task-local home. No environment-publish action is exposed in this session.
+- A follow-up workflow commit adds artifact `CRM-2.0.2-debug-test-only`, built after a fresh synthetic-backend prepare step and retained for 7 days. The workflow verifies the synthetic endpoint is present in the packaged JavaScript before uploading the APK and checksum.
+
+The PR stays open and Draft, `main` stays unchanged, and `development/crm-storage-backup` is retained while the PR remains active.
+
 ## Storage and environment
 
 | Measurement | At task start | After local verification |

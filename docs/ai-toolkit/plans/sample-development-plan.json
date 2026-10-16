@@ -1,0 +1,36 @@
+{
+  "id": "codex-plan-smoke",
+  "milestone": "Verify the repository-local planning workflow",
+  "phases": [
+    {
+      "id": "prepare",
+      "title": "Prepare a harmless plan",
+      "tasks": [
+        {
+          "id": "choose-sample",
+          "title": "Choose a documentation-only sample task",
+          "status": "completed",
+          "depends_on": []
+        }
+      ]
+    },
+    {
+      "id": "execute",
+      "title": "Validate planning and dependency tracking",
+      "tasks": [
+        {
+          "id": "validate-schema",
+          "title": "Run plan validation and confirm dependency ordering",
+          "status": "completed",
+          "depends_on": ["choose-sample"]
+        },
+        {
+          "id": "report-completion",
+          "title": "Generate a completed, pending, and blocked task summary",
+          "status": "completed",
+          "depends_on": ["validate-schema"]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "id": "codex-cloud-ai-toolkit",
+  "milestone": "Complete the Codex Cloud CRM toolkit and regression verification",
+  "phases": [
+    {
+      "id": "preserve",
+      "title": "Preserve branch and prior work",
+      "tasks": [
+        {
+          "id": "check-branch",
+          "title": "Fetch and verify the existing development branch and prior commits",
+          "status": "completed",
+          "depends_on": []
+        },
+        {
+          "id": "confirm-pr",
+          "title": "Confirm PR 7 remains open and draft through GitHub",
+          "status": "completed",
+          "depends_on": [
+            "check-branch"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "review-tools",
+      "title": "Review and install or adapt the five tools",
+      "tasks": [
+        {
+          "id": "scan-tools",
+          "title": "Install SkillSpector and statically scan the four public upstream skill sources",
+          "status": "completed",
+          "depends_on": [
+            "check-branch"
+          ]
+        },
+        {
+          "id": "add-skills",
+          "title": "Add Codex skills, helpers, documentation, and sample plans",
+          "status": "completed",
+          "depends_on": [
+            "scan-tools"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "verify-crm",
+      "title": "Verify the CRM and database strategy",
+      "tasks": [
+        {
+          "id": "run-local-regression",
+          "title": "Run supported type, lint, build, unit, security, and browser checks",
+          "status": "completed",
+          "depends_on": [
+            "add-skills"
+          ]
+        },
+        {
+          "id": "run-db-ci",
+          "title": "Run full PostgreSQL/Supabase integration checks on GitHub-hosted CI",
+          "status": "pending",
+          "depends_on": [
+            "commit-and-update-pr"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "publish",
+      "title": "Commit and update the existing pull request",
+      "tasks": [
+        {
+          "id": "commit-and-update-pr",
+          "title": "Commit changes to the existing development branch and update PR 7 as draft",
+          "status": "in_progress",
+          "depends_on": [
+            "run-local-regression"
+          ]
+        },
+        {
+          "id": "confirm-ci",
+          "title": "Record GitHub-hosted PostgreSQL/Supabase workflow result and verify PR status",
+          "status": "pending",
+          "depends_on": [
+            "commit-and-update-pr",
+            "run-db-ci"
+          ]
+        }
+      ]
+    }
+  ]
+}

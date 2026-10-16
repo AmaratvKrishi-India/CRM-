@@ -73,3 +73,8 @@ e2e/android/reports/
 /rclone.conf
 *.rclone.conf
 /.backup-secrets/
+
+# Reproducible Codex AI toolkit binaries, upstream checkouts, and local reports.
+/work/ai-toolkit/
+__pycache__/
+*.py[cod]

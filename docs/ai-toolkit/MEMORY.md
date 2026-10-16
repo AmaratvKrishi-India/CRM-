@@ -43,3 +43,4 @@ This file stores only durable project engineering context. Do not add customer n
 - 2026-10-16: Codex memory append and retrieval smoke test passed across separate processes
 - 2026-10-16: security and regression follow-up; never store live credentials, customer records, or production test data in this memory.
 - 2026-10-16: run 58 passed 349 Node tests, 279 Vitest tests, 42 Chromium tests, 2 tablet tests, 11 real-Supabase browser tests, and Android debug/unsigned release build validation on PR head `c6b940b`; no Android device was attached.
+- 2026-10-16: run 59 passed web regression and standard Android builds, but the new test-artifact job stopped because `rg` is not installed on the Android runner. Removed the redundant search (the existing release-asset gate validates synthetic markers) and made the checksum basename-relative; run 60 must verify the artifact upload.

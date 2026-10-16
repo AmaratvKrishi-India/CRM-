@@ -104,7 +104,7 @@ The synchronization evidence is for unit/integration tests and browser clients a
 - The current Vercel project deploys `main` to Production, so merging the PR would trigger an automatic production deployment. No deployment or merge was performed; explicit deployment approval is required before merging.
 - PR #7 remains Draft with no submitted reviews. Branch-protection details could not be read with the available GitHub permissions (403), so review requirements are unverified.
 - The Codex Cloud environment currently reports spec revision 4 observed at revision 4 and running. The repository bootstrap/verification workflow passed in a fresh task-local home. No environment-publish action is exposed in this session.
-- A follow-up workflow commit adds artifact `CRM-2.0.2-debug-test-only`, built after a fresh synthetic-backend prepare step and retained for 7 days. The workflow verifies the synthetic endpoint is present in the packaged JavaScript before uploading the APK and checksum.
+- The follow-up workflow adds artifact `CRM-2.0.2-debug-test-only`, built after a fresh synthetic-backend prepare step and retained for 7 days. Run 59 passed its web job and standard Android debug/unsigned release build but stopped before uploading: the additional asset-search command used `rg`, which is not installed on the Android runner. The redundant command was removed because `release:android:prepare` already validates that the exact environment URL and key markers are embedded in the Capacitor assets. The checksum file now records a basename-relative APK path. Run 60 must confirm the corrected upload.
 
 The PR stays open and Draft, `main` stays unchanged, and `development/crm-storage-backup` is retained while the PR remains active.
 

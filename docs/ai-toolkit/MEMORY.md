@@ -22,6 +22,7 @@ This file stores only durable project engineering context. Do not add customer n
 - Added the five repo-local Codex skills, a pinned SkillSpector bootstrap, memory and planning helpers, and a public documentation research helper.
 - Verified the sample memory survives retrieval by a separate process (`memory retrieval smoke test`, 2026-10-16).
 - Verified TypeScript application and type tests, ESLint, production build, 238 targeted Vitest cases, 306 PostgreSQL-independent Node tests, and 31 functional Chromium cases.
+- Full local Vitest inventory: 252 passed, 27 skipped, and 3 integration suites could not start without local Supabase; hosted CI later ran F047 successfully, but F040 and `supabase-sync` remain unrun.
 - Reviewed the dependency audit and secret-scan output; no automatic dependency upgrades were applied.
 - Removed task-created non-scanner source clones and duplicate reconstruction scratch; retained the 19 MiB pinned SkillSpector checkout required by its editable install.
 - On GitHub Actions run 47 for `239c5a2`, local Supabase started, all 349 Node tests passed, database reset/migrations/seed passed, and the F047 RLS regression passed. The job stopped at the existing high-severity npm audit gate; later workflow stages were skipped.

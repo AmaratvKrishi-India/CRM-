@@ -81,7 +81,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          for name in login-desktop login-mobile dashboard-agent-desktop dashboard-agent-mobile leads-list-desktop leads-list-mobile create-lead-modal theme-night theme-day admin-dashboard followups-tab; do
+          for name in login-desktop login-mobile admin-dashboard; do
             image="e2e/visual-regression.spec.ts-snapshots/${name}-chromium-ubuntu24.png"
             if [[ -f "$image" ]]; then
               printf 'VISUAL_PREVIEW_%s_BEGIN\n' "$name"

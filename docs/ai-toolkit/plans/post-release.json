@@ -20,9 +20,27 @@
       "tasks": [
         {
           "id": "database-check",
-          "title": "Recheck hosted metadata, permissions and recovery prerequisites",
-          "status": "in_progress",
+          "title": "Complete read-only hosted migration and security audit",
+          "status": "completed",
           "depends_on": []
+        },
+        {
+          "id": "staging-repair",
+          "title": "Repair staging migration history only after recovery and CLI verification",
+          "status": "blocked",
+          "depends_on": [
+            "database-check"
+          ],
+          "blocker": "No verified restorable backup, rollback rehearsal or CLI database credentials/network access."
+        },
+        {
+          "id": "production-repair",
+          "title": "Repair production history after staging and project-specific approval",
+          "status": "blocked",
+          "depends_on": [
+            "staging-repair"
+          ],
+          "blocker": "Verified recovery and explicit authorization for lahvcodvgubplzfshare are absent."
         }
       ]
     },
@@ -33,7 +51,7 @@
         {
           "id": "dependencies-check",
           "title": "Remove optional vulnerable npm Snyk wrapper without changing security gates",
-          "status": "in_progress",
+          "status": "completed",
           "depends_on": []
         }
       ]
@@ -45,8 +63,17 @@
         {
           "id": "web-check",
           "title": "Verify production deployment and configuration",
-          "status": "in_progress",
+          "status": "completed",
           "depends_on": []
+        },
+        {
+          "id": "production-login",
+          "title": "Run designated-account read-only production browser smoke",
+          "status": "blocked",
+          "depends_on": [
+            "web-check"
+          ],
+          "blocker": "No designated account; direct browser egress to production is denied. Static captured build rendering passed."
         }
       ]
     },
@@ -57,7 +84,7 @@
         {
           "id": "cleanup-check",
           "title": "Delete verified merged and unprotected obsolete branches",
-          "status": "pending",
+          "status": "completed",
           "depends_on": []
         }
       ]
@@ -68,8 +95,8 @@
       "tasks": [
         {
           "id": "regression-check",
-          "title": "Validate fixes locally and through disposable Supabase CI",
-          "status": "pending",
+          "title": "Verify candidate with disposable Supabase CI after passed local regression",
+          "status": "in_progress",
           "depends_on": []
         }
       ]
@@ -81,8 +108,17 @@
         {
           "id": "continuity-check",
           "title": "Record evidence and fresh-task recovery instructions",
-          "status": "pending",
+          "status": "completed",
           "depends_on": []
+        },
+        {
+          "id": "publish-environment",
+          "title": "Verify reusable Codex environment revision publication",
+          "status": "blocked",
+          "depends_on": [
+            "continuity-check"
+          ],
+          "blocker": "Status-only tools expose no publish control; owner UI publication and a fresh-task check are required."
         }
       ]
     }

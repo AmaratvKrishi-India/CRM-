@@ -53,8 +53,8 @@ jobs:
       - name: Reset disposable local Supabase with integration fixtures
         run: npx supabase db reset --local --yes --sql-paths ./seed.sql
 
-      - name: Supabase integration regression (F040, F047, sync, and Dexie)
-        run: npm run test:vitest -- tests/integration --reporter dot
+      - name: Full Vitest regression suite (unit and Supabase integration)
+        run: npm run test:vitest -- --reporter dot
 
       - name: Dependency security gate
         run: npm audit --audit-level=high

@@ -59,10 +59,11 @@
         {
           "id": "run-db-ci",
           "title": "Run full PostgreSQL/Supabase integration checks on GitHub-hosted CI",
-          "status": "pending",
+          "status": "completed",
           "depends_on": [
             "commit-and-update-pr"
-          ]
+          ],
+          "result": "GitHub Actions run 47: Supabase startup, all 349 Node tests, database reset/migrations/seed, and F047 RLS test passed. Workflow later failed at npm audit, so subsequent browser/security/build steps were skipped."
         }
       ]
     },
@@ -73,7 +74,7 @@
         {
           "id": "commit-and-update-pr",
           "title": "Commit changes to the existing development branch and update PR 7 as draft",
-          "status": "in_progress",
+          "status": "completed",
           "depends_on": [
             "run-local-regression"
           ]
@@ -81,11 +82,12 @@
         {
           "id": "confirm-ci",
           "title": "Record GitHub-hosted PostgreSQL/Supabase workflow result and verify PR status",
-          "status": "pending",
+          "status": "completed",
           "depends_on": [
             "commit-and-update-pr",
             "run-db-ci"
-          ]
+          ],
+          "result": "PR 7 remains open and draft on 239c5a2. Run 47 database checks passed; dependency audit failed and later workflow steps were skipped."
         }
       ]
     }

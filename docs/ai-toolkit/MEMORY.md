@@ -23,12 +23,14 @@ This file stores only durable project engineering context. Do not add customer n
 - Verified the sample memory survives retrieval by a separate process (`memory retrieval smoke test`, 2026-10-16).
 - Verified TypeScript application and type tests, ESLint, production build, 238 targeted Vitest cases, 306 PostgreSQL-independent Node tests, and 31 functional Chromium cases.
 - Reviewed the dependency audit and secret-scan output; no automatic dependency upgrades were applied.
-- Removed task-created public source clones and duplicate reconstruction scratch after recording pinned commits and scan results.
+- Removed task-created non-scanner source clones and duplicate reconstruction scratch; retained the 19 MiB pinned SkillSpector checkout required by its editable install.
+- On GitHub Actions run 47 for `239c5a2`, local Supabase started, all 349 Node tests passed, database reset/migrations/seed passed, and the F047 RLS regression passed. The job stopped at the existing high-severity npm audit gate; later workflow stages were skipped.
 
 ## Pending work
 
-- Wait for GitHub Actions on PR #7 to run the full disposable PostgreSQL/Supabase, RLS, Auth, and real browser integration coverage; Codex Cloud's local DB container is unavailable under VFS.
-- Resolve or formally accept the existing npm audit high/critical findings through a separate dependency review.
+- Resolve or formally accept the existing npm audit high/critical findings through a separate dependency review. This gate currently stops GitHub CI before browser tests.
+- Run the real-Supabase browser CRUD/multi-client suites and downstream CI steps after the security gate is resolved.
+- Keep local PostgreSQL testing on GitHub-hosted runners; Codex Cloud's VFS container setup cannot fit the Supabase PostgreSQL image.
 - Add Linux Chromium visual baselines in a separately reviewed change if Linux visual regression coverage is required.
 - Publish the environment revision in Codex Cloud settings if a retained environment image is desired; the UI action is not exposed in the current session.
 

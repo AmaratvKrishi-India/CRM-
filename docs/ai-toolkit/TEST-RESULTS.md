@@ -43,7 +43,9 @@ Writing sample:
 
 Codex Cloud has no native `psql`/`postgres` installation or running Supabase database container. Docker reports the VFS storage driver. The earlier PostgreSQL image extraction exhausted the workspace, so this session did not pull or retry that image. The CRM uses PostgreSQL 17, Supabase Auth roles and `auth.users`, RLS, Realtime, and `pgcrypto`, `uuid-ossp`, and `pg_cron`; SQLite and mocks are not equivalent.
 
-The existing `.github/workflows/test-suite.yml` is the supported full-stack path. Its `ubuntu-latest` web-quality job starts local Supabase, runs the complete Node suite, resets the disposable database with `supabase/seed.sql`, runs the F047 RLS test, then runs security, build, browser, and real-Supabase suites. Updating this pull request should trigger it because PR #7 targets `main`. Record the run and result after GitHub schedules it. Until it passes, database migration, Auth/RLS, and Supabase-backed browser behavior remain unverified.
+The existing `.github/workflows/test-suite.yml` ran on GitHub-hosted `ubuntu-latest` as run **47** for commit `239c5a2aeabf3cfcbb9c95600b8886440138c3e5` ([run details](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/38869166133)). The Supabase stack started, the full Node suite passed (**349/349**), the disposable database reset applied migrations and seed data successfully, and the F047 child-lead RLS regression passed (**1 file**). These checks establish successful PostgreSQL migration/reset and the covered RLS authorization paths on a hosted runner.
+
+The workflow then failed at its existing `npm audit --audit-level=high` security gate because the lockfile reports 30 advisories. The secret scan, production build, bundle budget, Chromium, tablet, and real-Supabase browser steps were skipped after that failure; Android validation was consequently skipped too. The 11 local real-Supabase browser cases remain unverified. Do not treat the run as a fully green CRM regression result.
 
 ## Storage and environment
 

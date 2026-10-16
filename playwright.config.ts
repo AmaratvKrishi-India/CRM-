@@ -56,12 +56,8 @@ const playwrightSupabaseAnonKey = realSupabase
   : configuredSupabaseAnonKey || 'playwright-test-anon-key';
 
 const apiTestIgnore = process.env.E2E_API_BASE_URL ? [] : ['**/api.spec.ts'];
-const visualTestIgnore = process.env.CI && process.platform !== 'win32'
-  ? ['**/visual-regression.spec.ts']
-  : [];
 const standardProjectTestIgnore = [
   ...apiTestIgnore,
-  ...visualTestIgnore,
   '**/tablet-responsive.spec.ts',
 ];
 
@@ -129,7 +125,7 @@ export default defineConfig({
     {
       name: 'Tablet',
       testMatch: '**/tablet-responsive.spec.ts',
-      testIgnore: [...apiTestIgnore, ...visualTestIgnore],
+      testIgnore: apiTestIgnore,
       use: {
         viewport: { width: 1024, height: 768 },
         deviceScaleFactor: 1,        isMobile: false,

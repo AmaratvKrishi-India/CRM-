@@ -53,8 +53,8 @@ jobs:
       - name: Reset disposable local Supabase with integration fixtures
         run: npx supabase db reset --local --yes --sql-paths ./seed.sql
 
-      - name: Child-lead RLS and sync mutation regression
-        run: npm run test:vitest -- tests/integration/f047-child-lead-rls.test.ts --reporter dot
+      - name: Supabase integration regression (F040, F047, sync, and Dexie)
+        run: npm run test:vitest -- tests/integration --reporter dot
 
       - name: Dependency security gate
         run: npm audit --audit-level=high

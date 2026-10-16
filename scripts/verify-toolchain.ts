@@ -34,7 +34,6 @@ const tools: Tool[] = [
   { name: 'Snyk', category: 'Dependency/security scanning', command: 'snyk', scope: 'project-local', note: 'CLI is installed; account/token is only needed for authenticated Snyk services.' },
   { name: 'Supabase CLI', category: 'Database/functions', command: 'supabase', scope: 'project-local', paths: isWindows ? [join(projectRoot, 'node_modules', '@supabase', 'cli-windows-x64', 'bin', 'supabase.exe')] : [], probeArgs: ['--version'] },
   { name: 'Capacitor CLI', category: 'Native packaging', command: 'cap', scope: 'project-local' },
-  { name: 'Jest', category: 'Alternative unit runner', command: 'jest', scope: 'project-local', note: 'Installed but Vitest is the project’s configured unit runner.' },
   { name: 'Mocha', category: 'Alternative unit runner', command: 'mocha', scope: 'project-local', note: 'Installed but Vitest is the project’s configured unit runner.' },
   { name: 'Fallow', category: 'Code health/security', command: 'fallow', scope: 'standalone', paths: [join(userProfile, '.local', 'bin', 'fallow.exe'), 'C:\\Users\\PC\\AppData\\Local\\Programs\\fallow\\fallow.exe'] },
   { name: 'Strix', category: 'AI security testing', command: 'strix', scope: 'standalone', paths: [join(userProfile, '.local', 'bin', 'strix.exe')], note: 'Executable is present; authentication/model access is checked only when a scan starts.' },

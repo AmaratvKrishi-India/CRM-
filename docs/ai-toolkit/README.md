@@ -31,5 +31,9 @@ Codex discovers these skills from `.agents/skills/<directory>/SKILL.md` when the
 - Claude-Mem is adapted as a small Git-tracked Markdown memory and standard-library helper. The upstream plugin is not installed.
 - Agent-Reach is adapted as a public-only GitHub/documentation workflow using existing `git` and Python. Its broad third-party integrations are not installed.
 - No AI Slop is adapted as the `professional-writing` skill under its MIT license, with no runtime dependencies.
+- Dependency audit repairs reduced findings from 30 (6 critical, 1 high, 23 moderate) to 4 moderate in the dev-only Snyk CLI chain. The production dependency audit reports 0 before and after. The existing high-severity audit gate remains unchanged.
+- `scripts/ai-toolkit/verify.sh` validates all five skills and the scanner, planning, and memory smoke checks. Full PostgreSQL/Supabase integration runs on GitHub-hosted runners because Codex Cloud uses Docker VFS.
 
 See `INSTALLATION.md`, `COMPATIBILITY.md`, `SECURITY.md`, `MEMORY.md`, and `TEST-RESULTS.md` for exact versions, findings, limitations, and validation.
+
+The raw npm audit JSON is retained under [`dependency-audit/`](dependency-audit/).

@@ -2,7 +2,7 @@
 
 **Review date:** 2026-10-16 (UTC)
 
-**Method:** Inspect official README, source manifests, relevant installers/hooks, and licenses. Pin upstreams to the commit SHAs below. Run SkillSpector 2.12.0 in static-only mode (`--no-llm`) on the upstream skill bundles. The scan inputs were public upstream files only; no CRM source, credentials, or customer data were sent to an external scanner. This checked-in document is the retained security report. Raw JSON output and public source clones remain task-local scratch and are not committed.
+**Method:** Inspect official README, source manifests, relevant installers/hooks, and licenses. Pin upstreams to the commit SHAs below. Run SkillSpector 2.12.0 in static-only mode (`--no-llm`) on the upstream skill bundles. The scan inputs were public upstream files only; no CRM source, credentials, or customer data were sent to an external scanner. Upstream scan output remains summarized below. The separate npm dependency audit JSON is retained under [`dependency-audit/`](dependency-audit/).
 
 ## NVIDIA SkillSpector
 
@@ -38,3 +38,42 @@ The five adapted repository skills each produced zero scanner findings. `profess
 - Agent-Reach's installer can provision multiple platform tools, MCP integrations, and optional cookie-backed channels. Not run.
 - No AI Slop's content can be copied without runtime dependencies; only the reviewed skill and eval text were adapted.
 - No remote LLM analyzer, browser-cookie access, account integration, private API, paid service, or Google Drive authorization was used.
+
+## CRM npm dependency audit
+
+**Run date:** 2026-10-16 (UTC). Full output is retained in [`dependency-audit/dependency-audit-before.json`](dependency-audit/dependency-audit-before.json), [`dependency-audit/dependency-audit-after.json`](dependency-audit/dependency-audit-after.json), and the corresponding production-only JSON files.
+
+| Scope | Before | After |
+| --- | ---: | ---: |
+| Full lockfile | 30 affected packages: 6 critical, 1 high, 23 moderate | 4 moderate, 0 high, 0 critical |
+| Production (`npm audit --omit=dev`) | 0 | 0 |
+
+All 30 findings before the changes were in development-only packages. None of the affected packages ships in the CRM production dependency tree. The remaining four moderate findings are also development-only. The existing `npm audit --audit-level=high` gate is unchanged and passes; the moderate Snyk findings remain visible in both npm output and the checked-in report.
+
+### Repairs applied
+
+| Package | Change | Dependency path and impact |
+| --- | --- | --- |
+| `shell-quote` | 1.10.0 → 1.11.0 via a root npm override | Appium 3.8.0 → `@appium/support` 7.2.8 and `teen_process` 4.2.1 → `shell-quote`. GHSA-pqg4-j6r4-53mv affects `>=1.8.4 <1.11.0` and describes command injection in `quote()` with a crafted line terminator after a comment token. The package is actively imported by Appium process helpers, so this was reachable when using the development Appium CLI. No CRM production path uses Appium. The override stays within shell-quote 1.x; `npm ls` confirmed both Appium dependency paths resolve to 1.11.0, and Appium 3.8.0 starts successfully.
+| `source-map-js` | 1.2.1 → 1.2.2 | Used by PostCSS/Vite, Tailwind's build plugin, and Vitest coverage. GHSA-68fv-2mgg-jv7q affects `<1.2.2` and allows event-loop denial of service when parsing specially crafted indexed source-map offsets. This is reachable in development/build tooling when processing untrusted source maps; it is not part of the shipped production dependency tree.
+| `smol-toml` | 1.8.0 → 1.9.1 | Used by Knip's TOML reader. GHSA-r4xh-jqrq-34v2 affects `<=1.8.0` and describes quadratic parse time from repeated key rescans. A crafted TOML file could consume excessive time when Knip parses it. It is limited to the developer dead-code audit tool.
+| `jest` | Removed direct dev dependency `^30.5.2` | Knip marked it unused. The repository has no Jest config, Jest script, or Jest imports; configured tests use Node `node:test` and Vitest. Removing it also removed its vulnerable `@jest/*` → `babel-plugin-istanbul` → `@istanbuljs/load-nyc-config` → `js-yaml` 3.x → `argparse` → `sprintf-js` chain. `scripts/verify-toolchain.ts` no longer expects Jest as an installed alternative runner.
+| `snyk` | 1.1307.3 → 1.1308.1 within the declared `^1.1307.3` range | Snyk is retained because the manual Windows audit workflow invokes it. Updating within the allowed range did not fix the upstream dependency tree; no safe Snyk release was available during this audit.
+
+The lockfile removes 251 package entries, primarily Jest-only packages; the retained package versions changed only for `shell-quote`, `smol-toml`, `snyk`, and `source-map-js`. The lockfile was regenerated with npm rather than patched by hand, and retained platform metadata for packages still installed.
+
+### Remaining moderate finding
+
+- **Advisory:** GHSA-hp3w-g68c-fv3c (`sprintf-js` denial of service from unbounded precision specifiers; affected `sprintf-js <=1.1.3`).
+- **Path:** `snyk@1.1308.1` → `global-agent@3.0.0` / `roarr@2.15.4` → `sprintf-js@1.1.2`.
+- **Reachability and impact:** this is a dev-only Snyk CLI logging dependency and is absent from the CRM runtime. A crafted format string can make the formatter spend excessive time; the potential impact is a stuck developer audit process. The Snyk wrapper's binary could not be downloaded in this workspace, so its end-to-end CLI path was not exercised. The package relationship itself is confirmed in the npm lockfile.
+- **Why it remains:** the registry's latest `sprintf-js` is 1.1.3, still inside the advisory range. Snyk 1.1308.1 bundles vulnerable `roarr` and `global-agent`; npm's suggested “fix” is a breaking downgrade to Snyk 1.1306.4. We did not force a downgrade or remove an actively referenced audit tool.
+- **Recommended resolution:** update Snyk when it ships a patched dependency tree, or review replacing its npm wrapper with a supported binary distribution that removes these packages. Keep the finding visible and rerun the full audit after that change.
+
+The initial full audit also reported `global-agent` and `roarr` through this same Snyk dependency chain. Their advisories do not add a separate application runtime path; the retained JSON preserves their individual package and advisory metadata.
+
+### Reachability summary
+
+`shell-quote` was imported in active Appium process helpers and received the minimal patched override. `source-map-js` is loaded by the local build pipeline when handling source maps. `smol-toml` is loaded when Knip parses TOML. Jest and its transitive chain were unused and removed. Snyk remains a manual development tool with one unresolved moderate dependency chain. None of these tools is shipped or called by the CRM production application. The production-only audit confirmed zero findings before and after the repair.
+
+The Snyk wrapper attempted to download its CLI from `downloads.snyk.io` and `static.snyk.io`; both connections were reset by the enforced workspace egress policy. No network-policy bypass was attempted. npm audit itself ran locally and its high-severity gate passed.

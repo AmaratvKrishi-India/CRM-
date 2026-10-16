@@ -26,7 +26,7 @@ Detailed full and production-only npm audit output is saved under [`dependency-a
 | Production build | `VITE_SUPABASE_URL=https://codex-test.supabase.co VITE_SUPABASE_ANON_KEY=codex-offline-test-anon-key npm run build` | PASS: 2,020 modules transformed; synthetic build values only. No service was contacted. |
 | Bundle budget | `npm run test:perf:bundle` | PASS: 1,166,394 bytes total, 310,375 gzip bytes, 263,941 Brotli bytes, 17 chunks, no budget warnings. |
 | Vitest service/database/utils subset | `npm run test:vitest -- tests/services tests/db tests/utils --reporter dot` | PASS: 17 files, 238 tests. |
-| Full Vitest inventory | `npm run test:vitest -- --reporter=dot` | BLOCKED locally: 18 files passed; 252 tests passed and 27 skipped. Three Supabase integration files failed setup because no local Supabase stack is available: F040, F047, and `supabase-sync`. The CI workflow is being expanded to run the complete Vitest inventory on a GitHub-hosted disposable Supabase stack. |
+| Full Vitest inventory | `npm run test:vitest -- --reporter=dot` | BLOCKED locally: 18 files passed; 252 tests passed and 27 skipped. Three Supabase integration files failed setup because no local Supabase stack is available: F040, F047, and `supabase-sync`. Hosted run 56 passed the complete Vitest suite on disposable Supabase: 21 files, 279 tests. |
 | Node tests | `npm test -- --runInBand` | BLOCKED locally: 349 tests total, 308 passed, 19 failed, 22 cancelled. The failing PostgreSQL-backed hooks require the absent `supabase_db_calling_app` container. |
 | Chromium browser suite | `npm run test:e2e:chromium` | PASS for local browser coverage: 42 passed, 11 skipped. Skipped cases are the real-Supabase CRUD and multi-client tests; they require the disposable database stack. |
 | Visual regression | `npm run test:visual` | PASS: local Debian Chromium 11/11; hosted Ubuntu 24.04 Chromium 11/11. Separate Linux platform baselines; all 11 Windows baselines remain unchanged. |
@@ -43,11 +43,11 @@ The default secret-scan command also saw the ignored local `work/ai-toolkit/` in
 
 Codex Cloud has Docker storage driver `vfs`. This workspace previously exhausted disk extracting the Supabase PostgreSQL image. No image pull, Docker reconfiguration, or cache deletion was attempted during this task.
 
-GitHub-hosted [workflow run 55](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/38884898695), for source/test commit `2ec7ccf8d06166263f5ab0fe6258d6e835bb1352`, completed successfully:
+GitHub-hosted [workflow run 56](https://github.com/AmaratvKrishi-India/CRM-/actions/runs/38886504157), for source/test commit `44b90c58b49ffe966aec98d067b84e645bdff47a`, completed successfully:
 
 - Disposable Supabase started; `npx supabase db reset --local --yes --sql-paths ./seed.sql` applied migrations and seed data.
 - `npm test -- --runInBand`: 349/349 Node tests passed.
-- `npm run test:vitest -- tests/integration --reporter dot`: 4 files, 41/41 passed, including F040, F047, `supabase-sync`, and Dexie synchronization.
+- `npm run test:vitest -- --reporter dot`: 21 files, 279/279 tests passed, including F040, F047, `supabase-sync`, and Dexie synchronization.
 - Existing dependency gate `npm audit --audit-level=high`: passed with 4 moderate development-only Snyk findings retained and reported.
 - `npx tsx scripts/secret-scanner-test.ts --fail-on-found`, `npm run build`, and `npm run test:perf:bundle`: passed.
 - `npm run test:e2e:chromium`: 42 passed, 11 skipped in the standard profile; all 11 Ubuntu 24.04 visual comparisons passed. The skipped real-Supabase scenarios run separately below.
@@ -58,8 +58,6 @@ GitHub-hosted [workflow run 55](https://github.com/AmaratvKrishi-India/CRM-/acti
 The Ubuntu 24.04 Linux visual baselines were reviewed one by one against the current UI and existing Windows screenshots. The 11 Ubuntu images are kept in a separate `*-chromium-ubuntu24.png` set; the Debian Linux and Windows snapshots are preserved. The earlier 11 failures were missing Ubuntu-specific baselines, not CRM UI regressions.
 
 No SQLite or mock database is used as a substitute for PostgreSQL coverage. The full local Node/Vitest runs still cannot use Supabase in this Codex Cloud workspace, but GitHub-hosted disposable PostgreSQL/Supabase now verifies migrations, F040/F047/sync integration, and live browser CRUD/multi-client behavior. No production data or external Supabase service was used.
-
-Run 55 executed the four integration Vitest files (41/41 passed), rather than the full Vitest inventory. The workflow now runs the complete Vitest suite; that expanded run is pending and no full Vitest CI pass is claimed yet.
 
 ## Toolkit regression checks
 
@@ -85,6 +83,6 @@ The 11 Ubuntu screenshots add about 768 KiB. The writable layer used 365,346,816
 
 ## CI and delivery status
 
-The workflow retains its existing `npm audit --audit-level=high` gate and resets the disposable database before Vitest. Run 55 completed every configured web, integration, browser, security, and Android build job successfully. The next run validates the expanded complete Vitest suite; see the PR head SHA for the final result.
+The workflow retains its existing `npm audit --audit-level=high` gate and resets the disposable database before Vitest. Run 56 passed the full Vitest, browser, security, and Android build jobs. The verification report update is documentation-only and remains on the same development branch and draft PR.
 
 The existing PR remains the delivery target and must stay Draft. Do not merge, deploy, use production data, or modify `main`.

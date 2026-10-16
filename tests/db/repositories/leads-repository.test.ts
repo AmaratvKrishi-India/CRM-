@@ -153,7 +153,11 @@ describe('LeadRepository', () => {
     await createLead({ status: 'INTERESTED' });
 
     const result = await leads.searchAndFilterLeads({ status: ['CONTACTED', 'INTERESTED'], sortOrder: 'asc' });
-    expect(result.leads.map((lead) => lead.status)).toEqual(['CONTACTED', 'INTERESTED']);
+    // This test verifies status filtering, not chronology: the repository's
+    // default sortBy is updatedAt, and close-in-time creates need not have a
+    // predictable tie/order across GitHub runners or IndexedDB implementations.
+    expect(result.total).toBe(2);
+    expect(result.leads.map((lead) => lead.status).sort()).toEqual(['CONTACTED', 'INTERESTED']);
   });
 
   it('should preserve total counts while returning a sorted page window', async () => {

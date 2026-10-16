@@ -53,8 +53,8 @@ jobs:
       - name: Reset disposable local Supabase with integration fixtures
         run: npx supabase db reset --local --yes --sql-paths ./seed.sql
 
-      - name: Child-lead RLS and sync mutation regression
-        run: npm run test:vitest -- tests/integration/f047-child-lead-rls.test.ts --reporter dot
+      - name: Full Vitest regression suite (unit and Supabase integration)
+        run: npm run test:vitest -- --reporter dot
 
       - name: Dependency security gate
         run: npm audit --audit-level=high
@@ -76,6 +76,31 @@ jobs:
 
       - name: Browser tests
         run: npm run test:e2e:chromium
+
+      - name: Print visual review previews on failure
+        if: failure()
+        shell: bash
+        run: |
+          for name in login-desktop login-mobile admin-dashboard; do
+            image="e2e/visual-regression.spec.ts-snapshots/${name}-chromium-ubuntu24.png"
+            if [[ -f "$image" ]]; then
+              printf 'VISUAL_PREVIEW_%s_BEGIN\n' "$name"
+              base64 -w 8192 "$image"
+              printf 'VISUAL_PREVIEW_%s_END\n' "$name"
+            fi
+          done
+
+      - name: Upload visual comparison images on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromium-visual-diagnostics
+          path: |
+            e2e/visual-regression.spec.ts-snapshots/*-chromium-ubuntu24.png
+            test-results/playwright/**/*-actual.png
+            test-results/playwright/**/*-diff.png
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Tablet responsive browser test
         run: npx playwright test e2e/tablet-responsive.spec.ts --project=Tablet
@@ -125,3 +150,28 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew assembleDebug assembleRelease --no-daemon
+
+      - name: Prepare and validate test-only Android assets
+        env:
+          VITE_SUPABASE_URL: https://codex-offline-test.supabase.co
+          VITE_SUPABASE_ANON_KEY: offline-test-only-placeholder-do-not-authenticate
+        run: npm run release:android:prepare
+
+      - name: Assemble debug APK with synthetic backend
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Checksum test-only debug APK
+        run: |
+          cd android/app/build/outputs/apk/debug
+          sha256sum app-debug.apk > app-debug.apk.sha256
+
+      - name: Upload test-only Android debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CRM-2.0.2-debug-test-only
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 7

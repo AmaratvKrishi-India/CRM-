@@ -56,14 +56,16 @@ const playwrightSupabaseAnonKey = realSupabase
   : configuredSupabaseAnonKey || 'playwright-test-anon-key';
 
 const apiTestIgnore = process.env.E2E_API_BASE_URL ? [] : ['**/api.spec.ts'];
-const visualTestIgnore = process.env.CI && process.platform !== 'win32'
-  ? ['**/visual-regression.spec.ts']
-  : [];
 const standardProjectTestIgnore = [
   ...apiTestIgnore,
-  ...visualTestIgnore,
   '**/tablet-responsive.spec.ts',
 ];
+// Playwright's `linux` suffix covers every Linux distribution. Keep the hosted
+// Ubuntu 24.04 baselines separate from the local Codex Cloud distro so font
+// rasterization differences do not mask real UI changes.
+const snapshotPathTemplate = process.env.GITHUB_ACTIONS === 'true'
+  ? '{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-ubuntu24{ext}'
+  : '{testDir}/{testFilePath}-snapshots/{arg}-{projectName}-{platform}{ext}';
 
 /**
  * Playwright configuration for Amaratv Krishi Sales CRM.
@@ -92,6 +94,7 @@ export default defineConfig({
         ['html', { open: 'never', outputFolder: 'playwright-report' }],
       ],
   outputDir: 'test-results/playwright',
+  snapshotPathTemplate,
   use: {
     baseURL,
     actionTimeout: 10_000,
@@ -129,7 +132,7 @@ export default defineConfig({
     {
       name: 'Tablet',
       testMatch: '**/tablet-responsive.spec.ts',
-      testIgnore: [...apiTestIgnore, ...visualTestIgnore],
+      testIgnore: apiTestIgnore,
       use: {
         viewport: { width: 1024, height: 768 },
         deviceScaleFactor: 1,        isMobile: false,

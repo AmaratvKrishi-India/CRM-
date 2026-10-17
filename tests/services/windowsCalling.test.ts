@@ -49,6 +49,7 @@ describe('Windows provider policy and session boundary', () => {
     const jwt=(claim: unknown) => 'eyJ.'+btoa(JSON.stringify(claim))+'.synthetic';
     expect(safeMockBackend('https://dhoinifpzijqyobcamlv.supabase.co',jwt({role:'anon',ref:'dhoinifpzijqyobcamlv'}))).toBe(true);
     expect(safeMockBackend('http://localhost:1234',jwt({role:'service_role'}))).toBe(false);
+    expect(safeMockBackend('http://localhost:1234',jwt({role:'anon',ref:'lahvcodvgubplzfshare'}))).toBe(false);
   });
   it('normalizes India mobile without accepting URI injection', () => { expect(normalizeIndiaMobile('+91 (90000)-00001')).toBe('+919000000001'); for(const phone of ['tel:9000000001','9000000001\n','12345']) expect(()=>normalizeIndiaMobile(phone)).toThrow(); });
   it('does not contact companion before pairing and explicit consent', async () => {

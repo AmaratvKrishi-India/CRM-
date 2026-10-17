@@ -15,7 +15,7 @@ export function safeMockBackend(url: string, key: string): boolean {
     if ((!local && !staging) || /lahvcodvgubplzfshare|sb_secret_/.test(key)) return false;
     if (key.startsWith('eyJ')) {
       const claim = JSON.parse(atob(key.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-      return claim.role === 'anon' && (local || claim.ref === 'dhoinifpzijqyobcamlv');
+      return claim.role === 'anon' && claim.ref !== 'lahvcodvgubplzfshare' && (local || claim.ref === 'dhoinifpzijqyobcamlv');
     }
     return local; // Hosted Preview requires a scoped legacy public key whose ref can be checked.
   } catch { return false; }

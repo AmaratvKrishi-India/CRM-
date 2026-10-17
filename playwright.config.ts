@@ -154,7 +154,7 @@ export default defineConfig({
         env: {
           ...process.env,
           VITE_WINDOWS_CALLING_MOCK: '1',
-          VITE_WINDOWS_CALLING_MOCK_SCOPES: 'org-lucknow-1:usr-agent-001',
+          VITE_WINDOWS_CALLING_MOCK_SCOPES: 'org-lucknow-1:usr-voip-mock-only',
           VITE_SUPABASE_URL: playwrightSupabaseUrl,
           VITE_SUPABASE_ANON_KEY: playwrightSupabaseAnonKey,
         },

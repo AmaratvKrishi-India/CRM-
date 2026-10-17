@@ -1,9 +1,10 @@
 import { test, expect, type Page } from '@playwright/test';
-import { setupAuthMocks, performLogin, MOCK_AGENT } from './helpers/mockAuth';
+import { setupAuthMocks, performLogin, MOCK_AGENT as BASE_AGENT } from './helpers/mockAuth';
 // @ts-expect-error Dependency-free Node companion is an independently packaged JS module.
 import { createCompanion } from '../companion/server.mjs';
 import { injectAxe, getViolations } from 'axe-playwright';
 
+const MOCK_AGENT = { ...BASE_AGENT, id: 'usr-voip-mock-only', email: 'voip-fixture@example.test' };
 const origin = 'http://127.0.0.1:4174';
 test.describe('Windows mock companion and CRM history', () => {
   test.describe.configure({ mode: 'serial' });

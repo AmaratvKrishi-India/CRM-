@@ -1,3 +1,4 @@
+import { knownVercelProtection, approvedBypassHeaders } from './deployment-protection.mjs';
 // Public, unauthenticated smoke only. Never submit a form or query CRM records.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -13,6 +14,7 @@ const report = {
   queriedCustomerRecords: false,
   viewports: [],
 };
+const bypassHeaders = approvedBypassHeaders(process.env);
 const proxyServer = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
 const browser = await chromium.launch({
   headless: true,
@@ -21,17 +23,19 @@ const browser = await chromium.launch({
 try {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1024, height: 768 }]) {
     const context = await browser.newContext({ viewport, serviceWorkers: 'block' });
+    let protectionSeen = false;
     try {
       // Fresh context has no stored session. Deny every write and every backend
       // request; this check exercises the released login UI and static assets.
       await context.route('**/*', async (route) => {
         const request = route.request();
         const url = new URL(request.url());
+        if (request.isNavigationRequest() && knownVercelProtection(url.href, origin)) protectionSeen = true;
         if (!['GET', 'HEAD'].includes(request.method()) || url.origin !== origin) {
           await route.abort('blockedbyclient');
           return;
         }
-        await route.continue();
+        await route.continue({ headers: { ...request.headers(), ...bypassHeaders } });
       });
       const page = await context.newPage();
       const errors = [];
@@ -49,12 +53,19 @@ try {
       page.on('response', (response) => {
         const url = new URL(response.url());
         if (url.origin !== origin) return;
+        if (response.status() >= 300 && response.status() < 400 && knownVercelProtection(response.headers().location || '', origin)) protectionSeen = true;
         if (response.status() >= 400) failedAssets.push({ path: url.pathname, status: response.status() });
         if (url.pathname.endsWith('.js')) {
           scriptReads.push(response.text().then((body) => scripts.push(body)));
         }
       });
-      const response = await page.goto(origin, { waitUntil: 'networkidle', timeout: 60_000 });
+      let response;
+      try { response = await page.goto(origin, { waitUntil: 'networkidle', timeout: 60_000 }); }
+      catch (error) {
+        if (protectionSeen) throw new DeploymentProtectionBlocked('Vercel Deployment Protection requires approved automation access');
+        throw error;
+      }
+      if (protectionSeen) throw new DeploymentProtectionBlocked('Vercel Deployment Protection requires approved automation access');
       assert.equal(response?.status(), 200, 'Production HTTPS must return 200');
       const finalUrl = new URL(page.url());
       report.finalOrigin = finalUrl.origin; // Never retain query strings or bypass URLs.

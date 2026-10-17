@@ -1,0 +1,245 @@
+{
+  "id": "jiofiber-voip-20261017",
+  "milestone": "Maintenance plus safe Windows JioFiber pilot; no merge or hosted mutations",
+  "phases": [
+    {
+      "id": "audit",
+      "title": "audit",
+      "tasks": [
+        {
+          "id": "A1",
+          "title": "Rebaseline branch, reviews and storage",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": []
+        },
+        {
+          "id": "A2",
+          "title": "Audit pinned upstream sources and licenses",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A1"
+          ]
+        },
+        {
+          "id": "A3",
+          "title": "Choose secure pilot boundary and fallback",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "implementation",
+      "title": "implementation",
+      "tasks": [
+        {
+          "id": "B1",
+          "title": "Typed providers and India number validation",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A3"
+          ]
+        },
+        {
+          "id": "B2",
+          "title": "Session-scoped opt-in settings and lifecycle integration",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "B1"
+          ]
+        },
+        {
+          "id": "B3",
+          "title": "DNC, offline and idempotency controls",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "B1"
+          ]
+        },
+        {
+          "id": "C1",
+          "title": "Loopback paired mock companion",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A3"
+          ]
+        },
+        {
+          "id": "C2",
+          "title": "Bounded audited NDJSON contract",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A2"
+          ]
+        },
+        {
+          "id": "C3",
+          "title": "Windows source package and diagnostics",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "C1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "verification",
+      "title": "verification",
+      "tasks": [
+        {
+          "id": "D1",
+          "title": "Policy and abuse tests",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "B3",
+            "C1",
+            "C2"
+          ]
+        },
+        {
+          "id": "D2",
+          "title": "CRM lifecycle and mock browser flow",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "B2",
+            "D1"
+          ]
+        },
+        {
+          "id": "D3",
+          "title": "Windows synthetic CI and existing regression",
+          "status": "in_progress",
+          "owner": "Codex",
+          "depends_on": [
+            "C3",
+            "D2"
+          ]
+        },
+        {
+          "id": "D4",
+          "title": "Audit, typecheck, lint, build and bundle",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "B2",
+            "C1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "operations",
+      "tasks": [
+        {
+          "id": "E1",
+          "title": "Protected browser workflow and Preview backend guard",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A1"
+          ]
+        },
+        {
+          "id": "F1",
+          "title": "Recovery contract dry-run templates",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A1"
+          ]
+        },
+        {
+          "id": "G1",
+          "title": "Architecture, setup, threat model and rollback docs",
+          "status": "completed",
+          "owner": "Codex",
+          "depends_on": [
+            "A3"
+          ]
+        },
+        {
+          "id": "G2",
+          "title": "Review, push and update open PR",
+          "status": "in_progress",
+          "owner": "Codex",
+          "depends_on": [
+            "G1",
+            "D3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "external",
+      "title": "external",
+      "tasks": [
+        {
+          "id": "X1",
+          "title": "Trusted carrier TLS and authenticated isolated engine",
+          "status": "blocked",
+          "owner": "owner",
+          "depends_on": [
+            "A2"
+          ],
+          "blocker": "Pinned upstream disables TLS verification and exposes unauthenticated controls; live mode rejected."
+        },
+        {
+          "id": "X2",
+          "title": "Authorized Windows Jio Bluetooth acceptance",
+          "status": "blocked",
+          "owner": "owner",
+          "depends_on": [
+            "X1"
+          ],
+          "blocker": "No Windows host, Jio line, Bluetooth devices or commercial carrier authorization in Cloud."
+        },
+        {
+          "id": "X3",
+          "title": "Protected hosted browser acceptance",
+          "status": "blocked",
+          "owner": "owner",
+          "depends_on": [
+            "E1"
+          ],
+          "blocker": "Approved Vercel bypass and designated synthetic test identity unavailable."
+        },
+        {
+          "id": "X4",
+          "title": "Hosted recovery and migration operations",
+          "status": "blocked",
+          "owner": "owner",
+          "depends_on": [
+            "F1"
+          ],
+          "blocker": "Approved credentials, private destination, key custody, restore infrastructure and separate Production authority unavailable."
+        },
+        {
+          "id": "X5",
+          "title": "Owner final merge approval",
+          "status": "blocked",
+          "owner": "owner",
+          "depends_on": [
+            "X2",
+            "X3",
+            "X4"
+          ],
+          "blocker": "No merge authorized; recovery, carrier and manual acceptance gates pending."
+        }
+      ]
+    }
+  ]
+}

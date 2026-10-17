@@ -4,12 +4,12 @@ This file stores only durable project engineering context. Do not add customer n
 
 ## Current post-release status
 
-- Released main is `f6f9d7e`; PRs #7 and #8 are merged. Historical draft/merge holds below are superseded.
-- Owner excludes Android real-backend synchronization testing; it is not pending work for this release. VoIP and Drive remain deferred.
+- Released main is `0eea4febfa7e7e1babf0384f3ce47909d28970e8`; PRs #7, #8 and #9 are merged. Historical draft/merge holds below are superseded.
+- Owner excludes Android real-backend synchronization testing; it is not pending work for this release. Owner resumed VoIP feature development on 17 October; real activation remains blocked. Drive remains deferred.
 - Production Vercel matches main; Production Supabase is `lahvcodvgubplzfshare`, Preview is CRM-Staging `dhoinifpzijqyobcamlv`. Both hosted histories still need only the final timestamp repair, blocked by verified recovery/CLI prerequisites and separate production approval.
-- Post-release candidate removes the optional vulnerable Snyk npm wrapper; full and production audits are zero. Use official standalone Snyk for optional manual audits. Check the PR merge status before treating released main as repaired.
+- Released PR #9 removed the optional vulnerable Snyk npm wrapper; full and production audits are zero. Use official standalone Snyk for optional manual audits. Check the PR merge status before treating released main as repaired.
 - Both obsolete merged remote development branches were deleted and verified. See POST-RELEASE-VERIFICATION.md and FRESH-TASK-RECOVERY.md for current evidence and limitations.
-- This task observes cloud revision 2 running; reusable environment publication is unverified. Earlier revision 4 observations belong to an older task.
+- Latest task observed runtime desired/observed revision 2 running/connected with enforced restricted network and no secret bindings; revision numbers in historical reports describe earlier instances. Reusable environment publication remains unverified.
 
 ## Project context
 
@@ -24,7 +24,7 @@ This file stores only durable project engineering context. Do not add customer n
 - Keep Codex skills and task memory in Git. Rebuild SkillSpector from the pinned upstream commit and lockfile when a cloud task starts.
 - Use a local Markdown memory adapter in place of the complete Claude-Mem worker. Do not persist customer data, secrets, credentials, or transcripts.
 - Use a public-only research adapter. Do not use browser cookies, private account integrations, or paid APIs.
-
+- 2026-10-17: Windows calling pilot uses a paired loopback mock companion only. Pinned upstream source rejects live execution due to carrier TLS bypass and unauthenticated global control bindings; no configuration override exists. Native Android dialer is preserved; hosted recovery, commercial carrier authorization and Windows acceptance remain separate gates.
 ## Completed work
 
 - Preserved the original main base `729208d` and the development commits `86e1098` and `ff76607`.
@@ -44,8 +44,8 @@ This file stores only durable project engineering context. Do not add customer n
 - Both hosted projects retain 19 migrations. Final versions: Staging `20261003055436`, Production `20261003055551`; canonical Git version `20261003000018`. Production also requires successful Staging repair and explicit authorization naming `lahvcodvgubplzfshare`.
 - Review Production `17.6.1.164/withdrawn` with Supabase support. No public explanation established a security incident or urgency. Staging is `17.6.1.166/ga`. Do not upgrade without tested recovery and explicit approval.
 - Leaked-password protection still requires Pro or above; organization is Free. No paid upgrade or login-setting change was made. Review Free password-strength controls on Staging and recommend unique long passwords/password managers.
-- Authenticated live smoke requires a designated securely supplied test account and synthetic authorized records. Android real-backend testing, VoIP and Drive remain excluded.
-- Runtime most recently reports revision 7 desired/observed, running/connected, enforced restricted network and no secret bindings or outbound identities. Reusable environment publication is unverified. Check Codex Settings → Environments → CRM and Publish in the UI if the saved revision is still Draft.
+- Authenticated live smoke requires a designated securely supplied test account and synthetic authorized records. Android real-backend sync and Drive remain excluded. VoIP mock development is authorized; real-Jio mode is blocked by the pinned source audit.
+- Historical maintenance runtime reported revision 7; the current task reobserved revision 2, running/connected, enforced restricted network and no secret bindings or outbound identities. Reusable environment publication is unverified. Check Codex Settings → Environments → CRM and Publish in the UI if the saved revision is still Draft.
 - Preserve the original `work` checkout. Maintenance work uses an isolated worktree based on latest main; any new PR remains unmerged pending approval where main triggers Vercel Production.
 
 ## Verification notes

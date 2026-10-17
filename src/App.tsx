@@ -19,6 +19,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastProvider, useToast } from './components/common/Toast';
+import { windowsJioProvider, windowsMockAllowed } from './services/calling/windowsJioProvider';
+import type { CallProviderStatus } from './services/calling/callProvider';
 import { CallLifecycleService } from './services/callLifecycleService';
 import { RealtimeService } from './services/realtime/realtimeService';
 import type { RealtimeInAppNotification } from './services/realtime/realtimeTypes';
@@ -80,6 +82,35 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   const [activeOutcomeLead, setActiveOutcomeLead] = useState<Lead | null>(null);
   const [isOutcomeModalOpen, setIsOutcomeModalOpen] = useState(false);
 
+  const [windowsCallState, setWindowsCallState] = useState<CallProviderStatus | null>(null);
+  const windowsAttempt = useRef<string | null>(null);
+  const callClickLock = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    const remove = windowsJioProvider.subscribe(event => {
+      if (!alive || event.attemptId !== windowsAttempt.current) return;
+      const attempt = CallLifecycleService.observeWindowsMock(event);
+      setWindowsCallState(event.state);
+      if (attempt?.state === 'OUTCOME_PENDING') {
+        void crmData.leads.getLeadById(attempt.leadId).then(lead => {
+          if (!alive || !lead) return;
+          setActiveOutcomeLead(lead); setIsOutcomeModalOpen(true);
+        });
+      }
+    });
+    const interrupted = CallLifecycleService.recoverWindowsMock();
+    if (interrupted) {
+      void crmData.leads.getLeadById(interrupted.leadId).then(lead => {
+        if (alive && lead) { setActiveOutcomeLead(lead); setIsOutcomeModalOpen(true); setWindowsCallState('error'); }
+      });
+    }
+    const abandon = () => { void windowsJioProvider.disconnect(false); };
+    window.addEventListener('pagehide', abandon);
+    window.addEventListener('offline', abandon);
+    return () => { alive = false; remove(); window.removeEventListener('pagehide', abandon); window.removeEventListener('offline', abandon); void windowsJioProvider.disconnect(); };
+  }, [currentUser?.id, currentUser?.organizationId]);
+
   // WhatsApp Compose Modal State
   const [activeWhatsAppLead, setActiveWhatsAppLead] = useState<Lead | null>(null);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
@@ -126,6 +157,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
     setCallStartedAt(null);
     setIsOutcomeModalOpen(false);
     setActiveOutcomeLead(null);
+    setWindowsCallState(null); windowsAttempt.current = null;
   };
 
   // Keep latest UI state in a ref to avoid stale closures in the native back-button listener
@@ -248,14 +280,28 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
   const handleCallLead = async (lead: Lead) => {
     if (!currentUser) return;
     try {
+      if (windowsJioProvider.isSelected(currentUser)) {
+        if (!windowsJioProvider.isEnabled(currentUser)) throw new Error('Reconnect in Settings and retry manually.');
+        if (callClickLock.current) return;
+        callClickLock.current = true;
+        try {
+          if (!navigator.onLine) throw new Error('Offline. Reconnect and retry manually.');
+          const attempt = await CallLifecycleService.beginWindowsMock(currentUser, lead.id);
+          windowsAttempt.current = attempt.attemptId;
+          setWindowsCallState('connecting');
+          await windowsJioProvider.requestDial({ actor: currentUser, lead: { ...lead, phone: attempt.leadPhone }, attemptId: attempt.attemptId, manualConsent: true });
+          return;
+        } finally { callClickLock.current = false; }
+      }
       CallLifecycleService.initiateDial(currentUser, lead);
       setPendingCallLead(lead);
       setActiveOutcomeLead(lead);
       setIsOutcomeModalOpen(true);
     } catch (err) {
-      console.error('Failed to trigger phone call:', err);
+      // Never include dial payloads or numbers in browser diagnostics.
+      void err;
       showToast({
-        message: `Could not start the call to ${lead.businessName}. Please try again.`,
+        message: 'Could not start the call. Check Settings, pairing and lead contact permission, then retry manually.',
         tone: 'error',
       });
     }
@@ -279,9 +325,10 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
       priority?: FollowUpPriority;
     };
   }) => {
-    if (!activeOutcomeLead || !currentUser) return;
+    if (!activeOutcomeLead || !currentUser || windowsJioProvider.isActive()) return;
 
     try {
+      const mockOutcome = CallLifecycleService.getPendingAttempt()?.provider === 'windows-mock';
       await CallLifecycleService.completeCall(currentUser, {
         outcome: data.outcome,
         quickRemark: data.quickRemark,
@@ -290,7 +337,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
         reportedDurationSeconds: data.reportedDurationSeconds,
       });
 
-      if (data.followUp) {
+      if (data.followUp && !mockOutcome) {
         await crmData.followUps.scheduleFollowUp({
           leadId: activeOutcomeLead.id,
           userId: currentUser.id,
@@ -305,6 +352,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
       setCallStartedAt(null);
       setIsOutcomeModalOpen(false);
       setActiveOutcomeLead(null);
+      setWindowsCallState(null); windowsAttempt.current = null;
       refreshPendingCount();
     } catch (err) {
       console.error('Failed to save call outcome:', err);
@@ -342,6 +390,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
       >
         Skip to main content
       </a>
+      {windowsMockAllowed(currentUser) && <button type="button" className="min-h-11 p-3 border-b border-line text-ink" onClick={() => setIsSettingsModalOpen(true)}>Windows mock calling settings</button>}
       {/* Return to Admin Banner if in Admin Sales Mode */}
       {isSalesModeForAdmin && onReturnToAdmin && (
         <aside aria-label="Admin sales mode" className="bg-accent-soft text-accent-text px-4 py-2 text-sm flex items-center justify-between shadow-sm sticky top-0 z-40 border-b border-line">
@@ -549,6 +598,10 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
         </nav>
       )}
 
+      {windowsCallState && <aside aria-label="Windows mock call" className="p-3 border-t border-line bg-surface text-ink">
+        <p role="status">Mock call: {windowsCallState}. No carrier call or verified duration.</p>
+        {windowsJioProvider.isActive() && <button type="button" className="min-h-11 px-3 rounded-xl border border-line" onClick={() => { if (windowsAttempt.current) void windowsJioProvider.hangup(windowsAttempt.current); }}>End mock call</button>}
+      </aside>}
       {/* Global Call Outcome & Remark Modal */}
       <CallOutcomeModal
         isOpen={isOutcomeModalOpen}
@@ -586,6 +639,7 @@ function SalesAppContent({ isSalesModeForAdmin = false, onReturnToAdmin }: Sales
         <Suspense fallback={<LoadingFallback />}>
           <SettingsModal
             isOpen={isSettingsModalOpen}
+            initialTab={windowsMockAllowed(currentUser) ? 'PREFERENCES' : 'MESSAGES'}
             onClose={() => setIsSettingsModalOpen(false)}
             onTemplatesChanged={() => {
               // Template changes propagate dynamically

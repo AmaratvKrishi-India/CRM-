@@ -1,7 +1,10 @@
+// @ts-expect-error Reviewed dependency-free guard shared with Node contract tests.
+import { assertPreviewTestTarget } from './scripts/preview-test-guard.mjs';
 import { execFileSync } from 'node:child_process';
 import { defineConfig, devices } from '@playwright/test';
 
 const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim();
+if (externalBaseURL) assertPreviewTestTarget(process.env);
 const localBaseURL = 'http://127.0.0.1:4174';
 const baseURL = externalBaseURL || localBaseURL;
 const realSupabase = process.env.PLAYWRIGHT_REAL_SUPABASE === '1';
@@ -150,6 +153,8 @@ export default defineConfig({
         timeout: 120_000,
         env: {
           ...process.env,
+          VITE_WINDOWS_CALLING_MOCK: '1',
+          VITE_WINDOWS_CALLING_MOCK_SCOPES: 'org-lucknow-1:usr-agent-001',
           VITE_SUPABASE_URL: playwrightSupabaseUrl,
           VITE_SUPABASE_ANON_KEY: playwrightSupabaseAnonKey,
         },

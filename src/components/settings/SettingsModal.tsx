@@ -34,6 +34,7 @@ import { Modal } from '../common/Modal';
 import { useToast } from '../common/Toast';
 import { labelFor } from '../../lib/labels';
 import { SyncRecoveryPanel } from '../sync/SyncRecoveryPanel';
+import { WindowsCallingSettings } from './WindowsCallingSettings';
 import { AppSelect } from '../common/AppSelect';
 
 interface SettingsModalProps {
@@ -831,6 +832,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           aria-labelledby="settings-tab-preferences"
           className="space-y-4"
         >
+          <WindowsCallingSettings key={`calling:${currentUser?.organizationId}:${currentUser?.id}`} />
           {/* ── Sync Status Section ── */}
           <SyncRecoveryPanel key={`${currentUser?.organizationId}:${currentUser?.id}`} />
           <div>

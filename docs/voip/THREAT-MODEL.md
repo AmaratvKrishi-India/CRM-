@@ -10,7 +10,7 @@ Assets: CRM identity/tenant partition, lead numbers, local call authority, carri
 | Account change, logout, sleep/network loss | Async generation checks, unpair, 30s lease, no automatic reconnect/redial, refresh interruption | HTTP revocation can fail; live safety needs stronger local attestation/cancel semantics |
 | Leaked numbers/passwords | No number in URLs, no SIP inputs, generic HTTP errors, no persistent logs, no recordings; source package whitelist | E2E traces contain synthetic pair material only; never use traces with real secrets |
 | Local port hijack or other Windows user | Fixed endpoint; collision fails, wrong account pairing fails | Same-machine process trust/ACL cannot be proved by TCP; local-Jio disabled |
-| Untrusted SIP tool/credential exporters | Pinned text audit/hashes; no binaries/installers/OTP; real mode rejected | Upstream TLS, global bind, GPL/dependency provenance unresolved |
+| Untrusted SIP tool/credential exporters | Pinned text audit/hashes; no binary/installer execution or OTP; real mode rejected | Upstream TLS, global bind, GPL/dependency provenance unresolved |
 | Fake connected/billing evidence | Mock provenance, carrierVerified false, zero duration/null answeredAt, no VERIFIED escalation | Real media/answer/duration require new reviewed evidence contract |
 | Hosted test writes to Production | Exact Preview+Staging key guard plus actual build inspection before E2E writes | Approved Preview access and synthetic test identity still absent |
 | Secret-bearing PR CI | New workflow has contents:read, no environment/secrets, mock-only | Existing release workflow uses Production environment/public build bindings; unchanged, not enlarged |

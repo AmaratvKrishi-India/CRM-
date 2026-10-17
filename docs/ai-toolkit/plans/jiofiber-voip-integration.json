@@ -121,7 +121,7 @@
         {
           "id": "D3",
           "title": "Windows synthetic CI and existing regression",
-          "status": "in_progress",
+          "status": "completed",
           "owner": "Codex",
           "depends_on": [
             "C3",
@@ -174,7 +174,7 @@
         {
           "id": "G2",
           "title": "Review, push and update open PR",
-          "status": "in_progress",
+          "status": "completed",
           "owner": "Codex",
           "depends_on": [
             "G1",
@@ -198,12 +198,23 @@
           "blocker": "Pinned upstream disables TLS verification and exposes unauthenticated controls; live mode rejected."
         },
         {
+          "id": "X6",
+          "title": "Obtain Jio commercial-use authorization or compliant business alternative",
+          "status": "blocked",
+          "owner": "owner",
+          "depends_on": [
+            "A2"
+          ],
+          "blocker": "Residential voice plan does not establish authorization for outbound commercial CRM use."
+        },
+        {
           "id": "X2",
           "title": "Authorized Windows Jio Bluetooth acceptance",
           "status": "blocked",
           "owner": "owner",
           "depends_on": [
-            "X1"
+            "X1",
+            "X6"
           ],
           "blocker": "No Windows host, Jio line, Bluetooth devices or commercial carrier authorization in Cloud."
         },

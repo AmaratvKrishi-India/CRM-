@@ -29,7 +29,7 @@ The broad tool inventory reported 16/29 ready in this environment. Missing optio
 
 ## Cloud revision and publication
 
-The latest managed status reports desired/observed revision **7**, running and connected, with current observations, enforced restricted networking, and no configured secrets, runtime variables or outbound identities. Earlier observations in this task reported revision 2; revisions must be rechecked after environment changes and in each new task. This status does not establish PostgreSQL connectivity or publication.
+The current VoIP task observed desired/observed revision **2**, running and connected, with current observations, enforced restricted networking, and no configured secrets, runtime variables or outbound identities. The preceding maintenance task observed revision 7 in its own environment instance; recheck revisions after environment changes and in each new task. This status does not establish PostgreSQL connectivity or publication.
 
 The tools expose status but no environment publish action. **Publication of a reusable environment revision is unverified.** If the owner wants environment-level persistence, open Codex Cloud Settings → Environments, select the CRM environment, review setup prerequisites and allowed destinations, save and publish the revision in the UI, then start a fresh task and recheck observed revision plus toolkit verification. No publish action was performed here.
 

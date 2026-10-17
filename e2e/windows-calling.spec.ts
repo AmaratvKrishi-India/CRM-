@@ -63,6 +63,14 @@ test.describe('Windows mock companion and CRM history', () => {
     await injectAxe(page);await page.waitForTimeout(350);expect(await getViolations(page)).toEqual([]);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth)).toBe(false);
   });
+  test('connection loss keeps calling paused until the user explicitly disables the pilot',async ({page})=>{
+    await pair(page);await companion.close();
+    await page.getByRole('button',{name:'Windows mock calling settings'}).click();
+    await expect(page.getByText('Mock calling paused. Disable and unpair to return to the manual dialer.')).toBeVisible();
+    await page.getByRole('button',{name:'Disable and unpair'}).click();
+    await expect(page.getByText('Disabled and unpaired. Restart the companion for a new code.')).toBeVisible();
+    await expect(page.getByLabel('One-time code from your local companion')).toBeVisible();
+  });
   test('refresh interrupts the mock attempt without redial and asks for manual outcome',async ({page})=>{
     await pair(page);await addLead(page);await page.getByRole('button',{name:'Call',exact:true}).click();
     await page.reload();await expect(page.getByRole('dialog').getByText('Call outcome',{exact:true})).toBeVisible();

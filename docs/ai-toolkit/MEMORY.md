@@ -37,7 +37,7 @@ This file stores only durable project engineering context. Do not add customer n
 - The existing hosted run 50 at `29a1933` completed all 349 Node tests, database reset/migrations/seed, and F047. It stopped at the old dependency audit failure before browser and Android stages. Updated hosted CI for the current work is pending.
 - Removed task-created non-scanner source clones and duplicate reconstruction scratch; retained the 19 MiB pinned SkillSpector checkout required by its editable install.
 - On GitHub Actions run 47 for `239c5a2`, local Supabase started, all 349 Node tests passed, database reset/migrations/seed passed, and the F047 RLS regression passed. The job stopped at the existing high-severity npm audit gate; later workflow stages were skipped.
-
+- 2026-10-17: VoIP safe mock pilot is implemented with opt-in Windows settings, paired loopback companion, source-only Windows packaging, transactional unverified history, and Android dialer preservation. Baseline CI at runtime commit 24fac77 passed disposable database, web and Android jobs; final head checks are linked in PR 10 and the VoIP execution report. Real carrier mode remains hard-disabled due to pinned upstream security and handoff blockers; carrier authorization and hosted recovery remain owner gates.
 ## Pending work
 
 - Hosted backups and recovery rehearsal remain blocked: no approved PostgreSQL credentials, private external retention destination, independent encryption-key custody or secured disposable restore target are configured. No hosted migration history may change before these gates pass.

@@ -1,3 +1,4 @@
+import { createUuid } from '../../utils/id';
 import type { User } from '../../db/types';
 import { NativePlatformService } from '../nativePlatform';
 import { normalizeIndiaMobile } from './callProvider';
@@ -31,8 +32,8 @@ export function windowsMockAllowed(actor: User | null): boolean {
 export class WindowsJioProvider implements CallProvider {
   readonly platform = 'windows' as const;
   private token: string | null = null;
-  private deviceId = crypto.randomUUID();
-  private sessionId = crypto.randomUUID();
+  private deviceId = createUuid();
+  private sessionId = createUuid();
   private actor: User | null = null;
   private enabled = false;
   private selectedScope: string | null = null;

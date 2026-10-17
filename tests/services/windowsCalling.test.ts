@@ -35,6 +35,7 @@ async function database() {
 }
 
 describe('Windows provider policy and session boundary', () => {
+  it('does not require randomUUID to load a disabled provider on older WebViews', () => { vi.stubGlobal('crypto', {}); expect(() => new WindowsJioProvider()).not.toThrow(); });
   it('keeps real calling hard disabled and mock default off', () => { expect(LOCAL_JIO_ENABLED).toBe(false); vi.stubEnv('VITE_WINDOWS_CALLING_MOCK',''); expect(windowsMockAllowed(actor)).toBe(false); });
   it('requires active allowed user and organization, Windows and web platform', () => {
     expect(windowsMockAllowed(actor)).toBe(true);
@@ -71,6 +72,21 @@ describe('Windows provider policy and session boundary', () => {
     await expect(provider.requestDial({actor,lead,attemptId:'two',manualConsent:true})).rejects.toThrow();
     vi.mocked(fetch).mockImplementationOnce(async()=>response({event:{attemptId:'other',state:'connected',sequence:2,observedAt:Date.now(),provenance:'mock',carrierVerified:false}}));
     release(response({nonce:'synthetic'}));await first;expect(events).toEqual([]);expect(provider.status).toBe('connecting');
+  });
+  it('drops stale, regressing and falsely verified events without fabricating call facts', async () => {
+    await paired();const observed: string[]=[];provider.subscribe(event=>observed.push(event.state));
+    const event={attemptId:'one',state:'ringing',sequence:2,observedAt:Date.now(),provenance:'mock',carrierVerified:false};
+    vi.mocked(fetch).mockImplementationOnce(async()=>response({nonce:'synthetic'}));
+    vi.mocked(fetch).mockImplementationOnce(async()=>response({event}));
+    await provider.requestDial({actor,lead,attemptId:'one',manualConsent:true});
+    // Test parser contract directly without waiting for periodic IO.
+    const accept=(raw: unknown)=>(provider as unknown as {acceptEvent(raw: unknown):void}).acceptEvent(raw);
+    accept({...event,state:'connected',sequence:3,observedAt:Date.now()-31000});
+    accept({...event,state:'connected',sequence:3,carrierVerified:true});
+    accept({...event,state:'connecting',sequence:4});
+    accept({...event,sequence:1});
+    expect(observed).toEqual(['ringing']);
+    accept({...event,state:'ended',sequence:5});expect(observed).toEqual(['ringing','ended']);expect(provider.isActive()).toBe(false);
   });
   it('logout during intent exchange prevents dial command', async () => {
     await paired();let release!: (value:Response)=>void;

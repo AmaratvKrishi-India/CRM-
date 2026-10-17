@@ -79,3 +79,19 @@ test('Android browser keeps Windows pilot hidden',async({page})=>{
   await expect(page.getByRole('tab',{name:/Dashboard/i})).toBeVisible();
   await expect(page.getByRole('button',{name:'Windows mock calling settings'})).toHaveCount(0);
 });
+
+test('synthetic HTTPS context with actual Production CSP blocks loopback handoff',async({page})=>{
+  const { readFileSync }=await import('node:fs');
+  const deployment=JSON.parse(readFileSync('vercel.json','utf8'));
+  const policy=deployment.headers[0].headers.find((header:{key:string})=>header.key==='Content-Security-Policy').value;
+  let loopbackRequests=0;
+  await page.route('http://127.0.0.1:48765/**',route=>{loopbackRequests++;return route.abort();});
+  await page.route('https://synthetic-preview.example.test/',route=>route.fulfill({status:200,contentType:'text/html',headers:{'Content-Security-Policy':policy},body:'<!doctype html><title>Synthetic policy fixture</title><p>Policy fixture</p>'}));
+  await page.goto('https://synthetic-preview.example.test/');
+  expect(await page.evaluate(()=>window.isSecureContext)).toBe(true);
+  const directive=await page.evaluate(()=>new Promise<string>(resolve=>{
+    document.addEventListener('securitypolicyviolation',event=>resolve(event.effectiveDirective),{once:true});
+    void fetch('http://127.0.0.1:48765/status',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).catch(()=>{});
+  }));
+  expect(directive).toBe('connect-src');expect(loopbackRequests).toBe(0);
+});

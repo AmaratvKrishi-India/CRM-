@@ -1,0 +1,36 @@
+{
+  "staging": {
+    "projectRef": "dhoinifpzijqyobcamlv",
+    "reviewerProtection": false,
+    "mainOnly": false,
+    "approvedPostgresBinding": false,
+    "verifyFullTls": false,
+    "trustedCa": false,
+    "privateRetention": false,
+    "independentKeyCustody": false,
+    "authAndMigrationMetadata": false,
+    "storageObjectPlan": false,
+    "isolatedPg17Restore": false,
+    "sideEffectsBlocked": false,
+    "downloadIntegrity": false,
+    "restoreAndRollbackEvidence": false,
+    "providerPatchReview": false
+  },
+  "production": {
+    "projectRef": "lahvcodvgubplzfshare",
+    "reviewerProtection": false,
+    "mainOnly": false,
+    "approvedPostgresBinding": false,
+    "verifyFullTls": false,
+    "trustedCa": false,
+    "privateRetention": false,
+    "independentKeyCustody": false,
+    "authAndMigrationMetadata": false,
+    "storageObjectPlan": false,
+    "isolatedPg17Restore": false,
+    "sideEffectsBlocked": false,
+    "downloadIntegrity": false,
+    "restoreAndRollbackEvidence": false,
+    "providerPatchReview": false
+  }
+}

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export const PRODUCTION_CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests";
-export const DEVELOPMENT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co http://127.0.0.1:15432 ws://127.0.0.1:15432 http://localhost:54321 ws://localhost:54321; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
+export const DEVELOPMENT_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co http://127.0.0.1:48765 http://127.0.0.1:15432 ws://127.0.0.1:15432 http://localhost:54321 ws://localhost:54321; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'";
 
 function cspMetaPlugin() {
   const buildPolicy = process.env.VITE_APP_ENV === 'local-test' ? DEVELOPMENT_CSP : PRODUCTION_CSP;

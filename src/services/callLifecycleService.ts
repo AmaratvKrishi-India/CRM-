@@ -15,7 +15,9 @@ import { LeadRepository } from '../db/repositories/leadRepository';
 import { ActivityRepository } from '../db/repositories/activityRepository';
 import { SyncQueue } from './sync/syncQueue';
 import { DeviceService } from './deviceService';
-import { NativePlatformService } from './nativePlatform';
+import { NativeDialerProvider } from './calling/nativeDialerProvider';
+import { normalizeIndiaMobile } from './calling/callProvider';
+import type { CallProviderEvent } from './calling/callProvider';
 import { createUuid } from '../utils/id';
 import type {
   User,
@@ -46,6 +48,8 @@ export interface PendingDialAttempt {
   dialStartedAt: string;
   returnedAt: string | null;
   state: CallLifecycleState;
+  provider?: 'windows-mock';
+  providerObservation?: Pick<CallProviderEvent, 'state' | 'observedAt' | 'sequence' | 'provenance'>;
 }
 
 export interface CompleteCallInput {
@@ -176,9 +180,89 @@ export class CallLifecycleService {
     this.savePendingAttempt(attempt);
 
     // Open native dialer (ACTION_DIAL)
-    NativePlatformService.openDialer(lead.phone);
+    void new NativeDialerProvider().requestDial({ attemptId, actor, lead, manualConsent: true });
 
     return attempt;
+  }
+
+  /** Prepare a manual mock attempt; no dialer or background queue is invoked. */
+  static async beginWindowsMock(actor: User | null, leadId: string): Promise<PendingDialAttempt> {
+    this.assertActor(actor);
+    const db = this.getDb();
+    const lead = await db.requireAccessibleLead(leadId);
+    this.assertActor(actor); // Account may change during the read.
+    if (db !== this.getDb()) throw new Error('Session changed. Retry manually.');
+    if (lead.deletedAt || lead.status === 'DO_NOT_CONTACT') throw new Error('This lead must not be contacted.');
+    normalizeIndiaMobile(lead.phone);
+    if (this.getPendingAttempt()) throw new Error('Finish or dismiss the pending call first.');
+    const attempt: PendingDialAttempt = {
+      attemptId: createUuid(), leadId: lead.id, leadName: lead.businessName, leadPhone: lead.phone,
+      userId: actor.id, dialStartedAt: new Date().toISOString(), returnedAt: null,
+      state: 'DIAL_INITIATED', provider: 'windows-mock',
+    };
+    this.savePendingAttempt(attempt);
+    return attempt;
+  }
+
+  static recoverWindowsMock(): PendingDialAttempt | null {
+    const attempt = this.getPendingAttempt();
+    if (attempt?.provider !== 'windows-mock') return null;
+    attempt.state = 'OUTCOME_PENDING';
+    attempt.returnedAt ||= new Date().toISOString();
+    this.savePendingAttempt(attempt);
+    return attempt; // Interrupted attempt only; never reconnect or redial after refresh.
+  }
+
+  static observeWindowsMock(event: CallProviderEvent): PendingDialAttempt | null {
+    const attempt = this.getPendingAttempt();
+    if (!attempt || attempt.provider !== 'windows-mock' || event.provenance !== 'mock' ||
+        event.carrierVerified !== false || event.attemptId !== attempt.attemptId ||
+        event.sequence <= (attempt.providerObservation?.sequence ?? 0)) return null;
+    attempt.providerObservation = { state: event.state, observedAt: event.observedAt, sequence: event.sequence, provenance: 'mock' };
+    if (event.state === 'ended' || event.state === 'error') {
+      attempt.state = 'OUTCOME_PENDING';
+      attempt.returnedAt = new Date().toISOString();
+    }
+    this.savePendingAttempt(attempt);
+    return attempt;
+  }
+
+  private static async completeWindowsMock(actor: User, input: CompleteCallInput, attempt: PendingDialAttempt): Promise<{ callRecord: CallRecord; auditActivity: Activity }> {
+    const db = this.getDb();
+    if (attempt.state !== 'OUTCOME_PENDING') throw new Error('End the mock attempt before saving an outcome.');
+    const result = await db.transaction('rw', [db.callRecords, db.leads, db.activities, db.outbox], async () => {
+      this.assertActor(actor);
+      const callRepo = new CallRecordRepository(db);
+      const leadRepo = new LeadRepository(db);
+      const activityRepo = new ActivityRepository(db);
+      const existing = await callRepo.getCallRecordById(attempt.attemptId);
+      const auditId = attempt.attemptId; // Separate table, same UUID: deterministic and server-compatible.
+      if (existing) {
+        const auditActivity = await db.activities.get(auditId);
+        if (!auditActivity) throw new Error('Incomplete mock call audit.');
+        return { callRecord: existing, auditActivity };
+      }
+      const remark = [input.quickRemark, input.customNote].filter(Boolean).join(' — ') || null;
+      const callRecord = await callRepo.createCallRecord({
+        id: attempt.attemptId, dialAttemptId: attempt.attemptId, leadId: attempt.leadId, userId: actor.id,
+        deviceId: DeviceService.getDeviceId(), startedAt: attempt.dialStartedAt, endedAt: attempt.returnedAt,
+        answeredAt: null, durationSeconds: 0, reportedDurationSeconds: null,
+        verificationStatus: 'UNVERIFIED', callStatus: 'DIAL_ATTEMPT', outcome: input.outcome,
+        remark: `[MOCK — no carrier call]${remark ? ' ' + remark : ''}`,
+      });
+      const lead = await db.requireAccessibleLead(attempt.leadId);
+      await leadRepo.updateLead(lead.id, { callCount: (lead.callCount || 0) + 1, updatedBy: actor.id });
+      // Mock outcomes never change real contact/status statistics or claim an answered call.
+      const auditActivity = await activityRepo.logActivity({
+        id: auditId, leadId: lead.id, userId: actor.id, deviceId: DeviceService.getDeviceId(), activityType: 'CALL_COMPLETED',
+        metadata: { callRecordId: callRecord.id, attemptId: attempt.attemptId, provenance: 'mock',
+          carrierVerified: false, durationSeconds: 0, verificationStatus: 'UNVERIFIED',
+          outcome: input.outcome, observation: attempt.providerObservation || null },
+      });
+      return { callRecord, auditActivity };
+    });
+    if (this.getPendingAttempt()?.attemptId === attempt.attemptId) this.savePendingAttempt(null);
+    return result;
   }
 
   /**
@@ -188,7 +272,7 @@ export class CallLifecycleService {
    */
   static handleAppStateChange(isActive: boolean): PendingDialAttempt | null {
     const attempt = this.getPendingAttempt();
-    if (!attempt) return null;
+    if (!attempt || attempt.provider === 'windows-mock') return null;
 
     if (!isActive) {
       // App entered background (user went to phone app)
@@ -231,6 +315,8 @@ export class CallLifecycleService {
     if (!attempt) {
       throw new Error('No active call attempt found to complete.');
     }
+
+    if (attempt.provider === 'windows-mock') return this.completeWindowsMock(actor, input, attempt);
 
     const callRepo = this.getCallRecordRepo();
     const leadRepo = this.getLeadRepo();

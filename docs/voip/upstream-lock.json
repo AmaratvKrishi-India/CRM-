@@ -1,0 +1,26 @@
+{
+  "executionPermitted": false,
+  "sources": [
+    {
+      "name": "sipserver",
+      "commit": "b8651e921e2370845c88e8ea36ae53f491c26435",
+      "files": {
+        "src/b2bua.cpp": "43243eef76d7bd6e087e4676defb7e9e0f2206e3b21700ad88fe4047bd98c50b",
+        "install_windows.ps1": "40a1687e783619e469dc4511d05bf43ababe14a42401351b1a55cc17a0a2620c",
+        "b2bua_sync.bat": "c13c51684699034f0b26cc073d92b45d198905524a0a4df033e58b8a4b3ff837",
+        "LICENSE": "1126322e2cc8d165adc4c792eeb195717de2bcc7b39be1ce77959d78e87ef685"
+      }
+    },
+    {
+      "name": "NetSIPCore",
+      "commit": "f594e3eea6b65825691513943a2ccf5cda8e853b",
+      "files": {
+        "src/tcp/TcpServer.cpp": "31021f2e4f550d7c00e9c89729cdadcd4175bd3606e1f7d695f82834916f2e5b",
+        "src/SIPCore.cpp": "3aaef3607072be7c07d3ed41d701b2c800eb3a138112a302f7e61c944698585d",
+        "src/utils/Json.cpp": "bce038b093cc5e0c5b2c6e78f495759b89f1fac28345a19e37a3f9108a8a340c",
+        "CMakeLists.txt": "bafdbafbbb8930c3019ad60725b0729facb10e8d8842d86dcf0eb9a7ab8b9d8c",
+        "LICENSE": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+      }
+    }
+  ]
+}

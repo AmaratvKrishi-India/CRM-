@@ -1,0 +1,64 @@
+name: VoIP synthetic pilot
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: voip-mock-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-companion:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify pinned upstream text only
+        run: python scripts/verify-voip-upstream.py
+      - name: Syntax and synthetic contract checks (no npm dependencies)
+        run: |
+          node --check companion/server.mjs
+          node --check companion/protocol.mjs
+          node --test companion/server.test.mjs
+      - name: Validate tracked plan
+        run: python scripts/ai-toolkit/plan.py validate docs/ai-toolkit/plans/jiofiber-voip-integration.json
+      - name: Package reviewed mock source and checksums
+        run: |
+          node scripts/package-voip-companion.mjs
+          Compress-Archive -Path work/voip-companion/* -DestinationPath work/voip-companion.zip
+          (Get-FileHash work/voip-companion.zip -Algorithm SHA256).Hash | Set-Content work/voip-companion.zip.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-mock-companion-source
+          path: |
+            work/voip-companion.zip
+            work/voip-companion.zip.sha256
+          retention-days: 7
+  web-mock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No GitHub environment, production credentials, service role, SIP secrets or bypass.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-fund --no-audit
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - run: npx vitest run tests/services/windowsCalling.test.ts --reporter dot
+      - run: node --test tests/voip/*.test.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test e2e/windows-calling.spec.ts --project=chromium

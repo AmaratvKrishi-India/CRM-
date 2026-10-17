@@ -1,0 +1,46 @@
+name: Approved protected Production read-only smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  protection-preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Require existing reviewer and main-only environment (no secrets)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-browser-environment.py
+  protected-readonly:
+    needs: protection-preflight
+    if: github.ref == 'refs/heads/main'
+    environment: CRM-Production-Browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - run: npm ci --no-fund --no-audit
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - run: npx playwright install --with-deps chromium
+      - name: Fixed origin GET-only test; bypass never authenticates a CRM user
+        env:
+          VERCEL_AUTOMATION_BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS }}
+          CRM_BROWSER_PROTECTION_VERIFIED: '1'
+        run: node scripts/production-readonly-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: protected-production-readonly-result
+          path: test-results/production-readonly-smoke.json
+          retention-days: 7
